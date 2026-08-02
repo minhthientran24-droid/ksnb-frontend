@@ -1,8 +1,16 @@
+﻿$path = Join-Path (Get-Location) "pages\bao-cao\[period].js"
+
+$content = @'
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../../components/Layout";
 import { getReport, listReports } from "../../lib/api";
 
+// Bắt buộc phải có với route động ([period].js) khi dùng "pages router"
+// của Next.js, dù trang này chỉ lấy dữ liệu phía client (useEffect) chứ
+// không cần dữ liệu lúc build. fallback:'blocking' để Next.js render
+// đúng theo period thực tế mỗi khi có người truy cập, không cần biết
+// trước danh sách period lúc build.
 export async function getStaticPaths() {
   return { paths: [], fallback: "blocking" };
 }
@@ -187,3 +195,8 @@ export default function BaoCaoDetailPage() {
     </Layout>
   );
 }
+'@
+
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText($path, $content, $utf8NoBom)
+Write-Host "Da ghi file thanh cong, chuan UTF-8!"
