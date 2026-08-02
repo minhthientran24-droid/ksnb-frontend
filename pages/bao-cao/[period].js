@@ -1,7 +1,15 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../../components/Layout";
 import { getReport, listReports } from "../../lib/api";
+
+export async function getStaticPaths() {
+  return { paths: [], fallback: "blocking" };
+}
+
+export async function getStaticProps() {
+  return { props: {} };
+}
 
 function fmtMoney(n) {
   if (n === undefined || n === null) return "-";
@@ -29,10 +37,10 @@ export default function BaoCaoDetailPage() {
   const cd = report?.report_chu_de || {};
 
   return (
-    <Layout crumb={`Báo cáo tháng / ${report?.display_name || period || ""}`}>
+    <Layout crumb={`BÃ¡o cÃ¡o thÃ¡ng / ${report?.display_name || period || ""}`}>
       <div className="page-head">
-        <h1>{report?.display_name || "Đang tải..."}</h1>
-        <p>Báo cáo tháng gồm 2 phần: Kiểm kê hàng hóa và Kiểm soát chủ đề.</p>
+        <h1>{report?.display_name || "Äang táº£i..."}</h1>
+        <p>BÃ¡o cÃ¡o thÃ¡ng gá»“m 2 pháº§n: Kiá»ƒm kÃª hÃ ng hÃ³a vÃ  Kiá»ƒm soÃ¡t chá»§ Ä‘á».</p>
       </div>
 
       {allPeriods.length > 0 && (
@@ -49,17 +57,17 @@ export default function BaoCaoDetailPage() {
         </div>
       )}
 
-      {error && <div className="placeholder-box">Không tải được báo cáo: {error}</div>}
+      {error && <div className="placeholder-box">KhÃ´ng táº£i Ä‘Æ°á»£c bÃ¡o cÃ¡o: {error}</div>}
 
       {report && (
         <>
-          {/* Tab chọn Kiểm kê hàng hóa / Kiểm soát chủ đề */}
+          {/* Tab chá»n Kiá»ƒm kÃª hÃ ng hÃ³a / Kiá»ƒm soÃ¡t chá»§ Ä‘á» */}
           <div className="month-tabs">
             <div className={`month-tab ${tab === "kiem-ke" ? "active" : ""}`} onClick={() => setTab("kiem-ke")}>
-              📦 Báo cáo kiểm kê
+              ðŸ“¦ BÃ¡o cÃ¡o kiá»ƒm kÃª
             </div>
             <div className={`month-tab ${tab === "chu-de" ? "active" : ""}`} onClick={() => setTab("chu-de")}>
-              🗂️ Báo cáo kiểm soát theo chủ đề{cd.ten_chu_de ? `: ${cd.ten_chu_de}` : ""}
+              ðŸ—‚ï¸ BÃ¡o cÃ¡o kiá»ƒm soÃ¡t theo chá»§ Ä‘á»{cd.ten_chu_de ? `: ${cd.ten_chu_de}` : ""}
             </div>
           </div>
 
@@ -68,22 +76,22 @@ export default function BaoCaoDetailPage() {
               <div className="kpi-grid">
                 <div className="kpi-card">
                   <div className="accent b"></div>
-                  <span className="tag">Shop kiểm kê</span>
+                  <span className="tag">Shop kiá»ƒm kÃª</span>
                   <div className="val">{fmtMoney(kk.summary_kpi?.shop_kiem_ke)}</div>
                 </div>
                 <div className="kpi-card">
                   <div className="accent r"></div>
-                  <span className="tag">Tổng giá trị truy thu</span>
+                  <span className="tag">Tá»•ng giÃ¡ trá»‹ truy thu</span>
                   <div className="val">{fmtMoney(kk.summary_kpi?.tong_gia_tri_truy_thu)}</div>
                 </div>
               </div>
 
               <div className="card">
-                <div className="card-head"><h3>Thống kê theo vùng</h3></div>
+                <div className="card-head"><h3>Thá»‘ng kÃª theo vÃ¹ng</h3></div>
                 <div className="card-body">
                   <table>
                     <thead>
-                      <tr><th>Vùng</th><th>SL Shop</th><th>Giá trị</th><th>TB / shop</th></tr>
+                      <tr><th>VÃ¹ng</th><th>SL Shop</th><th>GiÃ¡ trá»‹</th><th>TB / shop</th></tr>
                     </thead>
                     <tbody>
                       {(kk.region_stats || []).map((row, i) => (
@@ -100,11 +108,11 @@ export default function BaoCaoDetailPage() {
               </div>
 
               <div className="card">
-                <div className="card-head"><h3>Top shop truy thu cao nhất</h3></div>
+                <div className="card-head"><h3>Top shop truy thu cao nháº¥t</h3></div>
                 <div className="card-body">
                   <table>
                     <thead>
-                      <tr><th>Mã shop</th><th>Vùng</th><th>Giá trị</th><th>Lý do</th></tr>
+                      <tr><th>MÃ£ shop</th><th>VÃ¹ng</th><th>GiÃ¡ trá»‹</th><th>LÃ½ do</th></tr>
                     </thead>
                     <tbody>
                       {(kk.top_shops || []).map((row, i) => (
@@ -127,21 +135,21 @@ export default function BaoCaoDetailPage() {
               <div className="kpi-grid">
                 <div className="kpi-card">
                   <div className="accent o"></div>
-                  <span className="tag">NV vi phạm</span>
+                  <span className="tag">NV vi pháº¡m</span>
                   <div className="val">{fmtMoney(cd.summary_kpi?.nv_vi_pham)}</div>
                 </div>
                 <div className="kpi-card">
                   <div className="accent g"></div>
-                  <span className="tag">Case đang xử lý</span>
+                  <span className="tag">Case Ä‘ang xá»­ lÃ½</span>
                   <div className="val">{fmtMoney(cd.summary_kpi?.case_dang_xu_ly)}</div>
                 </div>
               </div>
 
               <div className="card">
-                <div className="card-head"><h3>Tổng hợp theo chủ đề</h3></div>
+                <div className="card-head"><h3>Tá»•ng há»£p theo chá»§ Ä‘á»</h3></div>
                 <div className="card-body">
                   <table>
-                    <thead><tr><th>Chủ đề</th><th>SL NV</th></tr></thead>
+                    <thead><tr><th>Chá»§ Ä‘á»</th><th>SL NV</th></tr></thead>
                     <tbody>
                       {(cd.violation_topics || []).map((row, i) => (
                         <tr key={i}>
@@ -156,10 +164,10 @@ export default function BaoCaoDetailPage() {
 
               {(cd.chi_tiet_case || []).length > 0 && (
                 <div className="card">
-                  <div className="card-head"><h3>Chi tiết case</h3></div>
+                  <div className="card-head"><h3>Chi tiáº¿t case</h3></div>
                   <div className="card-body">
                     <table>
-                      <thead><tr><th>Nội dung</th><th>Trạng thái</th></tr></thead>
+                      <thead><tr><th>Ná»™i dung</th><th>Tráº¡ng thÃ¡i</th></tr></thead>
                       <tbody>
                         {cd.chi_tiet_case.map((row, i) => (
                           <tr key={i}>
