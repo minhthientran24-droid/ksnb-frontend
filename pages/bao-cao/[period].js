@@ -1,0 +1,181 @@
+import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+import Layout from "../../components/Layout";
+import { getReport, listReports } from "../../lib/api";
+
+function fmtMoney(n) {
+  if (n === undefined || n === null) return "-";
+  return n.toLocaleString("vi-VN");
+}
+
+export default function BaoCaoDetailPage() {
+  const router = useRouter();
+  const { period } = router.query;
+  const [report, setReport] = useState(null);
+  const [allPeriods, setAllPeriods] = useState([]);
+  const [tab, setTab] = useState("kiem-ke"); // "kiem-ke" | "chu-de"
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    listReports().then(setAllPeriods).catch((err) => setError(err.message));
+  }, []);
+
+  useEffect(() => {
+    if (!period) return;
+    getReport(period).then(setReport).catch((err) => setError(err.message));
+  }, [period]);
+
+  const kk = report?.report_kiem_ke || {};
+  const cd = report?.report_chu_de || {};
+
+  return (
+    <Layout crumb={`Báo cáo tháng / ${report?.display_name || period || ""}`}>
+      <div className="page-head">
+        <h1>{report?.display_name || "Đang tải..."}</h1>
+        <p>Báo cáo tháng gồm 2 phần: Kiểm kê hàng hóa và Kiểm soát chủ đề.</p>
+      </div>
+
+      {allPeriods.length > 0 && (
+        <div className="month-tabs">
+          {allPeriods.map((p) => (
+            <div
+              key={p.period_label}
+              className={`month-tab ${p.period_label === period ? "active" : ""}`}
+              onClick={() => router.push(`/bao-cao/${p.period_label}`)}
+            >
+              {p.display_name}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {error && <div className="placeholder-box">Không tải được báo cáo: {error}</div>}
+
+      {report && (
+        <>
+          {/* Tab chọn Kiểm kê hàng hóa / Kiểm soát chủ đề */}
+          <div className="month-tabs">
+            <div className={`month-tab ${tab === "kiem-ke" ? "active" : ""}`} onClick={() => setTab("kiem-ke")}>
+              📦 Báo cáo kiểm kê
+            </div>
+            <div className={`month-tab ${tab === "chu-de" ? "active" : ""}`} onClick={() => setTab("chu-de")}>
+              🗂️ Báo cáo kiểm soát theo chủ đề{cd.ten_chu_de ? `: ${cd.ten_chu_de}` : ""}
+            </div>
+          </div>
+
+          {tab === "kiem-ke" && (
+            <>
+              <div className="kpi-grid">
+                <div className="kpi-card">
+                  <div className="accent b"></div>
+                  <span className="tag">Shop kiểm kê</span>
+                  <div className="val">{fmtMoney(kk.summary_kpi?.shop_kiem_ke)}</div>
+                </div>
+                <div className="kpi-card">
+                  <div className="accent r"></div>
+                  <span className="tag">Tổng giá trị truy thu</span>
+                  <div className="val">{fmtMoney(kk.summary_kpi?.tong_gia_tri_truy_thu)}</div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="card-head"><h3>Thống kê theo vùng</h3></div>
+                <div className="card-body">
+                  <table>
+                    <thead>
+                      <tr><th>Vùng</th><th>SL Shop</th><th>Giá trị</th><th>TB / shop</th></tr>
+                    </thead>
+                    <tbody>
+                      {(kk.region_stats || []).map((row, i) => (
+                        <tr key={i}>
+                          <td>{row.vung}</td>
+                          <td className="num">{fmtMoney(row.sl_shop)}</td>
+                          <td className="num neg">{fmtMoney(row.gia_tri)}</td>
+                          <td className="num">{fmtMoney(row.tb_shop)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="card-head"><h3>Top shop truy thu cao nhất</h3></div>
+                <div className="card-body">
+                  <table>
+                    <thead>
+                      <tr><th>Mã shop</th><th>Vùng</th><th>Giá trị</th><th>Lý do</th></tr>
+                    </thead>
+                    <tbody>
+                      {(kk.top_shops || []).map((row, i) => (
+                        <tr key={i}>
+                          <td>{row.ma_shop}</td>
+                          <td>{row.vung}</td>
+                          <td className="num neg">{fmtMoney(row.gia_tri)}</td>
+                          <td>{row.ly_do}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+
+          {tab === "chu-de" && (
+            <>
+              <div className="kpi-grid">
+                <div className="kpi-card">
+                  <div className="accent o"></div>
+                  <span className="tag">NV vi phạm</span>
+                  <div className="val">{fmtMoney(cd.summary_kpi?.nv_vi_pham)}</div>
+                </div>
+                <div className="kpi-card">
+                  <div className="accent g"></div>
+                  <span className="tag">Case đang xử lý</span>
+                  <div className="val">{fmtMoney(cd.summary_kpi?.case_dang_xu_ly)}</div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="card-head"><h3>Tổng hợp theo chủ đề</h3></div>
+                <div className="card-body">
+                  <table>
+                    <thead><tr><th>Chủ đề</th><th>SL NV</th></tr></thead>
+                    <tbody>
+                      {(cd.violation_topics || []).map((row, i) => (
+                        <tr key={i}>
+                          <td>{row.chu_de}</td>
+                          <td className="num">{fmtMoney(row.sl_nv)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {(cd.chi_tiet_case || []).length > 0 && (
+                <div className="card">
+                  <div className="card-head"><h3>Chi tiết case</h3></div>
+                  <div className="card-body">
+                    <table>
+                      <thead><tr><th>Nội dung</th><th>Trạng thái</th></tr></thead>
+                      <tbody>
+                        {cd.chi_tiet_case.map((row, i) => (
+                          <tr key={i}>
+                            <td>{row.noi_dung}</td>
+                            <td>{row.trang_thai}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </>
+      )}
+    </Layout>
+  );
+}

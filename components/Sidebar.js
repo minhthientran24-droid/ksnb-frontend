@@ -1,0 +1,72 @@
+import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+import Link from "next/link";
+import { getUser } from "../lib/api";
+
+const NAV_ITEMS = [
+  { href: "/", icon: "⌂", label: "Trang chủ" },
+  { href: "/bao-cao", icon: "▤", label: "Báo cáo tháng" },
+  { href: "/nhan-su", icon: "◈", label: "Giới thiệu nhân sự KSNB" },
+  { href: "/theo-doi-kiem-ke", icon: "▦", label: "Theo dõi kiểm kê" },
+  { href: "/theo-doi-chu-de", icon: "☰", label: "Theo dõi chủ đề" },
+  { href: "/hoat-dong", icon: "☺", label: "Hoạt động phòng ban" },
+];
+
+const ADMIN_ITEM = { href: "/quan-ly-tai-khoan", icon: "🔑", label: "Quản lý tài khoản" };
+const ADMIN_ROLES = ["admin", "super_admin"];
+const STORAGE_KEY = "ksnb_sidebar_collapsed";
+
+export default function Sidebar() {
+  const router = useRouter();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    const me = getUser();
+    setIsAdmin(!!me && ADMIN_ROLES.includes(me.role));
+    const saved = typeof window !== "undefined" && localStorage.getItem(STORAGE_KEY);
+    if (saved === "1") setCollapsed(true);
+  }, []);
+
+  function toggleCollapsed() {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
+  }
+
+  const isActive = (href) =>
+    href === "/" ? router.pathname === "/" : router.pathname.startsWith(href);
+
+  const allItems = isAdmin ? [...NAV_ITEMS, "divider", ADMIN_ITEM] : NAV_ITEMS;
+
+  return (
+    <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
+      <div className="sb-logo">
+        {!collapsed && (
+          <div className="logo-text">Phòng Kiểm Soát Nội Bộ</div>
+        )}
+      </div>
+
+      <nav className="sb-nav">
+        {allItems.map((item, i) =>
+          item === "divider" ? (
+            <div key={i} style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "10px 14px" }} />
+          ) : (
+            <Link key={item.href} href={item.href}>
+              <div className={`sb-item ${isActive(item.href) ? "active" : ""}`}>
+                <span className="ic">{item.icon}</span>
+                <span className="sb-item-label">{item.label}</span>
+                {collapsed && <span className="sb-tooltip">{item.label}</span>}
+              </div>
+            </Link>
+          )
+        )}
+      </nav>
+
+      <div className="sb-toggle" onClick={toggleCollapsed}>
+        <span className="sb-toggle-icon">{collapsed ? "»" : "«"}</span>
+        <span className="sb-toggle-label">Thu gọn menu</span>
+      </div>
+    </aside>
+  );
+}
