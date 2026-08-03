@@ -1,12 +1,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Layout from "../components/Layout";
-import { listReports, getHomepageContent, updateHomepageContent, getUser } from "../lib/api";
-
-function fmtMoney(n) {
-  if (n === undefined || n === null) return "-";
-  return n.toLocaleString("vi-VN");
-}
+import { getHomepageContent, updateHomepageContent, getUser } from "../lib/api";
 
 const QUICK_LINKS = [
   { href: "/bao-cao", icon: "📊", label: "Báo cáo tháng" },
@@ -17,25 +12,18 @@ const QUICK_LINKS = [
 ];
 
 export default function HomePage() {
-  const [latest, setLatest] = useState(null);
-  const [error, setError] = useState("");
   const [content, setContent] = useState(null);
   const [editing, setEditing] = useState(false);
-  const [draftTitle, setDraftTitle] = useState("");
-  const [draftText, setDraftText] = useState("");
+  const [draft, setDraft] = useState(null);
   const [saving, setSaving] = useState(false);
   const isAdmin = ["admin", "super_admin"].includes(getUser()?.role);
 
   useEffect(() => {
-    listReports()
-      .then((reports) => { if (reports.length > 0) setLatest(reports[0]); })
-      .catch((err) => setError(err.message));
     getHomepageContent().then(setContent).catch(() => {});
   }, []);
 
   function startEdit() {
-    setDraftTitle(content.hero_title);
-    setDraftText(content.hero_text);
+    setDraft({ ...content });
     setEditing(true);
   }
 
@@ -43,10 +31,14 @@ export default function HomePage() {
     setEditing(false);
   }
 
+  function setField(field, value) {
+    setDraft((d) => ({ ...d, [field]: value }));
+  }
+
   async function saveEdit() {
     setSaving(true);
     try {
-      const updated = await updateHomepageContent(draftTitle, draftText);
+      const updated = await updateHomepageContent(draft);
       setContent(updated);
       setEditing(false);
     } catch (err) {
@@ -56,57 +48,35 @@ export default function HomePage() {
     }
   }
 
+  const data = editing ? draft : content;
+
   return (
     <Layout crumb="Trang chủ">
       <div className="intro-hero" style={{ position: "relative" }}>
         {isAdmin && !editing && content && (
-          <button onClick={startEdit} style={heroEditBtnStyle}>✏️ Sửa nội dung</button>
+          <button onClick={startEdit} style={editBtnStyle}>✏️ Sửa nội dung</button>
         )}
         {editing ? (
-          <div>
+          <>
             <input
-              value={draftTitle}
-              onChange={(e) => setDraftTitle(e.target.value)}
+              value={draft.hero_title}
+              onChange={(e) => setField("hero_title", e.target.value)}
               style={heroTitleInputStyle}
             />
             <textarea
-              value={draftText}
-              onChange={(e) => setDraftText(e.target.value)}
+              value={draft.hero_text}
+              onChange={(e) => setField("hero_text", e.target.value)}
               rows={4}
               style={heroTextInputStyle}
             />
-            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-              <button onClick={saveEdit} disabled={saving} style={heroSaveBtnStyle}>
-                {saving ? "Đang lưu..." : "💾 Lưu"}
-              </button>
-              <button onClick={cancelEdit} disabled={saving} style={heroCancelBtnStyle}>✖ Hủy</button>
-            </div>
-          </div>
+          </>
         ) : (
           <>
-            <h2>{content?.hero_title || "Phòng Kiểm Soát Nội Bộ — Long Châu"}</h2>
-            <p>{content?.hero_text || ""}</p>
+            <h2>{data?.hero_title || "Phòng Kiểm Soát Nội Bộ — Long Châu"}</h2>
+            <p>{data?.hero_text || ""}</p>
           </>
         )}
       </div>
-
-      {latest && (
-        <div className="kpi-grid">
-          <div className="kpi-card">
-            <div className="accent b"></div>
-            <span className="tag">Báo cáo mới nhất</span>
-            <div className="val" style={{ fontSize: 18 }}>{latest.display_name}</div>
-          </div>
-          <div className="kpi-card">
-            <div className="accent g"></div>
-            <span className="tag">Trạng thái</span>
-            <div className="val" style={{ fontSize: 18 }}>
-              {latest.published ? "Đã công bố" : "Nháp"}
-            </div>
-          </div>
-        </div>
-      )}
-      {error && <div className="placeholder-box">Không tải được dữ liệu: {error}</div>}
 
       <div className="card">
         <div className="card-head"><h3>Truy cập nhanh</h3></div>
@@ -123,15 +93,44 @@ export default function HomePage() {
       </div>
 
       <div className="org-grid">
-        <div className="org-card"><div className="num">8</div><div className="lbl">Vùng miền phụ trách toàn quốc</div></div>
-        <div className="org-card"><div className="num">4</div><div className="lbl">Mảng nghiệp vụ: Vận hành · Kiểm kê · GPP · Vaccine</div></div>
-        <div className="org-card"><div className="num">01/08/2026</div><div className="lbl">Mốc vận hành mô hình KSNB toàn quốc</div></div>
+        {[1, 2, 3].map((i) => (
+          <div className="org-card" key={i}>
+            {editing ? (
+              <>
+                <input
+                  value={draft[`stat${i}_num`]}
+                  onChange={(e) => setField(`stat${i}_num`, e.target.value)}
+                  style={statNumInputStyle}
+                />
+                <input
+                  value={draft[`stat${i}_label`]}
+                  onChange={(e) => setField(`stat${i}_label`, e.target.value)}
+                  style={statLabelInputStyle}
+                />
+              </>
+            ) : (
+              <>
+                <div className="num">{data?.[`stat${i}_num`]}</div>
+                <div className="lbl">{data?.[`stat${i}_label`]}</div>
+              </>
+            )}
+          </div>
+        ))}
       </div>
+
+      {editing && (
+        <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+          <button onClick={saveEdit} disabled={saving} style={saveBtnStyle}>
+            {saving ? "Đang lưu..." : "💾 Lưu toàn bộ"}
+          </button>
+          <button onClick={cancelEdit} disabled={saving} style={cancelBtnStyle}>✖ Hủy</button>
+        </div>
+      )}
     </Layout>
   );
 }
 
-const heroEditBtnStyle = {
+const editBtnStyle = {
   position: "absolute", top: 16, right: 16,
   padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.35)",
   background: "rgba(255,255,255,0.12)", color: "#fff", fontSize: 12.5, fontWeight: 600, cursor: "pointer",
@@ -147,12 +146,22 @@ const heroTextInputStyle = {
   background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 13.5, lineHeight: 1.6, resize: "vertical",
 };
 
-const heroSaveBtnStyle = {
-  padding: "8px 18px", borderRadius: 8, border: "none", background: "#4C9A2A",
-  color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
+const statNumInputStyle = {
+  width: "100%", padding: "6px 10px", borderRadius: 6, border: "1.5px solid var(--border)",
+  fontSize: 18, fontWeight: 800, color: "var(--navy-800)", marginBottom: 6,
 };
 
-const heroCancelBtnStyle = {
-  padding: "8px 18px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.4)", background: "transparent",
-  color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
+const statLabelInputStyle = {
+  width: "100%", padding: "6px 10px", borderRadius: 6, border: "1.5px solid var(--border)",
+  fontSize: 12.5, color: "var(--text-600)",
+};
+
+const saveBtnStyle = {
+  padding: "9px 20px", borderRadius: 8, border: "none", background: "#4C9A2A",
+  color: "#fff", fontSize: 13.5, fontWeight: 700, cursor: "pointer",
+};
+
+const cancelBtnStyle = {
+  padding: "9px 20px", borderRadius: 8, border: "1px solid var(--border)", background: "#fff",
+  color: "var(--text-600)", fontSize: 13.5, fontWeight: 700, cursor: "pointer",
 };
