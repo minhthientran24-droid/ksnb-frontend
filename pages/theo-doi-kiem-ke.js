@@ -185,9 +185,9 @@ export default function TheoDoiKiemKePage() {
               <tbody>
                 {displayRows.map((r) => (
                   <tr key={r.id}>
-                    <td>{r.vung}</td>
+                    <td style={{ textAlign: "left" }}>{r.vung}</td>
                     <td>{r.ma_shop}</td>
-                    <td>{r.ten_shop || "-"}</td>
+                    <td style={{ textAlign: "left" }}>{r.ten_shop || "-"}</td>
                     <td>{r.ngay_kiem_ke || "-"}</td>
                     <td className="num neg">{fmtMoney(r.gia_tri_that_thoat)}</td>
                     <td className="num">{fmtMoney(r.truy_thu_thanh_ly)}</td>
