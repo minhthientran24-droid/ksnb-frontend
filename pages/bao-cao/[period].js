@@ -5,6 +5,7 @@ import {
 } from "recharts";
 import Layout from "../../components/Layout";
 import BlockRenderer from "../../components/ReportBlocks";
+import BlockEditor from "../../components/BlockEditor";
 import {
   getReport, listReports, updateReportKiemKe, generateChuDeReport,
   synthesizeChuDeReport, updateReportChuDe, getUser,
@@ -74,6 +75,11 @@ export default function BaoCaoDetailPage() {
   const [aiError, setAiError] = useState("");
   const [aiPreview, setAiPreview] = useState(null); // {ten_chu_de, blocks} - bản nháp chờ admin xác nhận
   const [aiSaving, setAiSaving] = useState(false);
+  const [aiPreviewEditing, setAiPreviewEditing] = useState(false);
+  const [chuDeEditMode, setChuDeEditMode] = useState(false);
+  const [draftChuDe, setDraftChuDe] = useState(null);
+  const [savingChuDe, setSavingChuDe] = useState(false);
+  const [chuDeSaveError, setChuDeSaveError] = useState("");
   const isAdmin = ["admin", "super_admin"].includes(getUser()?.role);
 
   useEffect(() => {
@@ -208,7 +214,34 @@ export default function BaoCaoDetailPage() {
 
   function handleDiscardAiPreview() {
     setAiPreview(null);
+    setAiPreviewEditing(false);
     setAiError("");
+  }
+
+  function startChuDeEdit() {
+    setDraftChuDe(JSON.parse(JSON.stringify(cd.blocks ? cd : { ten_chu_de: "", blocks: [] })));
+    setChuDeEditMode(true);
+    setChuDeSaveError("");
+  }
+
+  function cancelChuDeEdit() {
+    setChuDeEditMode(false);
+    setDraftChuDe(null);
+  }
+
+  async function saveChuDeEdit() {
+    setSavingChuDe(true);
+    setChuDeSaveError("");
+    try {
+      const updated = await updateReportChuDe(period, draftChuDe);
+      setReport(updated);
+      setChuDeEditMode(false);
+      setDraftChuDe(null);
+    } catch (err) {
+      setChuDeSaveError(err.message || "Lưu thất bại");
+    } finally {
+      setSavingChuDe(false);
+    }
   }
 
   // Dữ liệu biểu đồ luôn lấy từ bản ĐÃ LƯU (savedKk) — biểu đồ chỉ cập nhật sau khi bấm Lưu
@@ -588,7 +621,7 @@ export default function BaoCaoDetailPage() {
           {/* ================= TAB: BÁO CÁO CHỦ ĐỀ ================= */}
           {tab === "chu-de" && (
             <>
-              {isAdmin && (
+              {isAdmin && !chuDeEditMode && (
                 <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
                   {chuDeError && <span style={{ fontSize: 12.5, color: "var(--danger)" }}>{chuDeError}</span>}
                   {aiError && <span style={{ fontSize: 12.5, color: "var(--danger)" }}>{aiError}</span>}
@@ -598,6 +631,11 @@ export default function BaoCaoDetailPage() {
                   <button onClick={handleAiSynthesize} disabled={aiSynthesizing} style={editToggleBtnStyle}>
                     {aiSynthesizing ? "AI đang tổng hợp..." : "✨ Nhờ AI tổng hợp"}
                   </button>
+                  {cd.blocks && (
+                    <button onClick={startChuDeEdit} style={{ ...editToggleBtnStyle, background: "var(--surface)", color: "var(--text-900)", border: "1px solid var(--border)" }}>
+                      ✏️ Sửa bản đã công bố
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -610,7 +648,10 @@ export default function BaoCaoDetailPage() {
                     <strong style={{ fontSize: 14.5, color: "var(--navy-900)" }}>
                       ✨ Bản nháp do AI tổng hợp{aiPreview.ten_chu_de ? ` — chủ đề chính: ${aiPreview.ten_chu_de}` : ""} (chưa lưu)
                     </strong>
-                    <div style={{ display: "flex", gap: 10 }}>
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <button onClick={() => setAiPreviewEditing((v) => !v)} style={{ ...editToggleBtnStyle, background: "var(--surface)", color: "var(--text-900)", border: "1px solid var(--border)" }}>
+                        {aiPreviewEditing ? "👁 Xem trước" : "✏️ Chỉnh sửa"}
+                      </button>
                       <button onClick={handleConfirmAiPreview} disabled={aiSaving} style={editToggleBtnStyle}>
                         {aiSaving ? "Đang lưu..." : "✅ Lưu và công bố"}
                       </button>
@@ -619,11 +660,29 @@ export default function BaoCaoDetailPage() {
                       </button>
                     </div>
                   </div>
-                  <BlockRenderer blocks={aiPreview.blocks} />
+                  {aiPreviewEditing ? (
+                    <BlockEditor blocks={aiPreview.blocks} onChange={(blocks) => setAiPreview({ ...aiPreview, blocks })} />
+                  ) : (
+                    <BlockRenderer blocks={aiPreview.blocks} />
+                  )}
                 </div>
               )}
 
-              {cd.blocks ? (
+              {chuDeEditMode ? (
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
+                    <strong style={{ fontSize: 14.5, color: "var(--navy-900)" }}>✏️ Đang sửa báo cáo đã công bố</strong>
+                    <div style={{ display: "flex", gap: 10 }}>
+                      {chuDeSaveError && <span style={{ fontSize: 12.5, color: "var(--danger)", alignSelf: "center" }}>{chuDeSaveError}</span>}
+                      <button onClick={saveChuDeEdit} disabled={savingChuDe} style={editToggleBtnStyle}>
+                        {savingChuDe ? "Đang lưu..." : "💾 Lưu thay đổi"}
+                      </button>
+                      <button onClick={cancelChuDeEdit} disabled={savingChuDe} className="fbtn">✖ Hủy</button>
+                    </div>
+                  </div>
+                  <BlockEditor blocks={draftChuDe?.blocks || []} onChange={(blocks) => setDraftChuDe({ ...draftChuDe, blocks })} />
+                </div>
+              ) : cd.blocks ? (
                 cd.blocks.length > 0 ? (
                   <BlockRenderer blocks={cd.blocks} />
                 ) : (

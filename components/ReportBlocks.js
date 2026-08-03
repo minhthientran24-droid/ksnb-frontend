@@ -16,11 +16,11 @@ const BAR_COLORS = ["#3E7FD1", "#F5821F", "#7AC142", "#D64545", "#9B59B6", "#16A
 
 // Icon minh họa theo chủ đề — chọn từ bộ có sẵn (AI/backend chỉ chọn "icon_key",
 // không vẽ ảnh) để phần trình bày sinh động hơn mà không cần gọi thêm API tạo ảnh.
-const ICON_MAP = {
+export const ICON_MAP = {
   gian_lan: "🚨", an_toan: "🔥", ve_sinh: "🧹", ban_hang: "🧾",
   kiem_ke: "📦", gio_giac: "⏰", thai_do: "💬", tai_chinh: "💰", khac: "📋",
 };
-function iconFor(key) {
+export function iconFor(key) {
   return ICON_MAP[key] || ICON_MAP.khac;
 }
 
@@ -61,7 +61,18 @@ function CaseCard({ title, severity = "vua", summary, meta, featured, icon_key }
               ))}
             </div>
           )}
-          {summary && <p style={{ fontSize: 14, marginTop: 14, lineHeight: 1.75, whiteSpace: "pre-line", color: "var(--text-900)" }}>{summary}</p>}
+          {summary && (
+            <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+              {summary.split("\n").filter(Boolean).map((line, i) => {
+                const m = line.match(/^([^:]{1,20}):\s*(.*)$/);
+                return (
+                  <p key={i} style={{ fontSize: 13.5, lineHeight: 1.6, color: "var(--text-900)", margin: 0 }}>
+                    {m ? <><strong>{m[1]}:</strong> {m[2]}</> : line}
+                  </p>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     );
