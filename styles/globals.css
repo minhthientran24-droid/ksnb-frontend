@@ -176,10 +176,10 @@ a{color:inherit; text-decoration:none;}
 table{width:100%; border-collapse:collapse; font-size:15px;}
 th{text-align:center; padding:10px 16px; background:#F8FAFD; color:var(--text-600); font-weight:700; font-size:13.5px; text-transform:uppercase; border-bottom:1px solid var(--border); border-right:1px solid #EEF1F6;}
 th:last-child{border-right:none;}
-td{padding:11px 16px; border-bottom:1px solid #F0F2F6; border-right:1px solid #F3F5F9;}
+td{padding:11px 16px; border-bottom:1px solid #F0F2F6; border-right:1px solid #F3F5F9; text-align:center; vertical-align:middle;}
 td:last-child{border-right:none;}
 tr:last-child td{border-bottom:none;}
-td.num{text-align:right; font-variant-numeric:tabular-nums;}
+td.num{font-variant-numeric:tabular-nums;}
 td.neg{color:var(--danger); font-weight:600;}
 .two-col{display:grid; grid-template-columns:1.3fr 1fr; gap:20px; align-items:start;}
 

@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import {
-  BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  BarChart, Bar, Cell, LabelList, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import Layout from "../../components/Layout";
 import { getReport, listReports, updateReportKiemKe, getUser } from "../../lib/api";
@@ -292,7 +292,7 @@ export default function BaoCaoDetailPage() {
                     <table>
                       <thead>
                         <tr>
-                          <th rowSpan={2} style={{ verticalAlign: "bottom" }}>Vùng</th>
+                          <th rowSpan={2} style={{ verticalAlign: "middle" }}>Vùng</th>
                           <th colSpan={3}>Kiểm kê Online</th>
                           <th colSpan={3}>Kiểm kê Trực tiếp</th>
                           <th colSpan={3}>Total</th>
@@ -343,9 +343,9 @@ export default function BaoCaoDetailPage() {
               {regionChartData.length > 0 && (
                 <div className="card">
                   <div className="card-head"><h3>Biểu đồ giá trị truy thu trung bình/shop theo vùng</h3></div>
-                  <div className="card-body" style={{ height: 320 }}>
+                  <div className="card-body" style={{ height: 416 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={regionChartData}>
+                      <BarChart data={regionChartData} barCategoryGap="65%" margin={{ top: 24 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F6" />
                         <XAxis dataKey="vung" tick={{ fontSize: 11 }} interval={0} angle={-15} textAnchor="end" height={60} />
                         <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => (v / 1000).toFixed(0) + "k"} />
@@ -354,6 +354,7 @@ export default function BaoCaoDetailPage() {
                           {regionChartData.map((_, i) => (
                             <Cell key={i} fill={REGION_COLORS[i % REGION_COLORS.length]} />
                           ))}
+                          <LabelList dataKey="tb_shop_abs" position="top" formatter={(v) => fmtMoney(v)} style={{ fontSize: 11, fontWeight: 700, fill: "#182338" }} />
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
@@ -369,7 +370,7 @@ export default function BaoCaoDetailPage() {
                     <table>
                       <thead>
                         <tr>
-                          <th rowSpan={2} style={{ verticalAlign: "bottom" }}>Vùng</th>
+                          <th rowSpan={2} style={{ verticalAlign: "middle" }}>Vùng</th>
                           {kk.trend_tb_shop.thang_labels.map((label, li) => (
                             editMode ? (
                               <th key={li} colSpan={3}>
@@ -462,16 +463,18 @@ export default function BaoCaoDetailPage() {
                         </tbody>
                       </table>
                     </div>
-                    <div className="card-body" style={{ padding: "16px 20px", height: 360 }}>
+                    <div className="card-body" style={{ padding: "16px 20px", height: 432 }}>
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={nvChartData}>
+                        <BarChart data={nvChartData} margin={{ top: 24 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F6" />
                           <XAxis dataKey="vung" tick={{ fontSize: 11 }} interval={0} angle={-15} textAnchor="end" height={60} />
                           <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => (v / 1000).toFixed(0) + "k"} />
                           <Tooltip formatter={(v) => fmtMoney(v) + " đ"} />
                           <Legend />
                           {(savedKk.trend_truy_thu_nv?.thang_labels || []).map((label, i) => (
-                            <Bar key={label} dataKey={label} fill={MONTH_COLORS[i % MONTH_COLORS.length]} radius={[3, 3, 0, 0]} />
+                            <Bar key={label} dataKey={label} fill={MONTH_COLORS[i % MONTH_COLORS.length]} radius={[3, 3, 0, 0]}>
+                              <LabelList dataKey={label} position="top" formatter={(v) => Math.floor(v / 1000)} style={{ fontSize: 9.5, fontWeight: 700, fill: "#182338" }} />
+                            </Bar>
                           ))}
                         </BarChart>
                       </ResponsiveContainer>
@@ -488,6 +491,13 @@ export default function BaoCaoDetailPage() {
                 <div className="card-body">
                   {(kk.top_shops || []).length > 0 ? (
                     <table>
+                      <colgroup>
+                        <col style={{ width: 120 }} />
+                        <col style={{ width: 481 }} />
+                        <col style={{ width: 182 }} />
+                        <col style={{ width: 120 }} />
+                        <col />
+                      </colgroup>
                       <thead>
                         <tr><th>Mã shop</th><th>Tên shop</th><th>Vùng</th><th>Giá trị</th><th>Lý do</th></tr>
                       </thead>
@@ -499,13 +509,13 @@ export default function BaoCaoDetailPage() {
                             <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["top_shops", i, "vung"]} isText />
                             <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["top_shops", i, "gia_tri"]} className="num neg" style={{ whiteSpace: "nowrap" }} />
                             {editMode ? (
-                              <td style={{ minWidth: 280 }}>
+                              <td style={{ minWidth: 280, textAlign: "left" }}>
                                 <textarea className="editing-cell" style={editTextareaStyle} rows={2}
                                   value={row.ly_do ?? ""}
                                   onChange={(e) => setValue(["top_shops", i, "ly_do"], e.target.value)} />
                               </td>
                             ) : (
-                              <td style={{ minWidth: 280, whiteSpace: "pre-line" }}>{row.ly_do}</td>
+                              <td style={{ minWidth: 280, whiteSpace: "pre-line", textAlign: "left" }}>{row.ly_do}</td>
                             )}
                           </tr>
                         ))}
