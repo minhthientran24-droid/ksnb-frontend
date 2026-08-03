@@ -319,7 +319,7 @@ export default function BaoCaoDetailPage() {
                           </tr>
                         ))}
                         {kk.grand_total && (
-                          <tr style={{ background: "#F8FAFD", fontWeight: 700 }}>
+                          <tr style={{ background: "#EAF1FC", fontWeight: 700 }}>
                             <td style={{ textAlign: "left" }}>Grand Total</td>
                             <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["grand_total", "online", "sl_shop"]} className="num" />
                             <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["grand_total", "online", "gia_tri"]} className="num neg" />
@@ -404,7 +404,7 @@ export default function BaoCaoDetailPage() {
                           </tr>
                         ))}
                         {kk.trend_tb_shop.tong && (
-                          <tr style={{ background: "#F8FAFD", fontWeight: 700 }}>
+                          <tr style={{ background: "#EAF1FC", fontWeight: 700 }}>
                             <td style={{ textAlign: "left" }}>Tổng số</td>
                             {kk.trend_tb_shop.tong.values.map((v, j) => (
                               <Fragment key={j}>
@@ -453,7 +453,7 @@ export default function BaoCaoDetailPage() {
                             </tr>
                           ))}
                           {kk.trend_truy_thu_nv.tb_toan_vung && (
-                            <tr style={{ background: "#F8FAFD", fontWeight: 700 }}>
+                            <tr style={{ background: "#EAF1FC", fontWeight: 700 }}>
                               <td style={{ textAlign: "left" }}>TB Toàn Vùng</td>
                               {kk.trend_truy_thu_nv.tb_toan_vung.map((v, j) => (
                                 <EditableTd kk={kk} editMode={editMode} setValue={setValue} key={j} path={["trend_truy_thu_nv", "tb_toan_vung", j]} className="num" />
