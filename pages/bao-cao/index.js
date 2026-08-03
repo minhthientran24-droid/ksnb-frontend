@@ -1,17 +1,34 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Layout from "../../components/Layout";
-import { listReports } from "../../lib/api";
+import { listReports, deleteReport, getUser } from "../../lib/api";
 
 export default function BaoCaoListPage() {
   const [reports, setReports] = useState([]);
   const [error, setError] = useState("");
+  const [deletingId, setDeletingId] = useState(null);
+  const isAdmin = ["admin", "super_admin"].includes(getUser()?.role);
 
-  useEffect(() => {
+  function load() {
     listReports()
       .then(setReports)
       .catch((err) => setError(err.message));
-  }, []);
+  }
+
+  useEffect(load, []);
+
+  async function handleDelete(periodLabel, displayName) {
+    if (!confirm(`Xóa hẳn báo cáo "${displayName}"? Không thể hoàn tác.`)) return;
+    setDeletingId(periodLabel);
+    try {
+      await deleteReport(periodLabel);
+      load();
+    } catch (err) {
+      alert(err.message || "Xóa thất bại");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <Layout crumb="Báo cáo hàng tháng">
@@ -33,6 +50,7 @@ export default function BaoCaoListPage() {
                 <th>Kỳ báo cáo</th>
                 <th>Trạng thái</th>
                 <th></th>
+                {isAdmin && <th></th>}
               </tr>
             </thead>
             <tbody>
@@ -43,6 +61,17 @@ export default function BaoCaoListPage() {
                   <td>
                     <Link href={`/bao-cao/${r.period_label}`}>Xem chi tiết →</Link>
                   </td>
+                  {isAdmin && (
+                    <td>
+                      <button
+                        onClick={() => handleDelete(r.period_label, r.display_name)}
+                        disabled={deletingId === r.period_label}
+                        style={deleteBtnStyle}
+                      >
+                        {deletingId === r.period_label ? "Đang xóa..." : "🗑️ Xóa"}
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -52,3 +81,8 @@ export default function BaoCaoListPage() {
     </Layout>
   );
 }
+
+const deleteBtnStyle = {
+  background: "none", border: "1px solid var(--border)", borderRadius: 6,
+  padding: "5px 12px", fontSize: 12, color: "var(--danger)", cursor: "pointer",
+};
