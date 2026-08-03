@@ -149,11 +149,11 @@ export default function TheoDoiKiemKePage() {
           <div className="card-body" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "14px 18px" }}>
             <input
               type="text"
-              placeholder="Tìm theo mã shop hoặc tên shop..."
+              placeholder="Mã shop / tên shop..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
-              style={{ flex: 1, minWidth: 220, padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13.5 }}
+              style={{ width: "5cm", padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13.5 }}
             />
             <button onClick={handleSearch} style={syncBtnStyle}>🔍 Tìm kiếm</button>
             {searchQuery && (
