@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Layout from "../components/Layout";
-import { listReports } from "../lib/api";
+import { listReports, getHomepageContent, updateHomepageContent, getUser } from "../lib/api";
 
 function fmtMoney(n) {
   if (n === undefined || n === null) return "-";
@@ -19,22 +19,75 @@ const QUICK_LINKS = [
 export default function HomePage() {
   const [latest, setLatest] = useState(null);
   const [error, setError] = useState("");
+  const [content, setContent] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftText, setDraftText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const isAdmin = ["admin", "super_admin"].includes(getUser()?.role);
 
   useEffect(() => {
     listReports()
       .then((reports) => { if (reports.length > 0) setLatest(reports[0]); })
       .catch((err) => setError(err.message));
+    getHomepageContent().then(setContent).catch(() => {});
   }, []);
+
+  function startEdit() {
+    setDraftTitle(content.hero_title);
+    setDraftText(content.hero_text);
+    setEditing(true);
+  }
+
+  function cancelEdit() {
+    setEditing(false);
+  }
+
+  async function saveEdit() {
+    setSaving(true);
+    try {
+      const updated = await updateHomepageContent(draftTitle, draftText);
+      setContent(updated);
+      setEditing(false);
+    } catch (err) {
+      alert(err.message || "Lưu nội dung thất bại");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <Layout crumb="Trang chủ">
-      <div className="intro-hero">
-        <h2>Phòng Kiểm Soát Nội Bộ — Long Châu</h2>
-        <p>
-          KSNB đồng hành cùng vận hành để hạn chế sai phạm ngay từ đầu — thông
-          qua kiểm soát dựa trên dữ liệu, phát hiện lỗ hổng quy trình và xử lý
-          gốc rễ, thay vì chỉ kiểm tra và xử phạt.
-        </p>
+      <div className="intro-hero" style={{ position: "relative" }}>
+        {isAdmin && !editing && content && (
+          <button onClick={startEdit} style={heroEditBtnStyle}>✏️ Sửa nội dung</button>
+        )}
+        {editing ? (
+          <div>
+            <input
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
+              style={heroTitleInputStyle}
+            />
+            <textarea
+              value={draftText}
+              onChange={(e) => setDraftText(e.target.value)}
+              rows={4}
+              style={heroTextInputStyle}
+            />
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button onClick={saveEdit} disabled={saving} style={heroSaveBtnStyle}>
+                {saving ? "Đang lưu..." : "💾 Lưu"}
+              </button>
+              <button onClick={cancelEdit} disabled={saving} style={heroCancelBtnStyle}>✖ Hủy</button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <h2>{content?.hero_title || "Phòng Kiểm Soát Nội Bộ — Long Châu"}</h2>
+            <p>{content?.hero_text || ""}</p>
+          </>
+        )}
       </div>
 
       {latest && (
@@ -77,3 +130,29 @@ export default function HomePage() {
     </Layout>
   );
 }
+
+const heroEditBtnStyle = {
+  position: "absolute", top: 16, right: 16,
+  padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.35)",
+  background: "rgba(255,255,255,0.12)", color: "#fff", fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+};
+
+const heroTitleInputStyle = {
+  width: "100%", padding: "8px 12px", borderRadius: 8, border: "1.5px solid rgba(255,255,255,0.4)",
+  background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 20, fontWeight: 800, marginBottom: 10,
+};
+
+const heroTextInputStyle = {
+  width: "100%", padding: "10px 12px", borderRadius: 8, border: "1.5px solid rgba(255,255,255,0.4)",
+  background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 13.5, lineHeight: 1.6, resize: "vertical",
+};
+
+const heroSaveBtnStyle = {
+  padding: "8px 18px", borderRadius: 8, border: "none", background: "#4C9A2A",
+  color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
+};
+
+const heroCancelBtnStyle = {
+  padding: "8px 18px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.4)", background: "transparent",
+  color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
+};

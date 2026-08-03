@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import Layout from "../../components/Layout";
 import { getReport, listReports } from "../../lib/api";
@@ -20,6 +20,7 @@ function fmtMoney(n) {
 }
 
 const MONTH_COLORS = ["#8B93A5", "#F5821F", "#3E7FD1"];
+const REGION_COLORS = ["#3E7FD1", "#F5821F", "#7AC142", "#D64545", "#9B59B6", "#16A5A5", "#E4B62F", "#5580D6"];
 
 export default function BaoCaoDetailPage() {
   const router = useRouter();
@@ -49,6 +50,17 @@ export default function BaoCaoDetailPage() {
     });
     return item;
   });
+
+  // Biểu đồ mục 1: giá trị truy thu TB/shop theo vùng (tháng hiện tại) — lấy trị tuyệt đối để vẽ cột
+  const regionChartData = (kk.region_stats || []).map((row) => ({
+    vung: row.vung,
+    tb_shop_abs: Math.abs(row.total?.tb_shop ?? 0),
+  }));
+
+  // KPI bổ sung: Giá trị TB/Shop (grand total) + TB Truy Thu/Nhân Viên (tháng gần nhất)
+  const tbShopKpi = kk.grand_total?.total?.tb_shop;
+  const nvLabels = kk.trend_truy_thu_nv?.thang_labels || [];
+  const tbNvKpi = kk.trend_truy_thu_nv?.tb_toan_vung?.[nvLabels.length - 1];
 
   return (
     <Layout crumb={`Báo cáo tháng / ${report?.display_name || period || ""}`}>
@@ -103,6 +115,16 @@ export default function BaoCaoDetailPage() {
                   <div className="accent r"></div>
                   <span className="tag">Tổng giá trị truy thu</span>
                   <div className="val">{fmtMoney(kk.summary_kpi?.tong_gia_tri_truy_thu)}</div>
+                </div>
+                <div className="kpi-card">
+                  <div className="accent o"></div>
+                  <span className="tag">Giá trị TB / Shop</span>
+                  <div className="val">{fmtMoney(tbShopKpi)}</div>
+                </div>
+                <div className="kpi-card">
+                  <div className="accent g"></div>
+                  <span className="tag">TB Truy Thu / Nhân Viên</span>
+                  <div className="val">{fmtMoney(tbNvKpi)}</div>
                 </div>
               </div>
 
@@ -161,6 +183,27 @@ export default function BaoCaoDetailPage() {
                   )}
                 </div>
               </div>
+
+              {regionChartData.length > 0 && (
+                <div className="card">
+                  <div className="card-head"><h3>Biểu đồ giá trị truy thu trung bình/shop theo vùng</h3></div>
+                  <div className="card-body" style={{ height: 340 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={regionChartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F6" />
+                        <XAxis dataKey="vung" tick={{ fontSize: 11 }} interval={0} angle={-15} textAnchor="end" height={60} />
+                        <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => (v / 1000).toFixed(0) + "k"} />
+                        <Tooltip formatter={(v) => fmtMoney(v) + " đ"} />
+                        <Bar dataKey="tb_shop_abs" radius={[4, 4, 0, 0]}>
+                          {regionChartData.map((_, i) => (
+                            <Cell key={i} fill={REGION_COLORS[i % REGION_COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
 
               {/* ---- 2. Giá trị truy thu trung bình shop (3 tháng gần nhất) ---- */}
               <div className="card">
