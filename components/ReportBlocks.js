@@ -14,6 +14,16 @@ const SEVERITY_INFO = {
 };
 const BAR_COLORS = ["#3E7FD1", "#F5821F", "#7AC142", "#D64545", "#9B59B6", "#16A5A5", "#E4B62F", "#5580D6"];
 
+// Icon minh họa theo chủ đề — chọn từ bộ có sẵn (AI/backend chỉ chọn "icon_key",
+// không vẽ ảnh) để phần trình bày sinh động hơn mà không cần gọi thêm API tạo ảnh.
+const ICON_MAP = {
+  gian_lan: "🚨", an_toan: "🔥", ve_sinh: "🧹", ban_hang: "🧾",
+  kiem_ke: "📦", gio_giac: "⏰", thai_do: "💬", tai_chinh: "💰", khac: "📋",
+};
+function iconFor(key) {
+  return ICON_MAP[key] || ICON_MAP.khac;
+}
+
 function fmtNum(n) {
   if (n === undefined || n === null) return "-";
   return Number(n).toLocaleString("vi-VN");
@@ -29,8 +39,34 @@ function StatHighlight({ value, label, accent = "b" }) {
   );
 }
 
-function CaseCard({ title, severity = "vua", summary, meta }) {
+function CaseCard({ title, severity = "vua", summary, meta, featured, icon_key }) {
   const sev = SEVERITY_INFO[severity] || SEVERITY_INFO.vua;
+  const isFeatured = featured || severity === "nghiem_trong";
+
+  if (isFeatured) {
+    return (
+      <div className="card" style={{ border: `1px solid ${sev.color}33`, overflow: "hidden" }}>
+        <div style={{ background: `linear-gradient(135deg, ${sev.color}, ${sev.color}CC)`, padding: "12px 22px", display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 22 }}>{iconFor(icon_key)}</span>
+          <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.5, color: "#fff", textTransform: "uppercase" }}>
+            {sev.label} — cần ưu tiên xử lý
+          </span>
+        </div>
+        <div className="card-body" style={{ padding: "22px 26px" }}>
+          <strong style={{ fontSize: 17, color: "var(--navy-900)" }}>{title}</strong>
+          {meta && (
+            <div style={{ fontSize: 12.5, color: "var(--text-600)", marginTop: 8, display: "flex", flexWrap: "wrap", gap: "4px 14px" }}>
+              {[meta.doi_tuong, meta.vung, meta.ngay, meta.trang_thai].filter(Boolean).map((m, i) => (
+                <span key={i}>{m}</span>
+              ))}
+            </div>
+          )}
+          {summary && <p style={{ fontSize: 14, marginTop: 14, lineHeight: 1.75, whiteSpace: "pre-line", color: "var(--text-900)" }}>{summary}</p>}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="card">
       <div className="card-body" style={{ padding: "16px 20px", borderLeft: `4px solid ${sev.color}` }}>
@@ -39,6 +75,7 @@ function CaseCard({ title, severity = "vua", summary, meta }) {
             <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 20, fontSize: 11.5, fontWeight: 700, background: sev.bg, color: sev.color }}>
               {sev.label}
             </span>{" "}
+            <span style={{ fontSize: 14 }}>{iconFor(icon_key)}</span>{" "}
             <strong style={{ fontSize: 14.5, color: "var(--navy-900)" }}>{title}</strong>
           </div>
         </div>
@@ -48,6 +85,32 @@ function CaseCard({ title, severity = "vua", summary, meta }) {
           </div>
         )}
         {summary && <p style={{ fontSize: 13, marginTop: 10, whiteSpace: "pre-line", color: "var(--text-900)" }}>{summary}</p>}
+      </div>
+    </div>
+  );
+}
+
+function CaseGroup({ title, description, items = [], icon_key }) {
+  return (
+    <div className="card">
+      <div className="card-head" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span style={{ fontSize: 20 }}>{iconFor(icon_key)}</span>
+        <h3 style={{ margin: 0 }}>{title}</h3>
+      </div>
+      <div className="card-body" style={{ padding: "18px 22px" }}>
+        {description && <p style={{ fontSize: 13, color: "var(--text-600)", marginBottom: 14 }}>{description}</p>}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 12 }}>
+          {items.map((item, i) => (
+            <div key={i} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "12px 14px", background: "var(--surface)" }}>
+              <strong style={{ fontSize: 13, color: "var(--navy-900)" }}>{item.title}</strong>
+              <div style={{ fontSize: 11.5, color: "var(--text-600)", marginTop: 5, display: "flex", flexDirection: "column", gap: 2 }}>
+                {item.vung && <span>{item.vung}</span>}
+                {item.ngay && <span>{item.ngay}</span>}
+                {item.trang_thai && <span>{item.trang_thai}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -141,6 +204,9 @@ export default function BlockRenderer({ blocks = [] }) {
     switch (b.type) {
       case "case_card":
         elements.push(<CaseCard key={i} {...b} />);
+        break;
+      case "case_group":
+        elements.push(<CaseGroup key={i} {...b} />);
         break;
       case "timeline":
         elements.push(<Timeline key={i} {...b} />);
