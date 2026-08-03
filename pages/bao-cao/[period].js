@@ -306,7 +306,7 @@ export default function BaoCaoDetailPage() {
                       <tbody>
                         {kk.region_stats.map((row, i) => (
                           <tr key={i}>
-                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["region_stats", i, "vung"]} isText />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["region_stats", i, "vung"]} isText style={{ textAlign: "left" }} />
                             <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["region_stats", i, "online", "sl_shop"]} className="num" />
                             <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["region_stats", i, "online", "gia_tri"]} className="num neg" />
                             <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["region_stats", i, "online", "tb_shop"]} className="num" />
@@ -320,7 +320,7 @@ export default function BaoCaoDetailPage() {
                         ))}
                         {kk.grand_total && (
                           <tr style={{ background: "#F8FAFD", fontWeight: 700 }}>
-                            <td>Grand Total</td>
+                            <td style={{ textAlign: "left" }}>Grand Total</td>
                             <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["grand_total", "online", "sl_shop"]} className="num" />
                             <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["grand_total", "online", "gia_tri"]} className="num neg" />
                             <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["grand_total", "online", "tb_shop"]} className="num" />
@@ -393,7 +393,7 @@ export default function BaoCaoDetailPage() {
                       <tbody>
                         {kk.trend_tb_shop.rows.map((row, i) => (
                           <tr key={i}>
-                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["trend_tb_shop", "rows", i, "vung"]} isText />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["trend_tb_shop", "rows", i, "vung"]} isText style={{ textAlign: "left" }} />
                             {row.values.map((v, j) => (
                               <Fragment key={j}>
                                 <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["trend_tb_shop", "rows", i, "values", j, "sl_shop"]} className="num" />
@@ -405,7 +405,7 @@ export default function BaoCaoDetailPage() {
                         ))}
                         {kk.trend_tb_shop.tong && (
                           <tr style={{ background: "#F8FAFD", fontWeight: 700 }}>
-                            <td>Tổng số</td>
+                            <td style={{ textAlign: "left" }}>Tổng số</td>
                             {kk.trend_tb_shop.tong.values.map((v, j) => (
                               <Fragment key={j}>
                                 <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["trend_tb_shop", "tong", "values", j, "sl_shop"]} className="num" />
@@ -446,7 +446,7 @@ export default function BaoCaoDetailPage() {
                         <tbody>
                           {kk.trend_truy_thu_nv.rows.map((row, i) => (
                             <tr key={i}>
-                              <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["trend_truy_thu_nv", "rows", i, "vung"]} isText />
+                              <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["trend_truy_thu_nv", "rows", i, "vung"]} isText style={{ textAlign: "left" }} />
                               {row.values.map((v, j) => (
                                 <EditableTd kk={kk} editMode={editMode} setValue={setValue} key={j} path={["trend_truy_thu_nv", "rows", i, "values", j]} className="num" />
                               ))}
@@ -454,7 +454,7 @@ export default function BaoCaoDetailPage() {
                           ))}
                           {kk.trend_truy_thu_nv.tb_toan_vung && (
                             <tr style={{ background: "#F8FAFD", fontWeight: 700 }}>
-                              <td>TB Toàn Vùng</td>
+                              <td style={{ textAlign: "left" }}>TB Toàn Vùng</td>
                               {kk.trend_truy_thu_nv.tb_toan_vung.map((v, j) => (
                                 <EditableTd kk={kk} editMode={editMode} setValue={setValue} key={j} path={["trend_truy_thu_nv", "tb_toan_vung", j]} className="num" />
                               ))}
@@ -505,8 +505,8 @@ export default function BaoCaoDetailPage() {
                         {kk.top_shops.map((row, i) => (
                           <tr key={i}>
                             <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["top_shops", i, "ma_shop"]} isText />
-                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["top_shops", i, "ten_shop"]} isText />
-                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["top_shops", i, "vung"]} isText />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["top_shops", i, "ten_shop"]} isText style={{ textAlign: "left" }} />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["top_shops", i, "vung"]} isText style={{ textAlign: "left" }} />
                             <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["top_shops", i, "gia_tri"]} className="num neg" style={{ whiteSpace: "nowrap" }} />
                             {editMode ? (
                               <td style={{ minWidth: 280, textAlign: "left" }}>
