@@ -4,7 +4,7 @@ import {
   BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import Layout from "../../components/Layout";
-import { getReport, listReports } from "../../lib/api";
+import { getReport, listReports, updateReportKiemKe, getUser } from "../../lib/api";
 
 export async function getStaticPaths() {
   return { paths: [], fallback: "blocking" };
@@ -19,8 +19,40 @@ function fmtMoney(n) {
   return n.toLocaleString("vi-VN");
 }
 
+// ---- Helpers để đọc/ghi theo path lồng nhau trong object JSON, dùng cho chế độ "Sửa nhanh" ----
+function getPath(obj, path) {
+  return path.reduce((o, k) => (o === undefined || o === null ? undefined : o[k]), obj);
+}
+
+function numOrNull(v) {
+  if (v === "" || v === null || v === undefined) return null;
+  const cleaned = String(v).replace(/[^\d-]/g, "");
+  if (cleaned === "" || cleaned === "-") return null;
+  const n = parseInt(cleaned, 10);
+  return Number.isNaN(n) ? null : n;
+}
+
 const MONTH_COLORS = ["#8B93A5", "#F5821F", "#3E7FD1"];
 const REGION_COLORS = ["#3E7FD1", "#F5821F", "#7AC142", "#D64545", "#9B59B6", "#16A5A5", "#E4B62F", "#5580D6"];
+
+// Ô hiển thị/sửa dùng chung cho bảng — đặt NGOÀI component chính, tránh bị
+// tạo lại (remount) mỗi lần render khiến input mất focus lúc đang gõ.
+function EditableTd({ kk, editMode, setValue, path, className, style, isText }) {
+  const value = getPath(kk, path);
+  if (!editMode) {
+    return <td className={className} style={style}>{isText ? (value ?? "-") : fmtMoney(value)}</td>;
+  }
+  return (
+    <td className={className} style={style}>
+      <input
+        className="editing-cell"
+        value={value === null || value === undefined ? "" : value}
+        onChange={(e) => setValue(path, e.target.value)}
+        style={editInputStyle}
+      />
+    </td>
+  );
+}
 
 export default function BaoCaoDetailPage() {
   const router = useRouter();
@@ -29,6 +61,10 @@ export default function BaoCaoDetailPage() {
   const [allPeriods, setAllPeriods] = useState([]);
   const [tab, setTab] = useState("kiem-ke"); // "kiem-ke" | "chu-de"
   const [error, setError] = useState("");
+  const [editMode, setEditMode] = useState(false);
+  const [draftKk, setDraftKk] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const isAdmin = ["admin", "super_admin"].includes(getUser()?.role);
 
   useEffect(() => {
     listReports().then(setAllPeriods).catch((err) => setError(err.message));
@@ -39,35 +75,131 @@ export default function BaoCaoDetailPage() {
     getReport(period).then(setReport).catch((err) => setError(err.message));
   }, [period]);
 
-  const kk = report?.report_kiem_ke || {};
+  const savedKk = report?.report_kiem_ke || {};
+  const kk = editMode ? draftKk : savedKk;
   const cd = report?.report_chu_de || {};
 
-  // Dữ liệu biểu đồ "Truy thu TB nhân viên" — gộp theo vùng, mỗi vùng có N tháng
-  const nvChartData = (kk.trend_truy_thu_nv?.rows || []).map((row) => {
+  function setValue(path, rawValue) {
+    setDraftKk((prev) => {
+      const next = JSON.parse(JSON.stringify(prev));
+      let obj = next;
+      for (let i = 0; i < path.length - 1; i++) obj = obj[path[i]];
+      obj[path[path.length - 1]] = rawValue;
+      return next;
+    });
+  }
+
+  function startEdit() {
+    setDraftKk(JSON.parse(JSON.stringify(savedKk)));
+    setEditMode(true);
+  }
+
+  function cancelEdit() {
+    setEditMode(false);
+    setDraftKk(null);
+  }
+
+  async function saveEdit() {
+    setSaving(true);
+    try {
+      // Chuẩn hóa các trường số (đang lưu dạng chuỗi khi gõ) về số nguyên/null trước khi lưu
+      const payload = JSON.parse(JSON.stringify(draftKk));
+      payload.summary_kpi.shop_kiem_ke = numOrNull(payload.summary_kpi.shop_kiem_ke);
+      payload.summary_kpi.tong_gia_tri_truy_thu = numOrNull(payload.summary_kpi.tong_gia_tri_truy_thu);
+      ["region_stats"].forEach((key) => {
+        (payload[key] || []).forEach((row) => {
+          ["online", "truc_tiep", "total"].forEach((g) => {
+            if (!row[g]) return;
+            row[g].sl_shop = numOrNull(row[g].sl_shop);
+            row[g].gia_tri = numOrNull(row[g].gia_tri);
+            row[g].tb_shop = numOrNull(row[g].tb_shop);
+          });
+        });
+      });
+      if (payload.grand_total) {
+        ["online", "truc_tiep", "total"].forEach((g) => {
+          if (!payload.grand_total[g]) return;
+          payload.grand_total[g].sl_shop = numOrNull(payload.grand_total[g].sl_shop);
+          payload.grand_total[g].gia_tri = numOrNull(payload.grand_total[g].gia_tri);
+          payload.grand_total[g].tb_shop = numOrNull(payload.grand_total[g].tb_shop);
+        });
+      }
+      (payload.trend_tb_shop?.rows || []).forEach((row) => {
+        row.values = row.values.map((v) => ({
+          sl_shop: numOrNull(v.sl_shop), gia_tri: numOrNull(v.gia_tri), tb_shop: numOrNull(v.tb_shop),
+        }));
+      });
+      if (payload.trend_tb_shop?.tong) {
+        payload.trend_tb_shop.tong.values = payload.trend_tb_shop.tong.values.map((v) => ({
+          sl_shop: numOrNull(v.sl_shop), gia_tri: numOrNull(v.gia_tri), tb_shop: numOrNull(v.tb_shop),
+        }));
+      }
+      (payload.trend_truy_thu_nv?.rows || []).forEach((row) => {
+        row.values = row.values.map((v) => numOrNull(v));
+      });
+      if (payload.trend_truy_thu_nv?.tb_toan_vung) {
+        payload.trend_truy_thu_nv.tb_toan_vung = payload.trend_truy_thu_nv.tb_toan_vung.map((v) => numOrNull(v));
+      }
+      (payload.top_shops || []).forEach((row) => {
+        row.gia_tri = numOrNull(row.gia_tri);
+      });
+
+      const updated = await updateReportKiemKe(period, payload);
+      setReport(updated);
+      setEditMode(false);
+      setDraftKk(null);
+    } catch (err) {
+      alert(err.message || "Lưu báo cáo thất bại");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Dữ liệu biểu đồ luôn lấy từ bản ĐÃ LƯU (savedKk) — biểu đồ chỉ cập nhật sau khi bấm Lưu
+  const nvChartData = (savedKk.trend_truy_thu_nv?.rows || []).map((row) => {
     const item = { vung: row.vung };
-    (kk.trend_truy_thu_nv?.thang_labels || []).forEach((label, i) => {
+    (savedKk.trend_truy_thu_nv?.thang_labels || []).forEach((label, i) => {
       item[label] = row.values?.[i] ?? 0;
     });
     return item;
   });
 
-  // Biểu đồ mục 1: giá trị truy thu TB/shop theo vùng (tháng hiện tại) — lấy trị tuyệt đối để vẽ cột
-  const regionChartData = (kk.region_stats || []).map((row) => ({
+  const regionChartData = (savedKk.region_stats || []).map((row) => ({
     vung: row.vung,
     tb_shop_abs: Math.abs(row.total?.tb_shop ?? 0),
   }));
 
-  // KPI bổ sung: Giá trị TB/Shop (grand total) + TB Truy Thu/Nhân Viên (tháng gần nhất)
   const tbShopKpi = kk.grand_total?.total?.tb_shop;
   const nvLabels = kk.trend_truy_thu_nv?.thang_labels || [];
   const tbNvKpi = kk.trend_truy_thu_nv?.tb_toan_vung?.[nvLabels.length - 1];
 
   return (
     <Layout crumb={`Báo cáo tháng / ${report?.display_name || period || ""}`}>
-      <div className="page-head">
-        <h1>{report?.display_name || "Đang tải..."}</h1>
-        <p>Báo cáo tháng gồm 2 phần: Kiểm kê hàng hóa và Kiểm soát chủ đề.</p>
+      <div className="page-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h1>{report?.display_name || "Đang tải..."}</h1>
+          <p>Báo cáo tháng gồm 2 phần: Kiểm kê hàng hóa và Kiểm soát chủ đề.</p>
+        </div>
+        {isAdmin && tab === "kiem-ke" && report && (
+          <div style={{ display: "flex", gap: 8 }}>
+            {!editMode ? (
+              <button onClick={startEdit} style={editToggleBtnStyle}>✏️ Sửa nhanh</button>
+            ) : (
+              <>
+                <button onClick={saveEdit} disabled={saving} style={saveBtnStyle}>
+                  {saving ? "Đang lưu..." : "💾 Lưu"}
+                </button>
+                <button onClick={cancelEdit} disabled={saving} style={cancelBtnStyle}>✖ Hủy</button>
+              </>
+            )}
+          </div>
+        )}
       </div>
+      {editMode && (
+        <div style={editBannerStyle}>
+          Đang ở <strong>chế độ chỉnh sửa</strong> (chỉ Admin/Super Admin thấy được) — sửa số liệu bên dưới rồi bấm <strong>Lưu</strong>. Bấm <strong>Hủy</strong> để thoát mà không lưu.
+        </div>
+      )}
 
       {allPeriods.length > 0 && (
         <div className="month-tabs">
@@ -75,7 +207,7 @@ export default function BaoCaoDetailPage() {
             <div
               key={p.period_label}
               className={`month-tab ${p.period_label === period ? "active" : ""}`}
-              onClick={() => router.push(`/bao-cao/${p.period_label}`)}
+              onClick={() => !editMode && router.push(`/bao-cao/${p.period_label}`)}
             >
               {p.display_name}
             </div>
@@ -88,10 +220,10 @@ export default function BaoCaoDetailPage() {
       {report && (
         <>
           <div className="month-tabs">
-            <div className={`month-tab ${tab === "kiem-ke" ? "active" : ""}`} onClick={() => setTab("kiem-ke")}>
+            <div className={`month-tab ${tab === "kiem-ke" ? "active" : ""}`} onClick={() => !editMode && setTab("kiem-ke")}>
               📦 Báo cáo kiểm kê
             </div>
-            <div className={`month-tab ${tab === "chu-de" ? "active" : ""}`} onClick={() => setTab("chu-de")}>
+            <div className={`month-tab ${tab === "chu-de" ? "active" : ""}`} onClick={() => !editMode && setTab("chu-de")}>
               🗂️ Báo cáo kiểm soát theo chủ đề{cd.ten_chu_de ? `: ${cd.ten_chu_de}` : ""}
             </div>
           </div>
@@ -109,22 +241,46 @@ export default function BaoCaoDetailPage() {
                 <div className="kpi-card">
                   <div className="accent b"></div>
                   <span className="tag">Shop kiểm kê</span>
-                  <div className="val">{fmtMoney(kk.summary_kpi?.shop_kiem_ke)}</div>
+                  {editMode ? (
+                    <input className="editing-cell" style={editKpiInputStyle}
+                      value={kk.summary_kpi?.shop_kiem_ke ?? ""}
+                      onChange={(e) => setValue(["summary_kpi", "shop_kiem_ke"], e.target.value)} />
+                  ) : (
+                    <div className="val">{fmtMoney(kk.summary_kpi?.shop_kiem_ke)}</div>
+                  )}
                 </div>
                 <div className="kpi-card">
                   <div className="accent r"></div>
                   <span className="tag">Tổng giá trị truy thu</span>
-                  <div className="val">{fmtMoney(kk.summary_kpi?.tong_gia_tri_truy_thu)}</div>
+                  {editMode ? (
+                    <input className="editing-cell" style={editKpiInputStyle}
+                      value={kk.summary_kpi?.tong_gia_tri_truy_thu ?? ""}
+                      onChange={(e) => setValue(["summary_kpi", "tong_gia_tri_truy_thu"], e.target.value)} />
+                  ) : (
+                    <div className="val">{fmtMoney(kk.summary_kpi?.tong_gia_tri_truy_thu)}</div>
+                  )}
                 </div>
                 <div className="kpi-card">
                   <div className="accent o"></div>
                   <span className="tag">Giá trị TB / Shop</span>
-                  <div className="val">{fmtMoney(tbShopKpi)}</div>
+                  {editMode ? (
+                    <input className="editing-cell" style={editKpiInputStyle}
+                      value={kk.grand_total?.total?.tb_shop ?? ""}
+                      onChange={(e) => setValue(["grand_total", "total", "tb_shop"], e.target.value)} />
+                  ) : (
+                    <div className="val">{fmtMoney(tbShopKpi)}</div>
+                  )}
                 </div>
                 <div className="kpi-card">
                   <div className="accent g"></div>
                   <span className="tag">TB Truy Thu / Nhân Viên</span>
-                  <div className="val">{fmtMoney(tbNvKpi)}</div>
+                  {editMode ? (
+                    <input className="editing-cell" style={editKpiInputStyle}
+                      value={kk.trend_truy_thu_nv?.tb_toan_vung?.[nvLabels.length - 1] ?? ""}
+                      onChange={(e) => setValue(["trend_truy_thu_nv", "tb_toan_vung", nvLabels.length - 1], e.target.value)} />
+                  ) : (
+                    <div className="val">{fmtMoney(tbNvKpi)}</div>
+                  )}
                 </div>
               </div>
 
@@ -150,30 +306,30 @@ export default function BaoCaoDetailPage() {
                       <tbody>
                         {kk.region_stats.map((row, i) => (
                           <tr key={i}>
-                            <td>{row.vung}</td>
-                            <td className="num">{fmtMoney(row.online?.sl_shop)}</td>
-                            <td className="num neg">{fmtMoney(row.online?.gia_tri)}</td>
-                            <td className="num">{fmtMoney(row.online?.tb_shop)}</td>
-                            <td className="num">{fmtMoney(row.truc_tiep?.sl_shop)}</td>
-                            <td className="num neg">{fmtMoney(row.truc_tiep?.gia_tri)}</td>
-                            <td className="num">{fmtMoney(row.truc_tiep?.tb_shop)}</td>
-                            <td className="num" style={{ fontWeight: 700 }}>{fmtMoney(row.total?.sl_shop)}</td>
-                            <td className="num neg" style={{ fontWeight: 700 }}>{fmtMoney(row.total?.gia_tri)}</td>
-                            <td className="num" style={{ fontWeight: 700 }}>{fmtMoney(row.total?.tb_shop)}</td>
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["region_stats", i, "vung"]} isText />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["region_stats", i, "online", "sl_shop"]} className="num" />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["region_stats", i, "online", "gia_tri"]} className="num neg" />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["region_stats", i, "online", "tb_shop"]} className="num" />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["region_stats", i, "truc_tiep", "sl_shop"]} className="num" />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["region_stats", i, "truc_tiep", "gia_tri"]} className="num neg" />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["region_stats", i, "truc_tiep", "tb_shop"]} className="num" />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["region_stats", i, "total", "sl_shop"]} className="num" style={{ fontWeight: 700 }} />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["region_stats", i, "total", "gia_tri"]} className="num neg" style={{ fontWeight: 700 }} />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["region_stats", i, "total", "tb_shop"]} className="num" style={{ fontWeight: 700 }} />
                           </tr>
                         ))}
                         {kk.grand_total && (
                           <tr style={{ background: "#F8FAFD", fontWeight: 700 }}>
                             <td>Grand Total</td>
-                            <td className="num">{fmtMoney(kk.grand_total.online?.sl_shop)}</td>
-                            <td className="num neg">{fmtMoney(kk.grand_total.online?.gia_tri)}</td>
-                            <td className="num">{fmtMoney(kk.grand_total.online?.tb_shop)}</td>
-                            <td className="num">{fmtMoney(kk.grand_total.truc_tiep?.sl_shop)}</td>
-                            <td className="num neg">{fmtMoney(kk.grand_total.truc_tiep?.gia_tri)}</td>
-                            <td className="num">{fmtMoney(kk.grand_total.truc_tiep?.tb_shop)}</td>
-                            <td className="num">{fmtMoney(kk.grand_total.total?.sl_shop)}</td>
-                            <td className="num neg">{fmtMoney(kk.grand_total.total?.gia_tri)}</td>
-                            <td className="num">{fmtMoney(kk.grand_total.total?.tb_shop)}</td>
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["grand_total", "online", "sl_shop"]} className="num" />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["grand_total", "online", "gia_tri"]} className="num neg" />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["grand_total", "online", "tb_shop"]} className="num" />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["grand_total", "truc_tiep", "sl_shop"]} className="num" />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["grand_total", "truc_tiep", "gia_tri"]} className="num neg" />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["grand_total", "truc_tiep", "tb_shop"]} className="num" />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["grand_total", "total", "sl_shop"]} className="num" />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["grand_total", "total", "gia_tri"]} className="num neg" />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["grand_total", "total", "tb_shop"]} className="num" />
                           </tr>
                         )}
                       </tbody>
@@ -187,7 +343,7 @@ export default function BaoCaoDetailPage() {
               {regionChartData.length > 0 && (
                 <div className="card">
                   <div className="card-head"><h3>Biểu đồ giá trị truy thu trung bình/shop theo vùng</h3></div>
-                  <div className="card-body" style={{ height: 340 }}>
+                  <div className="card-body" style={{ height: 320 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={regionChartData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F6" />
@@ -214,13 +370,18 @@ export default function BaoCaoDetailPage() {
                       <thead>
                         <tr>
                           <th rowSpan={2} style={{ verticalAlign: "bottom" }}>Vùng</th>
-                          {kk.trend_tb_shop.thang_labels.map((label) => (
-                            <th key={label} colSpan={3}>{label}</th>
+                          {kk.trend_tb_shop.thang_labels.map((label, li) => (
+                            editMode ? (
+                              <th key={li} colSpan={3}>
+                                <input className="editing-cell" style={editThInputStyle} value={label}
+                                  onChange={(e) => setValue(["trend_tb_shop", "thang_labels", li], e.target.value)} />
+                              </th>
+                            ) : <th key={li} colSpan={3}>{label}</th>
                           ))}
                         </tr>
                         <tr>
-                          {kk.trend_tb_shop.thang_labels.map((label) => (
-                            <Fragment key={label}>
+                          {kk.trend_tb_shop.thang_labels.map((label, li) => (
+                            <Fragment key={li}>
                               <th>SL Shop</th>
                               <th>Giá trị</th>
                               <th>TB/shop</th>
@@ -231,12 +392,12 @@ export default function BaoCaoDetailPage() {
                       <tbody>
                         {kk.trend_tb_shop.rows.map((row, i) => (
                           <tr key={i}>
-                            <td>{row.vung}</td>
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["trend_tb_shop", "rows", i, "vung"]} isText />
                             {row.values.map((v, j) => (
                               <Fragment key={j}>
-                                <td className="num">{fmtMoney(v.sl_shop)}</td>
-                                <td className="num neg">{fmtMoney(v.gia_tri)}</td>
-                                <td className="num">{fmtMoney(v.tb_shop)}</td>
+                                <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["trend_tb_shop", "rows", i, "values", j, "sl_shop"]} className="num" />
+                                <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["trend_tb_shop", "rows", i, "values", j, "gia_tri"]} className="num neg" />
+                                <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["trend_tb_shop", "rows", i, "values", j, "tb_shop"]} className="num" />
                               </Fragment>
                             ))}
                           </tr>
@@ -246,9 +407,9 @@ export default function BaoCaoDetailPage() {
                             <td>Tổng số</td>
                             {kk.trend_tb_shop.tong.values.map((v, j) => (
                               <Fragment key={j}>
-                                <td className="num">{fmtMoney(v.sl_shop)}</td>
-                                <td className="num neg">{fmtMoney(v.gia_tri)}</td>
-                                <td className="num">{fmtMoney(v.tb_shop)}</td>
+                                <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["trend_tb_shop", "tong", "values", j, "sl_shop"]} className="num" />
+                                <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["trend_tb_shop", "tong", "values", j, "gia_tri"]} className="num neg" />
+                                <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["trend_tb_shop", "tong", "values", j, "tb_shop"]} className="num" />
                               </Fragment>
                             ))}
                           </tr>
@@ -271,17 +432,22 @@ export default function BaoCaoDetailPage() {
                         <thead>
                           <tr>
                             <th>Vùng</th>
-                            {kk.trend_truy_thu_nv.thang_labels.map((label) => (
-                              <th key={label}>{label}</th>
+                            {kk.trend_truy_thu_nv.thang_labels.map((label, li) => (
+                              editMode ? (
+                                <th key={li}>
+                                  <input className="editing-cell" style={editThInputStyle} value={label}
+                                    onChange={(e) => setValue(["trend_truy_thu_nv", "thang_labels", li], e.target.value)} />
+                                </th>
+                              ) : <th key={li}>{label}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
                           {kk.trend_truy_thu_nv.rows.map((row, i) => (
                             <tr key={i}>
-                              <td>{row.vung}</td>
+                              <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["trend_truy_thu_nv", "rows", i, "vung"]} isText />
                               {row.values.map((v, j) => (
-                                <td className="num" key={j}>{fmtMoney(v)}</td>
+                                <EditableTd kk={kk} editMode={editMode} setValue={setValue} key={j} path={["trend_truy_thu_nv", "rows", i, "values", j]} className="num" />
                               ))}
                             </tr>
                           ))}
@@ -289,14 +455,14 @@ export default function BaoCaoDetailPage() {
                             <tr style={{ background: "#F8FAFD", fontWeight: 700 }}>
                               <td>TB Toàn Vùng</td>
                               {kk.trend_truy_thu_nv.tb_toan_vung.map((v, j) => (
-                                <td className="num" key={j}>{fmtMoney(v)}</td>
+                                <EditableTd kk={kk} editMode={editMode} setValue={setValue} key={j} path={["trend_truy_thu_nv", "tb_toan_vung", j]} className="num" />
                               ))}
                             </tr>
                           )}
                         </tbody>
                       </table>
                     </div>
-                    <div className="card-body" style={{ padding: "16px 20px", height: 320 }}>
+                    <div className="card-body" style={{ padding: "16px 20px", height: 360 }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={nvChartData}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F6" />
@@ -304,7 +470,7 @@ export default function BaoCaoDetailPage() {
                           <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => (v / 1000).toFixed(0) + "k"} />
                           <Tooltip formatter={(v) => fmtMoney(v) + " đ"} />
                           <Legend />
-                          {kk.trend_truy_thu_nv.thang_labels.map((label, i) => (
+                          {(savedKk.trend_truy_thu_nv?.thang_labels || []).map((label, i) => (
                             <Bar key={label} dataKey={label} fill={MONTH_COLORS[i % MONTH_COLORS.length]} radius={[3, 3, 0, 0]} />
                           ))}
                         </BarChart>
@@ -328,11 +494,19 @@ export default function BaoCaoDetailPage() {
                       <tbody>
                         {kk.top_shops.map((row, i) => (
                           <tr key={i}>
-                            <td>{row.ma_shop}</td>
-                            <td>{row.ten_shop || "-"}</td>
-                            <td>{row.vung}</td>
-                            <td className="num neg" style={{ whiteSpace: "nowrap" }}>{fmtMoney(row.gia_tri)}</td>
-                            <td style={{ minWidth: 280, whiteSpace: "pre-line" }}>{row.ly_do}</td>
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["top_shops", i, "ma_shop"]} isText />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["top_shops", i, "ten_shop"]} isText />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["top_shops", i, "vung"]} isText />
+                            <EditableTd kk={kk} editMode={editMode} setValue={setValue} path={["top_shops", i, "gia_tri"]} className="num neg" style={{ whiteSpace: "nowrap" }} />
+                            {editMode ? (
+                              <td style={{ minWidth: 280 }}>
+                                <textarea className="editing-cell" style={editTextareaStyle} rows={2}
+                                  value={row.ly_do ?? ""}
+                                  onChange={(e) => setValue(["top_shops", i, "ly_do"], e.target.value)} />
+                              </td>
+                            ) : (
+                              <td style={{ minWidth: 280, whiteSpace: "pre-line" }}>{row.ly_do}</td>
+                            )}
                           </tr>
                         ))}
                       </tbody>
@@ -403,3 +577,43 @@ export default function BaoCaoDetailPage() {
     </Layout>
   );
 }
+
+const editToggleBtnStyle = {
+  background: "var(--navy-800)", color: "#fff", border: "none", borderRadius: 8,
+  padding: "9px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
+};
+
+const saveBtnStyle = {
+  background: "#4C9A2A", color: "#fff", border: "none", borderRadius: 8,
+  padding: "9px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+};
+
+const cancelBtnStyle = {
+  background: "#fff", color: "var(--text-600)", border: "1px solid var(--border)", borderRadius: 8,
+  padding: "9px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+};
+
+const editBannerStyle = {
+  background: "#FFF6E5", border: "1px solid #F5D98A", borderRadius: 8,
+  padding: "12px 16px", marginBottom: 16, fontSize: 13, color: "#8A6300",
+};
+
+const editInputStyle = {
+  width: "100%", minWidth: 70, padding: "5px 8px", border: "1.5px dashed #E4B62F",
+  background: "#FFFDF0", borderRadius: 4, fontSize: 13, textAlign: "inherit", fontFamily: "inherit",
+};
+
+const editKpiInputStyle = {
+  width: "100%", padding: "6px 8px", border: "1.5px dashed #E4B62F",
+  background: "#FFFDF0", borderRadius: 4, fontSize: 20, fontWeight: 800, color: "var(--navy-900)",
+};
+
+const editThInputStyle = {
+  width: "100%", padding: "4px 6px", border: "1.5px dashed #E4B62F",
+  background: "#FFFDF0", borderRadius: 4, fontSize: 12, fontWeight: 700, textAlign: "center", textTransform: "uppercase",
+};
+
+const editTextareaStyle = {
+  width: "100%", padding: "6px 8px", border: "1.5px dashed #E4B62F",
+  background: "#FFFDF0", borderRadius: 4, fontSize: 13, fontFamily: "inherit", resize: "vertical",
+};
