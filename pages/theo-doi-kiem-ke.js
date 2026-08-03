@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
-import { getKiemKePeriods, listKiemKe, updateKiemKeGhiChu } from "../lib/api";
+import { getKiemKePeriods, listKiemKe, updateKiemKeGhiChu, syncKiemKeNow, getUser } from "../lib/api";
 
 function fmtMoney(n) {
   if (n === undefined || n === null) return "-";
@@ -8,26 +8,32 @@ function fmtMoney(n) {
 }
 
 export default function TheoDoiKiemKePage() {
+  const [loai, setLoai] = useState("da_kiem"); // "da_kiem" | "dang_kiem"
   const [periods, setPeriods] = useState([]);
   const [period, setPeriod] = useState(null);
   const [rows, setRows] = useState([]);
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [noteDraft, setNoteDraft] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState("");
+  const isAdmin = ["admin", "super_admin"].includes(getUser()?.role);
 
+  // Khi đổi tab Đã kiểm / Đang kiểm -> nạp lại danh sách kỳ tương ứng
   useEffect(() => {
-    getKiemKePeriods()
+    getKiemKePeriods(loai)
       .then((list) => {
         setPeriods(list);
-        if (list.length > 0) setPeriod(list[0]); // tháng mới nhất trước
+        setPeriod(list.length > 0 ? list[0] : null);
+        setRows([]);
       })
       .catch((err) => setError(err.message));
-  }, []);
+  }, [loai]);
 
   useEffect(() => {
     if (!period) return;
-    listKiemKe(period).then(setRows).catch((err) => setError(err.message));
-  }, [period]);
+    listKiemKe(period, loai).then(setRows).catch((err) => setError(err.message));
+  }, [period, loai]);
 
   function startEditNote(row) {
     setEditingId(row.id);
@@ -44,11 +50,58 @@ export default function TheoDoiKiemKePage() {
     }
   }
 
+  async function handleSyncNow() {
+    setSyncing(true);
+    setSyncMsg("");
+    try {
+      const result = await syncKiemKeNow();
+      const added = (result.results?.da_kiem?.added || 0) + (result.results?.dang_kiem?.added || 0);
+      setSyncMsg(`Đã đồng bộ xong — thêm ${added} dòng mới.`);
+      // Nạp lại danh sách kỳ + dữ liệu đang xem cho đúng số mới nhất
+      const list = await getKiemKePeriods(loai);
+      setPeriods(list);
+      if (list.length > 0) {
+        const keepPeriod = list.includes(period) ? period : list[0];
+        setPeriod(keepPeriod);
+        const newRows = await listKiemKe(keepPeriod, loai);
+        setRows(newRows);
+      }
+    } catch (err) {
+      setSyncMsg(`Đồng bộ thất bại: ${err.message || "lỗi không xác định"}`);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   return (
     <Layout crumb="Theo dõi kiểm kê">
-      <div className="page-head">
-        <h1>Theo dõi kiểm kê</h1>
-        <p>Xem lại danh sách shop đã/đang kiểm kê theo từng tháng. Cột Ghi chú do NV KSNB tự cập nhật.</p>
+      <div className="page-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h1>Theo dõi kiểm kê</h1>
+          <p>Đồng bộ tự động từ Excel local trên PC lúc 23h mỗi ngày. Cột Ghi chú do NV KSNB tự cập nhật.</p>
+        </div>
+        {isAdmin && (
+          <div style={{ textAlign: "right" }}>
+            <button onClick={handleSyncNow} disabled={syncing} style={syncBtnStyle}>
+              {syncing ? "Đang đồng bộ..." : "🔄 Đồng bộ ngay"}
+            </button>
+            {syncMsg && (
+              <div style={{ fontSize: 12.5, marginTop: 6, color: syncMsg.startsWith("Đồng bộ thất bại") ? "#c00" : "var(--text-600)" }}>
+                {syncMsg}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Tab chọn Đã kiểm / Đang kiểm — giống kiểu tab ở Báo cáo tháng */}
+      <div className="month-tabs">
+        <div className={`month-tab ${loai === "da_kiem" ? "active" : ""}`} onClick={() => setLoai("da_kiem")}>
+          ✅ Đã kiểm
+        </div>
+        <div className={`month-tab ${loai === "dang_kiem" ? "active" : ""}`} onClick={() => setLoai("dang_kiem")}>
+          ⏳ Đang kiểm
+        </div>
       </div>
 
       {periods.length > 0 && (
@@ -63,7 +116,9 @@ export default function TheoDoiKiemKePage() {
 
       {error && <div className="placeholder-box">Không tải được dữ liệu: {error}</div>}
       {!error && periods.length === 0 && (
-        <div className="placeholder-box">Chưa có dữ liệu theo dõi kiểm kê nào được đẩy lên.</div>
+        <div className="placeholder-box">
+          Chưa có dữ liệu "{loai === "da_kiem" ? "Đã kiểm" : "Đang kiểm"}" nào được đồng bộ.
+        </div>
       )}
 
       {period && (
@@ -74,7 +129,7 @@ export default function TheoDoiKiemKePage() {
               <thead>
                 <tr>
                   <th>Vùng</th><th>Mã shop</th><th>Tên shop</th><th>Ngày kiểm kê</th>
-                  <th>Trạng thái</th><th>Giá trị thất thoát</th><th>NV kiểm kê</th><th>Ghi chú</th>
+                  <th>Giá trị thất thoát</th><th>Truy thu thanh lý</th><th>NV kiểm kê</th><th>Ghi chú</th>
                 </tr>
               </thead>
               <tbody>
@@ -84,8 +139,8 @@ export default function TheoDoiKiemKePage() {
                     <td>{r.ma_shop}</td>
                     <td>{r.ten_shop || "-"}</td>
                     <td>{r.ngay_kiem_ke || "-"}</td>
-                    <td>{r.trang_thai || "-"}</td>
                     <td className="num neg">{fmtMoney(r.gia_tri_that_thoat)}</td>
+                    <td className="num">{fmtMoney(r.truy_thu_thanh_ly)}</td>
                     <td>{r.nv_kiem_ke || "-"}</td>
                     <td style={{ minWidth: 200 }}>
                       {editingId === r.id ? (
@@ -122,4 +177,9 @@ export default function TheoDoiKiemKePage() {
 const saveBtnStyle = {
   padding: "6px 12px", borderRadius: 6, border: "none",
   background: "var(--navy-800)", color: "#fff", fontSize: 12, cursor: "pointer",
+};
+
+const syncBtnStyle = {
+  padding: "9px 16px", borderRadius: 8, border: "none",
+  background: "var(--navy-800)", color: "#fff", fontSize: 13.5, fontWeight: 600, cursor: "pointer",
 };
