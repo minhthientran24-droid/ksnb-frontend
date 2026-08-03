@@ -4,7 +4,11 @@ import {
   BarChart, Bar, Cell, LabelList, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import Layout from "../../components/Layout";
-import { getReport, listReports, updateReportKiemKe, getUser } from "../../lib/api";
+import BlockRenderer from "../../components/ReportBlocks";
+import {
+  getReport, listReports, updateReportKiemKe, generateChuDeReport,
+  synthesizeChuDeReport, updateReportChuDe, getUser,
+} from "../../lib/api";
 
 export async function getStaticPaths() {
   return { paths: [], fallback: "blocking" };
@@ -64,6 +68,12 @@ export default function BaoCaoDetailPage() {
   const [editMode, setEditMode] = useState(false);
   const [draftKk, setDraftKk] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [generatingChuDe, setGeneratingChuDe] = useState(false);
+  const [chuDeError, setChuDeError] = useState("");
+  const [aiSynthesizing, setAiSynthesizing] = useState(false);
+  const [aiError, setAiError] = useState("");
+  const [aiPreview, setAiPreview] = useState(null); // {ten_chu_de, blocks} - bản nháp chờ admin xác nhận
+  const [aiSaving, setAiSaving] = useState(false);
   const isAdmin = ["admin", "super_admin"].includes(getUser()?.role);
 
   useEffect(() => {
@@ -153,6 +163,52 @@ export default function BaoCaoDetailPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleGenerateChuDe() {
+    setGeneratingChuDe(true);
+    setChuDeError("");
+    try {
+      const updated = await generateChuDeReport(period);
+      setReport(updated);
+    } catch (err) {
+      setChuDeError(err.message || "Sinh báo cáo thất bại");
+    } finally {
+      setGeneratingChuDe(false);
+    }
+  }
+
+  async function handleAiSynthesize() {
+    setAiSynthesizing(true);
+    setAiError("");
+    setAiPreview(null);
+    try {
+      const draft = await synthesizeChuDeReport(period);
+      setAiPreview(draft);
+    } catch (err) {
+      setAiError(err.message || "AI tổng hợp thất bại");
+    } finally {
+      setAiSynthesizing(false);
+    }
+  }
+
+  async function handleConfirmAiPreview() {
+    if (!aiPreview) return;
+    setAiSaving(true);
+    try {
+      const updated = await updateReportChuDe(period, aiPreview);
+      setReport(updated);
+      setAiPreview(null);
+    } catch (err) {
+      setAiError(err.message || "Lưu báo cáo thất bại");
+    } finally {
+      setAiSaving(false);
+    }
+  }
+
+  function handleDiscardAiPreview() {
+    setAiPreview(null);
+    setAiError("");
   }
 
   // Dữ liệu biểu đồ luôn lấy từ bản ĐÃ LƯU (savedKk) — biểu đồ chỉ cập nhật sau khi bấm Lưu
@@ -532,53 +588,101 @@ export default function BaoCaoDetailPage() {
           {/* ================= TAB: BÁO CÁO CHỦ ĐỀ ================= */}
           {tab === "chu-de" && (
             <>
-              <div className="kpi-grid">
-                <div className="kpi-card">
-                  <div className="accent o"></div>
-                  <span className="tag">NV vi phạm</span>
-                  <div className="val">{fmtMoney(cd.summary_kpi?.nv_vi_pham)}</div>
+              {isAdmin && (
+                <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+                  {chuDeError && <span style={{ fontSize: 12.5, color: "var(--danger)" }}>{chuDeError}</span>}
+                  {aiError && <span style={{ fontSize: 12.5, color: "var(--danger)" }}>{aiError}</span>}
+                  <button onClick={handleGenerateChuDe} disabled={generatingChuDe} style={editToggleBtnStyle}>
+                    {generatingChuDe ? "Đang sinh báo cáo..." : "🔄 Sinh báo cáo từ case đã ghi"}
+                  </button>
+                  <button onClick={handleAiSynthesize} disabled={aiSynthesizing} style={editToggleBtnStyle}>
+                    {aiSynthesizing ? "AI đang tổng hợp..." : "✨ Nhờ AI tổng hợp"}
+                  </button>
                 </div>
-                <div className="kpi-card">
-                  <div className="accent g"></div>
-                  <span className="tag">Case đang xử lý</span>
-                  <div className="val">{fmtMoney(cd.summary_kpi?.case_dang_xu_ly)}</div>
-                </div>
-              </div>
+              )}
 
-              <div className="card">
-                <div className="card-head"><h3>Tổng hợp theo chủ đề</h3></div>
-                <div className="card-body">
-                  <table>
-                    <thead><tr><th>Chủ đề</th><th>SL NV</th></tr></thead>
-                    <tbody>
-                      {(cd.violation_topics || []).map((row, i) => (
-                        <tr key={i}>
-                          <td>{row.chu_de}</td>
-                          <td className="num">{fmtMoney(row.sl_nv)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {(cd.chi_tiet_case || []).length > 0 && (
-                <div className="card">
-                  <div className="card-head"><h3>Chi tiết case</h3></div>
-                  <div className="card-body">
-                    <table>
-                      <thead><tr><th>Nội dung</th><th>Trạng thái</th></tr></thead>
-                      <tbody>
-                        {cd.chi_tiet_case.map((row, i) => (
-                          <tr key={i}>
-                            <td>{row.noi_dung}</td>
-                            <td>{row.trang_thai}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+              {aiPreview && (
+                <div style={{
+                  border: "2px dashed var(--navy-700)", borderRadius: "var(--radius)",
+                  padding: "18px 20px", marginBottom: 24, background: "rgba(85,128,214,0.05)",
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
+                    <strong style={{ fontSize: 14.5, color: "var(--navy-900)" }}>
+                      ✨ Bản nháp do AI tổng hợp{aiPreview.ten_chu_de ? ` — chủ đề chính: ${aiPreview.ten_chu_de}` : ""} (chưa lưu)
+                    </strong>
+                    <div style={{ display: "flex", gap: 10 }}>
+                      <button onClick={handleConfirmAiPreview} disabled={aiSaving} style={editToggleBtnStyle}>
+                        {aiSaving ? "Đang lưu..." : "✅ Lưu và công bố"}
+                      </button>
+                      <button onClick={handleDiscardAiPreview} disabled={aiSaving} style={{ ...editToggleBtnStyle, background: "var(--surface)", color: "var(--text-900)" }}>
+                        ✕ Hủy bản nháp
+                      </button>
+                    </div>
                   </div>
+                  <BlockRenderer blocks={aiPreview.blocks} />
                 </div>
+              )}
+
+              {cd.blocks ? (
+                cd.blocks.length > 0 ? (
+                  <BlockRenderer blocks={cd.blocks} />
+                ) : (
+                  <div className="placeholder-box">
+                    Chưa có case nào được ghi nhận cho kỳ này. Vào mục &quot;Ghi nhận case vi phạm&quot; để thêm,
+                    rồi bấm &quot;Sinh báo cáo từ case đã ghi&quot;.
+                  </div>
+                )
+              ) : (
+                <>
+                  <div className="kpi-grid">
+                    <div className="kpi-card">
+                      <div className="accent o"></div>
+                      <span className="tag">NV vi phạm</span>
+                      <div className="val">{fmtMoney(cd.summary_kpi?.nv_vi_pham)}</div>
+                    </div>
+                    <div className="kpi-card">
+                      <div className="accent g"></div>
+                      <span className="tag">Case đang xử lý</span>
+                      <div className="val">{fmtMoney(cd.summary_kpi?.case_dang_xu_ly)}</div>
+                    </div>
+                  </div>
+
+                  <div className="card">
+                    <div className="card-head"><h3>Tổng hợp theo chủ đề</h3></div>
+                    <div className="card-body">
+                      <table>
+                        <thead><tr><th>Chủ đề</th><th>SL NV</th></tr></thead>
+                        <tbody>
+                          {(cd.violation_topics || []).map((row, i) => (
+                            <tr key={i}>
+                              <td style={{ textAlign: "left" }}>{row.chu_de}</td>
+                              <td className="num">{fmtMoney(row.sl_nv)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {(cd.chi_tiet_case || []).length > 0 && (
+                    <div className="card">
+                      <div className="card-head"><h3>Chi tiết case</h3></div>
+                      <div className="card-body">
+                        <table>
+                          <thead><tr><th>Nội dung</th><th>Trạng thái</th></tr></thead>
+                          <tbody>
+                            {cd.chi_tiet_case.map((row, i) => (
+                              <tr key={i}>
+                                <td style={{ textAlign: "left" }}>{row.noi_dung}</td>
+                                <td>{row.trang_thai}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
