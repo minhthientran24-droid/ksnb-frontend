@@ -17,6 +17,8 @@ export default function TheoDoiKiemKePage() {
   const [noteDraft, setNoteDraft] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const isAdmin = ["admin", "super_admin"].includes(getUser()?.role);
 
   // Khi đổi tab Đã kiểm / Đang kiểm -> nạp lại danh sách kỳ tương ứng
@@ -49,6 +51,27 @@ export default function TheoDoiKiemKePage() {
       alert(err.message || "Lưu ghi chú thất bại");
     }
   }
+
+  function handleSearch() {
+    setSearchQuery(searchInput.trim().toLowerCase());
+  }
+
+  function handleClearSearch() {
+    setSearchInput("");
+    setSearchQuery("");
+  }
+
+  // Lọc theo mã shop/tên shop, rồi sắp xếp theo |giá trị thất thoát| giảm dần
+  // (dư cũng là nguy cơ, thiếu cũng là nguy cơ — lệch càng nhiều càng lên đầu)
+  const displayRows = rows
+    .filter((r) => {
+      if (!searchQuery) return true;
+      return (
+        (r.ma_shop || "").toLowerCase().includes(searchQuery) ||
+        (r.ten_shop || "").toLowerCase().includes(searchQuery)
+      );
+    })
+    .sort((a, b) => Math.abs(b.gia_tri_that_thoat || 0) - Math.abs(a.gia_tri_that_thoat || 0));
 
   async function handleSyncNow() {
     setSyncing(true);
@@ -121,9 +144,36 @@ export default function TheoDoiKiemKePage() {
         </div>
       )}
 
+      {periods.length > 0 && (
+        <div className="card" style={{ marginBottom: 14 }}>
+          <div className="card-body" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "14px 18px" }}>
+            <input
+              type="text"
+              placeholder="Tìm theo mã shop hoặc tên shop..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
+              style={{ flex: 1, minWidth: 220, padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13.5 }}
+            />
+            <button onClick={handleSearch} style={syncBtnStyle}>🔍 Tìm kiếm</button>
+            {searchQuery && (
+              <button onClick={handleClearSearch} style={{ ...syncBtnStyle, background: "var(--border)", color: "var(--text-900)" }}>
+                Xóa lọc
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {period && (
         <div className="card">
-          <div className="card-head"><h3>Kỳ {period}</h3><span className="note">{rows.length} shop</span></div>
+          <div className="card-head">
+            <h3>Kỳ {period}</h3>
+            <span className="note">
+              {searchQuery ? `${displayRows.length}/${rows.length} shop (đang lọc)` : `${rows.length} shop`}
+              {" · sắp xếp theo giá trị thất thoát (lệch nhiều nhất lên đầu)"}
+            </span>
+          </div>
           <div className="card-body">
             <table>
               <thead>
@@ -133,7 +183,7 @@ export default function TheoDoiKiemKePage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
+                {displayRows.map((r) => (
                   <tr key={r.id}>
                     <td>{r.vung}</td>
                     <td>{r.ma_shop}</td>
@@ -162,8 +212,10 @@ export default function TheoDoiKiemKePage() {
                     </td>
                   </tr>
                 ))}
-                {rows.length === 0 && (
-                  <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-400)" }}>Không có shop nào trong tháng này</td></tr>
+                {displayRows.length === 0 && (
+                  <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-400)" }}>
+                    {searchQuery ? "Không tìm thấy shop nào khớp" : "Không có shop nào trong tháng này"}
+                  </td></tr>
                 )}
               </tbody>
             </table>
