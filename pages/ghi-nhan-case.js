@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
 import {
-  listViolationCases, createViolationCase, updateViolationCase, deleteViolationCase, getUser,
+  listViolationCases, createViolationCase, updateViolationCase, deleteViolationCase,
+  importViolationCasesFiles, getUser,
 } from "../lib/api";
 
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
@@ -38,6 +39,10 @@ export default function GhiNhanCasePage() {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState("");
+  const [importMsg, setImportMsg] = useState("");
+  const fileInputRef = useRef(null);
   const me = getUser();
   const isAdmin = ["admin", "super_admin"].includes(me?.role);
   const canCreate = ["editor", "admin", "super_admin"].includes(me?.role);
@@ -83,6 +88,24 @@ export default function GhiNhanCasePage() {
     }
   }
 
+  async function handleImportFiles(e) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setImporting(true);
+    setImportError("");
+    setImportMsg("");
+    try {
+      const created = await importViolationCasesFiles(periodLabel, files);
+      setImportMsg(`AI đã tách và ghi nhận thêm ${created.length} case từ ${files.length} file. Mời anh xem lại bên dưới.`);
+      load();
+    } catch (err) {
+      setImportError(err.message || "Xử lý file thất bại");
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
   async function handleDelete(id) {
     if (!confirm("Xóa case này? Không thể hoàn tác.")) return;
     try {
@@ -122,7 +145,31 @@ export default function GhiNhanCasePage() {
 
       {canCreate && (
         <div className="card">
-          <div className="card-head"><h3>+ Ghi nhận case mới — Kỳ {periodLabel}</h3></div>
+          <div className="card-head"><h3>📤 Tải file lên — AI tự tách thành case (Kỳ {periodLabel})</h3></div>
+          <div className="card-body" style={{ padding: "16px 20px" }}>
+            <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 12 }}>
+              Chọn nhiều file cùng lúc: Excel/CSV danh sách case, PDF, hoặc ảnh chụp màn hình (chat, email...).
+              AI sẽ đọc toàn bộ và tự tách ra từng case — không cần nhập tay từng cái. Sau khi tách xong,
+              anh nên xem lại/chỉnh sửa từng case bên dưới cho chính xác.
+            </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".xlsx,.xls,.csv,.pdf,image/png,image/jpeg,image/webp"
+              onChange={handleImportFiles}
+              disabled={importing}
+            />
+            {importing && <div style={{ fontSize: 12.5, color: "var(--text-600)", marginTop: 8 }}>AI đang đọc và tách case, vui lòng đợi...</div>}
+            {importMsg && <div style={{ fontSize: 12.5, color: "#4C9A2A", marginTop: 8 }}>{importMsg}</div>}
+            {importError && <div style={{ fontSize: 12.5, color: "var(--danger)", marginTop: 8 }}>{importError}</div>}
+          </div>
+        </div>
+      )}
+
+      {canCreate && (
+        <div className="card">
+          <div className="card-head"><h3>+ Ghi nhận case mới (nhập tay) — Kỳ {periodLabel}</h3></div>
           <form onSubmit={handleAdd} className="card-body" style={{ padding: "16px 20px" }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
               <div>
