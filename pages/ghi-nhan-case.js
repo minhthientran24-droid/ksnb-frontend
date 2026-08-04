@@ -15,20 +15,34 @@ const MUC_DO_OPTIONS = [
   { value: "nhe", label: "Nhẹ", color: "#4C9A2A", bg: "#EAF6E5" },
   { value: "vua", label: "Vừa", color: "#DC7738", bg: "#FFF1E1" },
   { value: "nghiem_trong", label: "Nghiêm trọng", color: "#D64545", bg: "#FDEAEA" },
+  { value: "rat_nghiem_trong", label: "Rất nghiêm trọng", color: "#fff", bg: "#7A1F1F" },
 ];
 const TRANG_THAI_OPTIONS = [
   { value: "dang_xu_ly", label: "Đang xử lý" },
   { value: "cho_hop", label: "Chờ họp XLKL" },
   { value: "da_xu_ly", label: "Đã xử lý" },
 ];
+const HINH_THUC_XLKL_OPTIONS = [
+  { value: "", label: "(Chưa xác định)" },
+  { value: "sa_thai", label: "Sa thải" },
+  { value: "phat_tien", label: "Phạt tiền" },
+  { value: "canh_cao_nhac_nho", label: "Cảnh cáo nhắc nhở" },
+  { value: "cho_hop_xlkl", label: "Chờ họp XLKL" },
+];
 
-const EMPTY_FORM = { chu_de: "", doi_tuong: "", vung: "", ngay_ghi_nhan: "", muc_do: "vua", trang_thai: "dang_xu_ly", mo_ta: "" };
+const EMPTY_FORM = {
+  chu_de: "", doi_tuong: "", vung: "", ngay_ghi_nhan: "",
+  muc_do: "vua", trang_thai: "dang_xu_ly", hinh_thuc_xlkl: "", mo_ta: "",
+};
 
 function mucDoInfo(value) {
   return MUC_DO_OPTIONS.find((m) => m.value === value) || MUC_DO_OPTIONS[1];
 }
 function trangThaiLabel(value) {
   return TRANG_THAI_OPTIONS.find((t) => t.value === value)?.label || value;
+}
+function hinhThucXlklLabel(value) {
+  return HINH_THUC_XLKL_OPTIONS.find((h) => h.value === value)?.label || value;
 }
 
 export default function GhiNhanCasePage() {
@@ -60,7 +74,11 @@ export default function GhiNhanCasePage() {
     if (!form.chu_de.trim()) return;
     setSaving(true);
     try {
-      await createViolationCase({ ...form, period_label: periodLabel, ngay_ghi_nhan: form.ngay_ghi_nhan || null });
+      await createViolationCase({
+        ...form, period_label: periodLabel,
+        ngay_ghi_nhan: form.ngay_ghi_nhan || null,
+        hinh_thuc_xlkl: form.hinh_thuc_xlkl || null,
+      });
       setForm(EMPTY_FORM);
       load();
     } catch (err) {
@@ -74,13 +92,14 @@ export default function GhiNhanCasePage() {
     setEditingId(c.id);
     setEditForm({
       chu_de: c.chu_de, doi_tuong: c.doi_tuong || "", vung: c.vung || "",
-      ngay_ghi_nhan: c.ngay_ghi_nhan || "", muc_do: c.muc_do, trang_thai: c.trang_thai, mo_ta: c.mo_ta || "",
+      ngay_ghi_nhan: c.ngay_ghi_nhan || "", muc_do: c.muc_do, trang_thai: c.trang_thai,
+      hinh_thuc_xlkl: c.hinh_thuc_xlkl || "", mo_ta: c.mo_ta || "",
     });
   }
 
   async function saveEdit(id) {
     try {
-      await updateViolationCase(id, editForm);
+      await updateViolationCase(id, { ...editForm, hinh_thuc_xlkl: editForm.hinh_thuc_xlkl || null });
       setEditingId(null);
       load();
     } catch (err) {
@@ -181,7 +200,8 @@ export default function GhiNhanCasePage() {
               <div>
                 <label style={labelStyle}>Đối tượng liên quan (NV/Shop)</label>
                 <input className="finput" style={inputStyle} value={form.doi_tuong}
-                  onChange={(e) => setForm({ ...form, doi_tuong: e.target.value })} />
+                  onChange={(e) => setForm({ ...form, doi_tuong: e.target.value })}
+                  placeholder="NV [tên đầy đủ] – [tên đầy đủ shop]" />
               </div>
               <div>
                 <label style={labelStyle}>Vùng</label>
@@ -205,6 +225,13 @@ export default function GhiNhanCasePage() {
                 <select className="finput" style={inputStyle} value={form.trang_thai}
                   onChange={(e) => setForm({ ...form, trang_thai: e.target.value })}>
                   {TRANG_THAI_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Hình thức XLKL</label>
+                <select className="finput" style={inputStyle} value={form.hinh_thuc_xlkl}
+                  onChange={(e) => setForm({ ...form, hinh_thuc_xlkl: e.target.value })}>
+                  {HINH_THUC_XLKL_OPTIONS.map((h) => <option key={h.value} value={h.value}>{h.label}</option>)}
                 </select>
               </div>
             </div>
@@ -252,6 +279,10 @@ export default function GhiNhanCasePage() {
                       onChange={(e) => setEditForm({ ...editForm, trang_thai: e.target.value })}>
                       {TRANG_THAI_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                     </select>
+                    <select className="finput" style={inputStyle} value={editForm.hinh_thuc_xlkl}
+                      onChange={(e) => setEditForm({ ...editForm, hinh_thuc_xlkl: e.target.value })}>
+                      {HINH_THUC_XLKL_OPTIONS.map((h) => <option key={h.value} value={h.value}>{h.label}</option>)}
+                    </select>
                   </div>
                   <textarea className="finput" style={{ ...inputStyle, width: "100%", marginTop: 12 }} rows={3}
                     value={editForm.mo_ta} onChange={(e) => setEditForm({ ...editForm, mo_ta: e.target.value })} />
@@ -271,6 +302,7 @@ export default function GhiNhanCasePage() {
                         {c.vung && <>Vùng: {c.vung} · </>}
                         {c.ngay_ghi_nhan && <>Ngày: {c.ngay_ghi_nhan} · </>}
                         Trạng thái: <strong>{trangThaiLabel(c.trang_thai)}</strong>
+                        {c.hinh_thuc_xlkl && <> · Hình thức XLKL: <strong>{hinhThucXlklLabel(c.hinh_thuc_xlkl)}</strong></>}
                       </div>
                     </div>
                     {canEdit && (

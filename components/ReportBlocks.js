@@ -1,18 +1,16 @@
-// Bộ "khối trình bày" cho Báo cáo kiểm soát theo chủ đề — thay vì 1 bảng
-// cứng, mỗi tháng dữ liệu được gom thành 1 danh sách "blocks" (tự động
-// hoặc do AI sắp xếp), mỗi block chọn 1 trong các kiểu bên dưới. Giữ
-// đồng bộ màu sắc/kiểu chữ với thiết kế chung của web (globals.css).
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
-} from "recharts";
+// Bộ "khối trình bày" cho Báo cáo kiểm soát theo chủ đề — cấu trúc LUÔN
+// được tính chính xác bằng backend (KPI, ma trận hình thức XLKL, gom nhóm
+// theo chủ đề), không phải AI tự do sắp xếp. Giữ đồng bộ màu sắc/kiểu chữ
+// với thiết kế chung của web (globals.css).
 
-const ACCENT_COLORS = { b: "#5580D6", o: "#DC7738", g: "#70B256", r: "#D64545" };
-const SEVERITY_INFO = {
+export const ACCENT_COLORS = { b: "#5580D6", o: "#DC7738", g: "#70B256", r: "#D64545" };
+
+export const SEVERITY_INFO = {
   nhe: { label: "Nhẹ", color: "#4C9A2A", bg: "#EAF6E5" },
   vua: { label: "Vừa", color: "#DC7738", bg: "#FFF1E1" },
   nghiem_trong: { label: "Nghiêm trọng", color: "#D64545", bg: "#FDEAEA" },
+  rat_nghiem_trong: { label: "Rất nghiêm trọng", color: "#fff", bg: "#7A1F1F" },
 };
-const BAR_COLORS = ["#3E7FD1", "#F5821F", "#7AC142", "#D64545", "#9B59B6", "#16A5A5", "#E4B62F", "#5580D6"];
 
 // Icon minh họa theo chủ đề — chọn từ bộ có sẵn (AI/backend chỉ chọn "icon_key",
 // không vẽ ảnh) để phần trình bày sinh động hơn mà không cần gọi thêm API tạo ảnh.
@@ -29,155 +27,148 @@ function fmtNum(n) {
   return Number(n).toLocaleString("vi-VN");
 }
 
+function severityInfo(sev) {
+  return SEVERITY_INFO[sev] || SEVERITY_INFO.vua;
+}
+
 function StatHighlight({ value, label, accent = "b" }) {
   return (
     <div className="kpi-card">
       <div className="accent" style={{ background: ACCENT_COLORS[accent] || ACCENT_COLORS.b }}></div>
       <span className="tag">{label}</span>
-      <div className="val">{typeof value === "number" ? fmtNum(value) : value}</div>
-    </div>
-  );
-}
-
-function CaseCard({ title, severity = "vua", summary, meta, featured, icon_key }) {
-  const sev = SEVERITY_INFO[severity] || SEVERITY_INFO.vua;
-  const isFeatured = featured || severity === "nghiem_trong";
-
-  if (isFeatured) {
-    return (
-      <div className="card" style={{ border: `1px solid ${sev.color}33`, overflow: "hidden" }}>
-        <div style={{ background: `linear-gradient(135deg, ${sev.color}, ${sev.color}CC)`, padding: "12px 22px", display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 22 }}>{iconFor(icon_key)}</span>
-          <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.5, color: "#fff", textTransform: "uppercase" }}>
-            {sev.label} — cần ưu tiên xử lý
-          </span>
-        </div>
-        <div className="card-body" style={{ padding: "22px 26px" }}>
-          <strong style={{ fontSize: 17, color: "var(--navy-900)" }}>{title}</strong>
-          {meta && (
-            <div style={{ fontSize: 12.5, color: "var(--text-600)", marginTop: 8, display: "flex", flexWrap: "wrap", gap: "4px 14px" }}>
-              {[meta.doi_tuong, meta.vung, meta.ngay, meta.trang_thai].filter(Boolean).map((m, i) => (
-                <span key={i}>{m}</span>
-              ))}
-            </div>
-          )}
-          {summary && (
-            <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
-              {summary.split("\n").filter(Boolean).map((line, i) => {
-                const m = line.match(/^([^:]{1,20}):\s*(.*)$/);
-                return (
-                  <p key={i} style={{ fontSize: 13.5, lineHeight: 1.6, color: "var(--text-900)", margin: 0 }}>
-                    {m ? <><strong>{m[1]}:</strong> {m[2]}</> : line}
-                  </p>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="card">
-      <div className="card-body" style={{ padding: "16px 20px", borderLeft: `4px solid ${sev.color}` }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
-          <div>
-            <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 20, fontSize: 11.5, fontWeight: 700, background: sev.bg, color: sev.color }}>
-              {sev.label}
-            </span>{" "}
-            <span style={{ fontSize: 14 }}>{iconFor(icon_key)}</span>{" "}
-            <strong style={{ fontSize: 14.5, color: "var(--navy-900)" }}>{title}</strong>
-          </div>
-        </div>
-        {meta && (
-          <div style={{ fontSize: 12, color: "var(--text-600)", marginTop: 6 }}>
-            {[meta.doi_tuong, meta.vung, meta.ngay, meta.trang_thai].filter(Boolean).join(" · ")}
-          </div>
-        )}
-        {summary && <p style={{ fontSize: 13, marginTop: 10, whiteSpace: "pre-line", color: "var(--text-900)" }}>{summary}</p>}
+      <div className="val" style={typeof value !== "number" ? { fontSize: 16, lineHeight: 1.35 } : undefined}>
+        {typeof value === "number" ? fmtNum(value) : value}
       </div>
     </div>
   );
 }
 
-function CaseGroup({ title, description, items = [], icon_key }) {
-  return (
-    <div className="card">
-      <div className="card-head" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <span style={{ fontSize: 20 }}>{iconFor(icon_key)}</span>
-        <h3 style={{ margin: 0 }}>{title}</h3>
-      </div>
-      <div className="card-body" style={{ padding: "18px 22px" }}>
-        {description && <p style={{ fontSize: 13, color: "var(--text-600)", marginBottom: 14 }}>{description}</p>}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 12 }}>
-          {items.map((item, i) => (
-            <div key={i} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "12px 14px", background: "var(--surface)" }}>
-              <strong style={{ fontSize: 13, color: "var(--navy-900)" }}>{item.title}</strong>
-              <div style={{ fontSize: 11.5, color: "var(--text-600)", marginTop: 5, display: "flex", flexDirection: "column", gap: 2 }}>
-                {item.vung && <span>{item.vung}</span>}
-                {item.ngay && <span>{item.ngay}</span>}
-                {item.trang_thai && <span>{item.trang_thai}</span>}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Timeline({ title, items = [] }) {
-  return (
-    <div className="card">
-      {title && <div className="card-head"><h3>{title}</h3></div>}
-      <div className="card-body" style={{ padding: "18px 22px" }}>
-        {items.map((item, i) => (
-          <div key={i} style={{ display: "flex", gap: 14, position: "relative", paddingBottom: i === items.length - 1 ? 0 : 20 }}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--navy-800)", flexShrink: 0, marginTop: 3 }} />
-              {i !== items.length - 1 && <div style={{ width: 2, flex: 1, background: "var(--border)", marginTop: 2 }} />}
-            </div>
-            <div style={{ paddingBottom: 4 }}>
-              {item.date && <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-400)", textTransform: "uppercase" }}>{item.date}</div>}
-              <div style={{ fontSize: 13.5, color: "var(--text-900)", marginTop: 2 }}>{item.text}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function MiniBarChart({ title, data = [] }) {
-  return (
-    <div className="card">
-      {title && <div className="card-head"><h3>{title}</h3></div>}
-      <div className="card-body" style={{ height: 300 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F6" />
-            <XAxis dataKey="label" tick={{ fontSize: 11 }} interval={0} angle={-15} textAnchor="end" height={60} />
-            <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-            <Tooltip />
-            <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-              {data.map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
-}
-
-function QuoteCallout({ text, attribution }) {
+function GroupHeader({ order, icon, title }) {
   return (
     <div style={{
-      background: "linear-gradient(135deg,var(--navy-800),var(--navy-700))", borderRadius: "var(--radius)",
-      padding: "22px 26px", color: "#fff", marginBottom: 20,
+      background: "linear-gradient(135deg,var(--navy-800),var(--navy-700))",
+      padding: "14px 22px", display: "flex", alignItems: "center", gap: 12,
     }}>
-      <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.6, fontStyle: "italic" }}>&ldquo;{text}&rdquo;</div>
-      {attribution && <div style={{ fontSize: 12, opacity: 0.75, marginTop: 10 }}>— {attribution}</div>}
+      {order != null && (
+        <span style={{
+          flexShrink: 0, width: 26, height: 26, borderRadius: "50%", background: "rgba(255,255,255,.18)",
+          color: "#fff", fontSize: 12.5, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          {order}
+        </span>
+      )}
+      <span style={{ fontSize: 22 }}>{icon}</span>
+      <span style={{ fontSize: 14, fontWeight: 800, color: "#fff", textTransform: "uppercase", letterSpacing: 0.3 }}>{title}</span>
+    </div>
+  );
+}
+
+function CaseSummary({ text }) {
+  if (!text) return null;
+  const lines = text.split("\n").filter(Boolean);
+  return (
+    <div style={{ marginTop: 9, fontSize: 13, lineHeight: 1.6, color: "var(--text-900)" }}>
+      {lines.map((line, i) => {
+        const m = line.match(/^([^:]{1,20}):\s*(.*)$/);
+        return (
+          <p key={i} style={{ margin: "0 0 4px" }}>
+            {m ? <><strong>{m[1]}:</strong> {m[2]}</> : line}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+function TopicGroup({ order, icon_key, chu_de, cases = [] }) {
+  return (
+    <div className="card" style={{ overflow: "hidden" }}>
+      <GroupHeader order={order} icon={iconFor(icon_key)} title={`${chu_de} · ${cases.length} case`} />
+      <div>
+        {cases.map((c, i) => {
+          const sev = severityInfo(c.severity);
+          return (
+            <div key={i} style={{ padding: "16px 22px", borderBottom: i === cases.length - 1 ? "none" : "1px solid var(--border)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
+                <div>
+                  <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, marginRight: 7, background: sev.bg, color: sev.color }}>
+                    {sev.label}
+                  </span>
+                  <strong style={{ fontSize: 13.5, color: "var(--navy-900)" }}>{c.doi_tuong}</strong>
+                </div>
+                <span style={{ fontSize: 11.5, color: "var(--text-600)", whiteSpace: "nowrap" }}>
+                  {[c.vung, c.ngay, c.trang_thai].filter(Boolean).join(" · ")}
+                </span>
+              </div>
+              <CaseSummary text={c.summary} />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function MergedGroup({ order, title, items = [] }) {
+  return (
+    <div className="card" style={{ overflow: "hidden" }}>
+      <GroupHeader order={order} icon="📋" title={title} />
+      <div className="card-body">
+        {items.map((it, i) => {
+          const sev = severityInfo(it.severity);
+          return (
+            <div key={i} style={{ padding: "10px 0", borderBottom: i === items.length - 1 ? "none" : "1px solid #F0F2F6", fontSize: 13, lineHeight: 1.6 }}>
+              <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 20, fontSize: 10.5, fontWeight: 700, marginRight: 6, background: sev.bg, color: sev.color }}>
+                {sev.label}
+              </span>
+              <strong style={{ color: "var(--navy-900)" }}>{it.chu_de}</strong> ({it.count} case) — {it.detail}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function DisciplineMatrix({ title, columns = [], rows = [], col_totals = [], grand_total }) {
+  return (
+    <div className="card">
+      <div className="card-head">
+        <h3>{title}</h3>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--blue-accent)", background: "#EEF3FE", padding: "4px 10px", borderRadius: 20 }}>
+          ✏️ Cho phép sửa
+        </span>
+      </div>
+      <div className="card-body">
+        <div style={{ overflowX: "auto" }}>
+          <table>
+            <thead>
+              <tr>
+                <th rowSpan={2} style={{ verticalAlign: "middle" }}>Lỗi vi phạm</th>
+                <th colSpan={columns.length}>Hình thức XLKL</th>
+                <th rowSpan={2} style={{ verticalAlign: "middle" }}>Total</th>
+              </tr>
+              <tr>
+                {columns.map((c, i) => <th key={i}>{c}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={i}>
+                  <td style={{ textAlign: "left", fontWeight: 600 }}>{r.label}</td>
+                  {r.counts.map((v, j) => <td key={j}>{v || "—"}</td>)}
+                  <td>{r.total || "—"}</td>
+                </tr>
+              ))}
+              <tr style={{ background: "#F5F8FE", fontWeight: 800 }}>
+                <td style={{ textAlign: "left" }}>Tổng số lượng NV vi phạm</td>
+                {col_totals.map((v, j) => <td key={j}>{v || "—"}</td>)}
+                <td>{grand_total || "—"}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
@@ -199,7 +190,7 @@ export default function BlockRenderer({ blocks = [] }) {
   while (i < blocks.length) {
     const b = blocks[i];
     if (b.type === "stat_highlight") {
-      // gộp các stat_highlight liền kề thành 1 hàng kpi-grid, giống báo cáo kiểm kê
+      // gộp các stat_highlight liền kề thành 1 hàng kpi-grid
       const group = [];
       while (i < blocks.length && blocks[i].type === "stat_highlight") {
         group.push(blocks[i]);
@@ -213,20 +204,14 @@ export default function BlockRenderer({ blocks = [] }) {
       continue;
     }
     switch (b.type) {
-      case "case_card":
-        elements.push(<CaseCard key={i} {...b} />);
+      case "discipline_matrix":
+        elements.push(<DisciplineMatrix key={i} {...b} />);
         break;
-      case "case_group":
-        elements.push(<CaseGroup key={i} {...b} />);
+      case "topic_group":
+        elements.push(<TopicGroup key={i} {...b} />);
         break;
-      case "timeline":
-        elements.push(<Timeline key={i} {...b} />);
-        break;
-      case "bar_chart":
-        elements.push(<MiniBarChart key={i} {...b} />);
-        break;
-      case "quote_callout":
-        elements.push(<QuoteCallout key={i} {...b} />);
+      case "merged_group":
+        elements.push(<MergedGroup key={i} {...b} />);
         break;
       case "narrative":
         elements.push(<Narrative key={i} {...b} />);
