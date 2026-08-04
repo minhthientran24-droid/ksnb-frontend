@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import { listUsers, createUserAccount, updateUserAccount, deleteUserAccount, getUser } from "../lib/api";
 
-const emptyForm = { email: "", full_name: "", password: "", role: "viewer" };
+const emptyForm = { email: "", full_name: "", password: "", role: "viewer", xlkk_app_access: false };
 const ADMIN_ROLES = ["admin", "super_admin"];
 const ROLE_LABELS = { super_admin: "Super Admin", admin: "Admin", editor: "Editor", viewer: "Viewer" };
 
@@ -72,6 +72,15 @@ export default function QuanLyTaiKhoanPage() {
     }
   }
 
+  async function handleToggleXlkkAccess(u) {
+    try {
+      await updateUserAccount(u.id, { xlkk_app_access: !u.xlkk_app_access });
+      load();
+    } catch (err) {
+      alert(err.message || "Cập nhật thất bại");
+    }
+  }
+
   async function handleDelete(id) {
     if (!confirm("Xóa tài khoản này? Người dùng sẽ không đăng nhập được nữa.")) return;
     try {
@@ -119,6 +128,17 @@ export default function QuanLyTaiKhoanPage() {
                 <option value="admin">Admin — sửa mọi nội dung</option>
                 {me?.role === "super_admin" && <option value="super_admin">Super Admin — toàn quyền</option>}
               </select></div>
+            <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                id="xlkk_app_access"
+                type="checkbox"
+                checked={form.xlkk_app_access}
+                onChange={(e) => setForm({ ...form, xlkk_app_access: e.target.checked })}
+              />
+              <label htmlFor="xlkk_app_access" style={{ fontSize: 13, color: "var(--text-600)", cursor: "pointer" }}>
+                Cấp quyền dùng App Kiểm kê (XLKK) — cho phép đăng nhập app desktop kiểm kê bằng tài khoản này
+              </label>
+            </div>
             {saveError && <div style={{ gridColumn: "1 / -1", fontSize: 12.5, color: "var(--danger)" }}>{saveError}</div>}
             <div style={{ gridColumn: "1 / -1", display: "flex", gap: 10 }}>
               <button type="submit" disabled={saving} className="login-btn" style={{ width: "auto", padding: "10px 24px" }}>
@@ -136,7 +156,7 @@ export default function QuanLyTaiKhoanPage() {
         <div className="card-body">
           <table>
             <thead>
-              <tr><th>Email</th><th>Họ tên</th><th>Quyền</th><th>Trạng thái</th><th></th></tr>
+              <tr><th>Email</th><th>Họ tên</th><th>Quyền</th><th>Trạng thái</th><th>App XLKK</th><th></th></tr>
             </thead>
             <tbody>
               {list.map((u) => (
@@ -160,6 +180,13 @@ export default function QuanLyTaiKhoanPage() {
                     <span className={`pill ${u.is_active ? "ok" : "warn"}`}>
                       {u.is_active ? "Đang hoạt động" : "Đã khóa"}
                     </span>
+                  </td>
+                  <td>
+                    <button onClick={() => handleToggleXlkkAccess(u)} style={btnStyle}>
+                      <span className={`pill ${u.xlkk_app_access ? "ok" : "warn"}`}>
+                        {u.xlkk_app_access ? "Đã cấp quyền" : "Chưa cấp quyền"}
+                      </span>
+                    </button>
                   </td>
                   <td style={{ display: "flex", gap: 8 }}>
                     <button onClick={() => handleToggleActive(u)} style={btnStyle} disabled={u.id === me?.id}>
