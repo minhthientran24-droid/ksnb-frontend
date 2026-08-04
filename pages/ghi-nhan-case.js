@@ -115,7 +115,7 @@ export default function GhiNhanCasePage() {
     setImportMsg("");
     try {
       const created = await importViolationCasesFiles(periodLabel, files);
-      setImportMsg(`AI đã tách và ghi nhận thêm ${created.length} case từ ${files.length} file. Mời anh xem lại bên dưới.`);
+      setImportMsg(`Đã ghi nhận thêm ${created.length} case từ ${files.length} file. Mời anh xem lại bên dưới.`);
       load();
     } catch (err) {
       setImportError(err.message || "Xử lý file thất bại");
@@ -164,22 +164,27 @@ export default function GhiNhanCasePage() {
 
       {canCreate && (
         <div className="card">
-          <div className="card-head"><h3>📤 Tải file lên — AI tự tách thành case (Kỳ {periodLabel})</h3></div>
+          <div className="card-head"><h3>📤 Tải file lên (Kỳ {periodLabel})</h3></div>
           <div className="card-body" style={{ padding: "16px 20px" }}>
+            <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 6 }}>
+              <strong>Excel</strong>: phải đúng mẫu có sẵn (đọc thẳng theo cột, không qua AI — nhanh, miễn phí, chuẩn xác).{" "}
+              <a href="/templates/mau-ghi-nhan-case-vi-pham.xlsx" download style={{ color: "var(--blue-accent)", fontWeight: 700 }}>
+                📥 Tải template Excel mẫu
+              </a>
+            </p>
             <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 12 }}>
-              Chọn nhiều file cùng lúc: Excel/CSV danh sách case, PDF, hoặc ảnh chụp màn hình (chat, email...).
-              AI sẽ đọc toàn bộ và tự tách ra từng case — không cần nhập tay từng cái. Sau khi tách xong,
-              anh nên xem lại/chỉnh sửa từng case bên dưới cho chính xác.
+              <strong>PDF hoặc ảnh chụp màn hình</strong> (chat, email...): không có mẫu cố định, AI sẽ tự đọc và tách ra từng case.
+              Có thể chọn nhiều file cùng lúc, trộn cả Excel lẫn PDF/ảnh. Sau khi tách xong, anh nên xem lại/chỉnh sửa từng case bên dưới cho chính xác.
             </p>
             <input
               ref={fileInputRef}
               type="file"
               multiple
-              accept=".xlsx,.xls,.csv,.pdf,image/png,image/jpeg,image/webp"
+              accept=".xlsx,.xls,.xlsm,.pdf,image/png,image/jpeg,image/webp"
               onChange={handleImportFiles}
               disabled={importing}
             />
-            {importing && <div style={{ fontSize: 12.5, color: "var(--text-600)", marginTop: 8 }}>AI đang đọc và tách case, vui lòng đợi...</div>}
+            {importing && <div style={{ fontSize: 12.5, color: "var(--text-600)", marginTop: 8 }}>Đang xử lý file, vui lòng đợi...</div>}
             {importMsg && <div style={{ fontSize: 12.5, color: "#4C9A2A", marginTop: 8 }}>{importMsg}</div>}
             {importError && <div style={{ fontSize: 12.5, color: "var(--danger)", marginTop: 8 }}>{importError}</div>}
           </div>
