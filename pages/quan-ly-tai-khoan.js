@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import { listUsers, createUserAccount, updateUserAccount, deleteUserAccount, getUser } from "../lib/api";
 
-const emptyForm = { email: "", full_name: "", password: "", role: "viewer", xlkk_app_access: false };
+const emptyForm = { email: "", full_name: "", position: "", password: "", role: "viewer", xlkk_app_access: false };
 const ADMIN_ROLES = ["admin", "super_admin"];
 const ROLE_LABELS = { super_admin: "Super Admin", admin: "Admin", editor: "Editor", viewer: "Viewer" };
 
@@ -72,6 +72,16 @@ export default function QuanLyTaiKhoanPage() {
     }
   }
 
+  async function handlePositionBlur(u, value) {
+    if (value === (u.position || "")) return;
+    try {
+      await updateUserAccount(u.id, { position: value });
+      load();
+    } catch (err) {
+      alert(err.message || "Cập nhật thất bại");
+    }
+  }
+
   async function handleToggleXlkkAccess(u) {
     try {
       await updateUserAccount(u.id, { xlkk_app_access: !u.xlkk_app_access });
@@ -119,6 +129,8 @@ export default function QuanLyTaiKhoanPage() {
               <input style={inputStyle} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="thientm@fpt.com" /></div>
             <div><label style={labelStyle}>Họ tên *</label>
               <input style={inputStyle} value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} /></div>
+            <div><label style={labelStyle}>Chức danh</label>
+              <input style={inputStyle} value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} placeholder="VD: Chuyên viên KSNB" /></div>
             <div><label style={labelStyle}>Mật khẩu tạm thời *</label>
               <input style={inputStyle} type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Nên yêu cầu đổi sau lần đăng nhập đầu" /></div>
             <div><label style={labelStyle}>Quyền</label>
@@ -157,13 +169,21 @@ export default function QuanLyTaiKhoanPage() {
         <div className="card-body">
           <table>
             <thead>
-              <tr><th>Email</th><th>Họ tên</th><th>Quyền</th><th>Trạng thái</th><th>App XLKK</th><th></th></tr>
+              <tr><th>Email</th><th>Họ tên</th><th>Chức danh</th><th>Quyền</th><th>Trạng thái</th><th>App XLKK</th><th></th></tr>
             </thead>
             <tbody>
               {list.map((u) => (
                 <tr key={u.id}>
                   <td>{u.email}</td>
                   <td>{u.full_name}</td>
+                  <td>
+                    <input
+                      defaultValue={u.position || ""}
+                      onBlur={(e) => handlePositionBlur(u, e.target.value)}
+                      placeholder="Chưa có"
+                      style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 12.5, width: 140 }}
+                    />
+                  </td>
                   <td>
                     <select
                       value={u.role}
