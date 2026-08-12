@@ -8,6 +8,7 @@ const REFERENCE_ITEMS = [
   { key: "nganh_loai", label: "Ngành/Loại (Nganh_Loai)" },
   { key: "quydinh_can_date", label: "Quy định cận date (QuyDinh_CanDate)" },
   { key: "gia_ban", label: "Giá bán (GiaBan)" },
+  { key: "danh_sach_nhan_vien", label: "Danh sách nhân viên (DanhSachNhanVien)" },
   { key: "kiemke_parquet", label: "Lịch sử kiểm kê (KIEMKE_ALL.parquet)" },
 ];
 
