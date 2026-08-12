@@ -31,6 +31,14 @@ export default function HoTroKiemKePage() {
   const fileInputRef = useRef(null);
   const me = getUser();
   const isAdmin = ["admin", "super_admin"].includes(me?.role);
+  // Tải lên kết quả kiểm kê thanh lý: mọi role được dùng, trừ viewer.
+  const canUploadKetQua = me?.role && me.role !== "viewer";
+  // Tải danh sách LCNB Về Kho Tổng: chỉ admin/super_admin/editor (không gồm editor_base, viewer).
+  const canDownloadLcnb = ["admin", "super_admin", "editor"].includes(me?.role);
+
+  function handleComingSoon() {
+    alert("Tính năng đang được hoàn thiện, sẽ sớm ra mắt.");
+  }
 
   async function handleTonKhoUpload(e) {
     const file = e.target.files?.[0];
@@ -109,7 +117,47 @@ export default function HoTroKiemKePage() {
             <div className="card">
               <div className="card-head"><h3>📋 Cập nhật kết quả kiểm kê thanh lý</h3></div>
               <div className="card-body">
-                <div className="placeholder-box">Đang chờ xác nhận nội dung — sẽ hoàn thiện sau.</div>
+                {canUploadKetQua ? (
+                  <>
+                    <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 12, lineHeight: 1.6 }}>
+                      Tải lên file kết quả kiểm kê thanh lý (theo mẫu). Hệ thống tự động tách dòng hàng{" "}
+                      <b>Xuất Khác Tính Giá Trị</b> để trả về file import truy thu; các dòng{" "}
+                      <b>LCNB Về Kho Tổng</b> được ghi vào danh sách của tháng.
+                    </p>
+                    <button onClick={handleComingSoon} style={uploadBtnStyle}>
+                      📤 Tải lên file kết quả kiểm kê
+                    </button>
+                  </>
+                ) : (
+                  <div style={lockedBoxStyle}>
+                    <span style={{ fontSize: 19, lineHeight: 1.1 }}>🔒</span>
+                    <div>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-900)", marginBottom: 3 }}>
+                        Không có quyền cập nhật kết quả kiểm kê thanh lý
+                      </div>
+                      <div style={{ fontSize: 11.5, color: "var(--text-600)", lineHeight: 1.55 }}>
+                        Tài khoản <b>Viewer</b> chỉ xem báo cáo, không tải lên được mục này.
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {canDownloadLcnb && (
+                  <>
+                    <div style={{ borderTop: "1px solid var(--border)", margin: "16px 0" }} />
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+                      <div>
+                        <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-900)" }}>
+                          📦 Danh sách LCNB Về Kho Tổng
+                        </div>
+                        <div style={{ fontSize: 11.5, color: "var(--text-400)", marginTop: 3 }}>
+                          Danh sách luỹ kế của tháng hiện tại
+                        </div>
+                      </div>
+                      <button onClick={handleComingSoon} style={lcnbDlBtnStyle}>📥 Tải về</button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -208,4 +256,12 @@ const resultBoxStyle = {
 const downloadBtnStyle = {
   background: "#fff", border: "1px solid #4C9A2A", color: "#3E7A2A", borderRadius: 8,
   padding: "8px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
+};
+const lockedBoxStyle = {
+  border: "1.5px dashed var(--border)", borderRadius: 8, padding: "20px 16px",
+  display: "flex", alignItems: "flex-start", gap: 12, background: "#F7F9FD",
+};
+const lcnbDlBtnStyle = {
+  background: "#fff", border: "1.5px solid var(--navy-800)", color: "var(--navy-800)", borderRadius: 8,
+  padding: "9px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
 };
