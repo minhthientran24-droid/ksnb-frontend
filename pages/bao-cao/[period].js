@@ -83,6 +83,12 @@ export default function BaoCaoDetailPage() {
   const isAdmin = ["admin", "super_admin"].includes(getUser()?.role);
 
   useEffect(() => {
+    if (getUser()?.role === "editor_base") {
+      router.replace("/");
+    }
+  }, []);
+
+  useEffect(() => {
     listReports().then(setAllPeriods).catch((err) => setError(err.message));
   }, []);
 

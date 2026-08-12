@@ -5,7 +5,7 @@ import { getUser } from "../lib/api";
 
 const NAV_ITEMS_TOP = [
   { href: "/", icon: "⌂", label: "Trang chủ" },
-  { href: "/bao-cao", icon: "▤", label: "Báo cáo tháng" },
+  { href: "/bao-cao", icon: "▤", label: "Báo cáo tháng", hideForRoles: ["editor_base"] },
   { href: "/nhan-su", icon: "◈", label: "Giới thiệu nhân sự KSNB" },
   { href: "/theo-doi-kiem-ke", icon: "▦", label: "Theo dõi kiểm kê" },
 ];
@@ -27,11 +27,13 @@ const STORAGE_KEY = "ksnb_sidebar_collapsed";
 export default function Sidebar() {
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [myRole, setMyRole] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     const me = getUser();
     setIsAdmin(!!me && ADMIN_ROLES.includes(me.role));
+    setMyRole(me?.role || null);
     const saved = typeof window !== "undefined" && localStorage.getItem(STORAGE_KEY);
     if (saved === "1") setCollapsed(true);
   }, []);
@@ -64,8 +66,8 @@ export default function Sidebar() {
       </div>
 
       <nav className="sb-nav">
-        {NAV_ITEMS_TOP.map(renderItem)}
-        {NAV_ITEMS_BOTTOM.map(renderItem)}
+        {NAV_ITEMS_TOP.filter((item) => !item.hideForRoles?.includes(myRole)).map(renderItem)}
+        {NAV_ITEMS_BOTTOM.filter((item) => !item.hideForRoles?.includes(myRole)).map(renderItem)}
 
         {isAdmin && (
           <>

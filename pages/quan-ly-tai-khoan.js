@@ -125,6 +125,7 @@ export default function QuanLyTaiKhoanPage() {
               <select style={inputStyle} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
                 <option value="viewer">Viewer — chỉ xem</option>
                 <option value="editor">Editor — sửa nội dung được giao</option>
+                <option value="editor_base">Editor Base — như Editor, không xem Báo cáo tháng</option>
                 <option value="admin">Admin — sửa mọi nội dung</option>
                 {me?.role === "super_admin" && <option value="super_admin">Super Admin — toàn quyền</option>}
               </select></div>
@@ -172,6 +173,7 @@ export default function QuanLyTaiKhoanPage() {
                     >
                       <option value="viewer">Viewer</option>
                       <option value="editor">Editor</option>
+                      <option value="editor_base">Editor Base</option>
                       <option value="admin">Admin</option>
                       {me?.role === "super_admin" && <option value="super_admin">Super Admin</option>}
                     </select>

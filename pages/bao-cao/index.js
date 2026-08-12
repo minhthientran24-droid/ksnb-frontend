@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import Layout from "../../components/Layout";
 import { listReports, deleteReport, getUser } from "../../lib/api";
 
 export default function BaoCaoListPage() {
+  const router = useRouter();
+  const [checked, setChecked] = useState(false);
   const [reports, setReports] = useState([]);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState(null);
@@ -15,7 +18,17 @@ export default function BaoCaoListPage() {
       .catch((err) => setError(err.message));
   }
 
-  useEffect(load, []);
+  useEffect(() => {
+    const user = getUser();
+    if (user?.role === "editor_base") {
+      router.replace("/");
+      return;
+    }
+    setChecked(true);
+    load();
+  }, []);
+
+  if (!checked) return null;
 
   async function handleDelete(periodLabel, displayName) {
     if (!confirm(`Xóa hẳn báo cáo "${displayName}"? Không thể hoàn tác.`)) return;

@@ -59,7 +59,7 @@ export default function GhiNhanCasePage() {
   const fileInputRef = useRef(null);
   const me = getUser();
   const isAdmin = ["admin", "super_admin"].includes(me?.role);
-  const canCreate = ["editor", "admin", "super_admin"].includes(me?.role);
+  const canCreate = ["editor", "editor_base", "admin", "super_admin"].includes(me?.role);
 
   const periodLabel = `${period.year}-${period.month}`;
 
