@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import { listUsers, createUserAccount, updateUserAccount, deleteUserAccount, getUser } from "../lib/api";
@@ -17,6 +17,10 @@ export default function QuanLyTaiKhoanPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({ full_name: "", password: "" });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
 
   useEffect(() => {
     const user = getUser();
@@ -88,6 +92,37 @@ export default function QuanLyTaiKhoanPage() {
       load();
     } catch (err) {
       alert(err.message || "Cập nhật thất bại");
+    }
+  }
+
+  function startEdit(u) {
+    setEditingId(u.id);
+    setEditForm({ full_name: u.full_name || "", password: "" });
+    setEditError("");
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditError("");
+  }
+
+  async function handleSaveEdit(id) {
+    if (!editForm.full_name.trim()) {
+      setEditError("Họ tên không được để trống");
+      return;
+    }
+    setEditSaving(true);
+    setEditError("");
+    try {
+      const payload = { full_name: editForm.full_name.trim() };
+      if (editForm.password.trim()) payload.password = editForm.password.trim();
+      await updateUserAccount(id, payload);
+      setEditingId(null);
+      load();
+    } catch (err) {
+      setEditError(err.message || "Cập nhật thất bại");
+    } finally {
+      setEditSaving(false);
     }
   }
 
@@ -173,52 +208,93 @@ export default function QuanLyTaiKhoanPage() {
             </thead>
             <tbody>
               {list.map((u) => (
-                <tr key={u.id}>
-                  <td>{u.email}</td>
-                  <td>{u.full_name}</td>
-                  <td>
-                    <input
-                      defaultValue={u.position || ""}
-                      onBlur={(e) => handlePositionBlur(u, e.target.value)}
-                      placeholder="Chưa có"
-                      style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 12.5, width: 140 }}
-                    />
-                  </td>
-                  <td>
-                    <select
-                      value={u.role}
-                      onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                      disabled={u.id === me?.id}
-                      style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 12.5 }}
-                    >
-                      <option value="viewer">Viewer</option>
-                      <option value="editor">Editor</option>
-                      <option value="editor_base">Editor Base</option>
-                      <option value="admin">Admin</option>
-                      {me?.role === "super_admin" && <option value="super_admin">Super Admin</option>}
-                    </select>
-                  </td>
-                  <td>
-                    <span className={`pill ${u.is_active ? "ok" : "warn"}`}>
-                      {u.is_active ? "Đang hoạt động" : "Đã khóa"}
-                    </span>
-                  </td>
-                  <td>
-                    <button onClick={() => handleToggleXlkkAccess(u)} style={btnStyle}>
-                      <span className={`pill ${u.xlkk_app_access ? "ok" : "warn"}`}>
-                        {u.xlkk_app_access ? "Đã cấp quyền" : "Chưa cấp quyền"}
+                <Fragment key={u.id}>
+                  <tr>
+                    <td>{u.email}</td>
+                    <td>{u.full_name}</td>
+                    <td>
+                      <input
+                        defaultValue={u.position || ""}
+                        onBlur={(e) => handlePositionBlur(u, e.target.value)}
+                        placeholder="Chưa có"
+                        style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 12.5, width: 140 }}
+                      />
+                    </td>
+                    <td>
+                      <select
+                        value={u.role}
+                        onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                        disabled={u.id === me?.id}
+                        style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 12.5 }}
+                      >
+                        <option value="viewer">Viewer</option>
+                        <option value="editor">Editor</option>
+                        <option value="editor_base">Editor Base</option>
+                        <option value="admin">Admin</option>
+                        {me?.role === "super_admin" && <option value="super_admin">Super Admin</option>}
+                      </select>
+                    </td>
+                    <td>
+                      <span className={`pill ${u.is_active ? "ok" : "warn"}`}>
+                        {u.is_active ? "Đang hoạt động" : "Đã khóa"}
                       </span>
-                    </button>
-                  </td>
-                  <td style={{ display: "flex", gap: 8 }}>
-                    <button onClick={() => handleToggleActive(u)} style={btnStyle} disabled={u.id === me?.id}>
-                      {u.is_active ? "Khóa" : "Mở khóa"}
-                    </button>
-                    <button onClick={() => handleDelete(u.id)} style={{ ...btnStyle, color: "var(--danger)" }} disabled={u.id === me?.id}>
-                      Xóa
-                    </button>
-                  </td>
-                </tr>
+                    </td>
+                    <td>
+                      <button onClick={() => handleToggleXlkkAccess(u)} style={btnStyle}>
+                        <span className={`pill ${u.xlkk_app_access ? "ok" : "warn"}`}>
+                          {u.xlkk_app_access ? "Đã cấp quyền" : "Chưa cấp quyền"}
+                        </span>
+                      </button>
+                    </td>
+                    <td style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => startEdit(u)} style={btnStyle}>
+                        Sửa
+                      </button>
+                      <button onClick={() => handleToggleActive(u)} style={btnStyle} disabled={u.id === me?.id}>
+                        {u.is_active ? "Khóa" : "Mở khóa"}
+                      </button>
+                      <button onClick={() => handleDelete(u.id)} style={{ ...btnStyle, color: "var(--danger)" }} disabled={u.id === me?.id}>
+                        Xóa
+                      </button>
+                    </td>
+                  </tr>
+                  {editingId === u.id && (
+                    <tr>
+                      <td colSpan={7} style={{ background: "var(--bg)", padding: "14px 16px" }}>
+                        <div style={{ display: "flex", gap: 14, alignItems: "flex-end", flexWrap: "wrap" }}>
+                          <div>
+                            <label style={labelStyle}>Họ tên</label>
+                            <input
+                              style={{ ...inputStyle, width: 220 }}
+                              value={editForm.full_name}
+                              onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <label style={labelStyle}>Đặt lại mật khẩu (để trống nếu không đổi)</label>
+                            <input
+                              style={{ ...inputStyle, width: 220 }}
+                              type="text"
+                              value={editForm.password}
+                              onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                              placeholder="Mật khẩu mới"
+                            />
+                          </div>
+                          <button
+                            className="login-btn"
+                            style={{ width: "auto", padding: "9px 20px" }}
+                            disabled={editSaving}
+                            onClick={() => handleSaveEdit(u.id)}
+                          >
+                            {editSaving ? "Đang lưu..." : "Lưu"}
+                          </button>
+                          <button style={btnStyle} onClick={cancelEdit}>Hủy</button>
+                          {editError && <span style={{ fontSize: 12.5, color: "var(--danger)" }}>{editError}</span>}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>
