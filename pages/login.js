@@ -33,11 +33,6 @@ export default function LoginPage() {
     <div className="login-screen">
       <div className="login-card">
         <div className="login-logo">
-          <div className="logo-mark">
-            <div className="logo-bar b1"></div>
-            <div className="logo-bar b2"></div>
-            <div className="logo-bar b3"></div>
-          </div>
           <div className="logo-text">
             FPT Retail
             <br />
