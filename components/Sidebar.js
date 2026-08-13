@@ -20,6 +20,7 @@ const NAV_ITEMS_BOTTOM = [
 const ADMIN_ITEMS = [
   { href: "/tai-len-du-lieu", icon: "⬆️", label: "Tải lên dữ liệu" },
   { href: "/quan-ly-tai-khoan", icon: "🔑", label: "Quản lý tài khoản" },
+  { href: "/nhat-ky-hoat-dong", icon: "📊", label: "Nhật ký hoạt động" },
 ];
 const ADMIN_ROLES = ["admin", "super_admin"];
 const STORAGE_KEY = "ksnb_sidebar_collapsed";
