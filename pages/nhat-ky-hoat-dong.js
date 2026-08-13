@@ -44,26 +44,26 @@ export default function NhatKyHoatDongPage() {
             {users.length === 0 ? (
               <div className="placeholder-box">Chưa có dữ liệu hoạt động nào được ghi nhận.</div>
             ) : (
-              <table>
+              <table style={{ fontSize: 11.5 }}>
                 <thead>
                   <tr>
-                    <th style={{ textAlign: "left" }}>Người dùng</th>
-                    <th>Tổng lượt</th>
+                    <th style={{ ...thStyle, textAlign: "left" }}>Người dùng</th>
+                    <th style={thStyle}>Tổng lượt</th>
                     {actions.map((a) => (
-                      <th key={a.key}>{a.label}</th>
+                      <th key={a.key} style={thStyle}>{a.label}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((u) => (
                     <tr key={u.user_id ?? u.email}>
-                      <td style={{ textAlign: "left" }}>
-                        <div style={{ fontWeight: 700, color: "var(--text-900)" }}>{u.full_name || "(đã xoá)"}</div>
-                        <div style={{ fontSize: 11.5, color: "var(--text-400)" }}>{u.email}</div>
+                      <td style={{ ...tdStyle, textAlign: "left" }}>
+                        <div style={{ fontWeight: 700, color: "var(--text-900)", fontSize: 12 }}>{u.full_name || "(đã xoá)"}</div>
+                        <div style={{ fontSize: 10.5, color: "var(--text-400)" }}>{u.email}</div>
                       </td>
-                      <td className="num" style={{ fontWeight: 800, color: "var(--navy-800)" }}>{u.total}</td>
+                      <td className="num" style={{ ...tdStyle, fontWeight: 800, color: "var(--navy-800)" }}>{u.total}</td>
                       {actions.map((a) => (
-                        <td key={a.key} className="num">{u.actions?.[a.key] || 0}</td>
+                        <td key={a.key} className="num" style={tdStyle}>{u.actions?.[a.key] || 0}</td>
                       ))}
                     </tr>
                   ))}
@@ -76,3 +76,6 @@ export default function NhatKyHoatDongPage() {
     </Layout>
   );
 }
+
+const thStyle = { fontSize: 10.5, padding: "8px 10px", whiteSpace: "normal", lineHeight: 1.3 };
+const tdStyle = { fontSize: 11.5, padding: "8px 10px" };
