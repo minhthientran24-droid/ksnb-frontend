@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
 import {
-  checkKiemKeCanDate, getKiemKeThanhLyReferenceFiles, uploadKiemKeThanhLyReferenceFile, getUser,
+  checkKiemKeCanDate, capNhatKetQuaKiemKe, getKiemKeThanhLyReferenceFiles, uploadKiemKeThanhLyReferenceFile, getUser,
 } from "../lib/api";
 
 const REFERENCE_ITEMS = [
@@ -10,6 +10,7 @@ const REFERENCE_ITEMS = [
   { key: "gia_ban", label: "Giá bán (GiaBan)" },
   { key: "danh_sach_nhan_vien", label: "Danh sách nhân viên (DanhSachNhanVien)" },
   { key: "kiemke_parquet", label: "Lịch sử kiểm kê (KIEMKE_ALL.parquet)" },
+  { key: "quydoi_dvt", label: "Quy đổi đơn vị tính (QuyDoiDVT)" },
 ];
 
 function downloadBlob(blob, filename) {
@@ -36,6 +37,12 @@ export default function HoTroKiemKePage() {
   // Tải danh sách LCNB Về Kho Tổng: chỉ admin/super_admin/editor (không gồm editor_base, viewer).
   const canDownloadLcnb = ["admin", "super_admin", "editor"].includes(me?.role);
 
+  // Cập nhật kết quả kiểm kê thanh lý -> xuất file Xuất Khác Tính Giá Trị
+  const [ketQuaProcessing, setKetQuaProcessing] = useState(false);
+  const [ketQuaResult, setKetQuaResult] = useState(null); // { filename, blob, soDong } | null
+  const [ketQuaError, setKetQuaError] = useState("");
+  const ketQuaFileInputRef = useRef(null);
+
   function handleComingSoon() {
     alert("Tính năng đang được hoàn thiện, sẽ sớm ra mắt.");
   }
@@ -54,6 +61,27 @@ export default function HoTroKiemKePage() {
     } finally {
       setProcessing(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleKetQuaUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setKetQuaProcessing(true);
+    setKetQuaResult(null);
+    setKetQuaError("");
+    try {
+      const { blob, soDong } = await capNhatKetQuaKiemKe(file);
+      setKetQuaResult({
+        filename: `XuatKhacTinhGiaTri_${file.name.replace(/\.[^.]+$/, "")}.xlsx`,
+        blob,
+        soDong,
+      });
+    } catch (err) {
+      setKetQuaError(err.message || "Xử lý thất bại");
+    } finally {
+      setKetQuaProcessing(false);
+      if (ketQuaFileInputRef.current) ketQuaFileInputRef.current.value = "";
     }
   }
 
@@ -120,13 +148,49 @@ export default function HoTroKiemKePage() {
                 {canUploadKetQua ? (
                   <>
                     <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 12, lineHeight: 1.6 }}>
-                      Tải lên file kết quả kiểm kê thanh lý (theo mẫu). Hệ thống tự động tách dòng hàng{" "}
-                      <b>Xuất Khác Tính Giá Trị</b> để trả về file import truy thu; các dòng{" "}
-                      <b>LCNB Về Kho Tổng</b> được ghi vào danh sách của tháng.
+                      Tải lên file kết quả kiểm kê thanh lý (đã điền Số Lượng Thực Tế, Lý Do, Số lượng truy thu).
+                      Hệ thống tách các dòng có <b>Số lượng truy thu &gt; 0</b> để trả về file import{" "}
+                      <b>Xuất Khác Tính Giá Trị</b>. Phần ghi nhận LCNB Về Kho Tổng đang được hoàn thiện.
                     </p>
-                    <button onClick={handleComingSoon} style={uploadBtnStyle}>
+                    <input
+                      ref={ketQuaFileInputRef}
+                      type="file"
+                      accept=".xlsx,.xls"
+                      style={{ display: "none" }}
+                      onChange={handleKetQuaUpload}
+                    />
+                    <button
+                      onClick={() => ketQuaFileInputRef.current?.click()}
+                      disabled={ketQuaProcessing}
+                      style={uploadBtnStyle}
+                    >
                       📤 Tải lên file kết quả kiểm kê
                     </button>
+
+                    {ketQuaProcessing && (
+                      <div style={{ marginTop: 14, fontSize: 12.5, color: "var(--text-600)", display: "flex", alignItems: "center", gap: 8 }}>
+                        <span className="tiny-spinner" />
+                        Đang xử lý file, vui lòng đợi...
+                      </div>
+                    )}
+
+                    {ketQuaError && !ketQuaProcessing && (
+                      <div style={{ marginTop: 14, fontSize: 12.5, color: "var(--danger)" }}>{ketQuaError}</div>
+                    )}
+
+                    {ketQuaResult && !ketQuaProcessing && (
+                      <div style={resultBoxStyle}>
+                        <span style={{ fontSize: 12.5, color: "#3E7A2A", fontWeight: 600 }}>
+                          ✅ Đã xử lý xong — {ketQuaResult.soDong} dòng xuất khác tính giá trị
+                        </span>
+                        <button
+                          style={downloadBtnStyle}
+                          onClick={() => downloadBlob(ketQuaResult.blob, ketQuaResult.filename)}
+                        >
+                          📥 Tải file import truy thu
+                        </button>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div style={lockedBoxStyle}>
