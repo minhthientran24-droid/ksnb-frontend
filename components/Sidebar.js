@@ -21,7 +21,7 @@ const ADMIN_ITEMS = [
   { href: "/tai-len-du-lieu", icon: "⬆️", label: "Tải lên dữ liệu" },
   { href: "/quan-ly-tai-khoan", icon: "🔑", label: "Quản lý tài khoản" },
   { href: "/nhat-ky-hoat-dong", icon: "📊", label: "Nhật ký hoạt động" },
-  { href: "/lich-lam-viec-v2", icon: "🗓️", label: "Lịch làm việc v2" },
+  { href: "/lich-lam-viec-v2", icon: "🗓️", label: "Phân công KSNB kiểm kê" },
 ];
 const ADMIN_ROLES = ["admin", "super_admin"];
 const STORAGE_KEY = "ksnb_sidebar_collapsed";

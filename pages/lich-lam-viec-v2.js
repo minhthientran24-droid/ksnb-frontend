@@ -3,10 +3,10 @@ import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import { getUser } from "../lib/api";
 import {
-  llv2BridgeLogin, llv2GetToken,
-  llv2GetShops, llv2GetCandidates, llv2GetMyShops,
+  llv2BridgeLogin,
+  llv2GetShops, llv2GetCandidates, llv2GetScheduledToday,
   llv2Schedule, llv2Reschedule, llv2SetClass,
-  llv2UploadDanhSach, llv2DownloadDanhSachUrl,
+  llv2UploadDanhSach, llv2DownloadDanhSachUrl, llv2UploadQuota,
 } from "../lib/llv2Api";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
@@ -21,9 +21,56 @@ const PHAN_LOAI_PILL = {
 const CLASS_OPTIONS = ["Xin kiểm kê", "Đóng cửa", "Vi phạm", "Shop mới", "Định kỳ"];
 const REQUEST_REASONS = ["Rà soát hàng hóa", "Luân chuyển nhân sự", "Nhân sự nghỉ việc"];
 const METHODS = ["Online", "Trực tiếp", "Thanh lý"];
+const STATUS_LABELS = {
+  cho_chia: "Chờ chia lịch", cho_den_han: "Chờ đến kỳ", qua_han_chia: "Quá hạn chia lịch",
+  sap_kiem: "Sắp đến kỳ kiểm", dang_kiem: "Đang trong kỳ kiểm", da_doi_lich: "Đã dời lịch",
+  cho_xac_nhan_doi_lich: "Chờ chia lại (đã dời lịch)", cho_chia_lai: "Chờ chia lại",
+  ngung_theo_doi: "Ngừng theo dõi", da_kiem: "Đã kiểm", da_kiem_lich_su: "Đã kiểm (lịch sử)",
+  da_chia: "Đã chia lịch", da_huy: "Đã huỷ",
+};
+const statusLabel = (code) => STATUS_LABELS[code] || code || "—";
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function normSearch(s) {
+  return String(s == null ? "" : s).toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d");
+}
+
+// Hook filter theo cột dùng chung cho mọi bảng — mỗi field 1 ô lọc nhỏ ngay
+// trong header row (chứa text), khớp kiểu "contains", không phân biệt hoa/thường/dấu.
+function useColumnFilters() {
+  const [filters, setFilters] = useState({});
+  const setFilter = (field, value) => setFilters((f) => ({ ...f, [field]: value }));
+  const clearFilters = () => setFilters({});
+  const applyFilters = (rows, getters) => {
+    const active = Object.entries(filters).filter(([, v]) => v && v.trim());
+    if (!active.length) return rows;
+    return rows.filter((r) => active.every(([field, val]) => {
+      const raw = getters[field] ? getters[field](r) : r[field];
+      return normSearch(raw).includes(normSearch(val));
+    }));
+  };
+  const hasActive = Object.values(filters).some((v) => v && v.trim());
+  return { filters, setFilter, clearFilters, applyFilters, hasActive };
+}
+
+function FilterTh({ label, value, onChange, align, minWidth }) {
+  return (
+    <th style={{ textAlign: align || "center", minWidth }}>
+      <div style={{ marginBottom: 5 }}>{label}</div>
+      <input
+        className="finput"
+        style={{ width: "100%", padding: "4px 7px", fontSize: 11, fontWeight: 400, textTransform: "none", letterSpacing: 0 }}
+        placeholder="Lọc..."
+        value={value || ""}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </th>
+  );
 }
 
 export default function LichLamViecV2Page() {
@@ -32,15 +79,15 @@ export default function LichLamViecV2Page() {
   const [bridgeError, setBridgeError] = useState("");
 
   const [group, setGroup] = useState("long_chau");
-  const [view, setView] = useState("schedule"); // list | schedule | myshops
+  const [view, setView] = useState("schedule"); // list | schedule | today
   const [shops, setShops] = useState(null);
   const [candidates, setCandidates] = useState(null);
-  const [myShops, setMyShops] = useState(null);
+  const [scheduledToday, setScheduledToday] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   // Không tự đăng nhập riêng — dùng chung phiên web, chỉ admin/super_admin
-  // mới được bridge sang tài khoản app1_ nội bộ để gọi API Lịch làm việc v2.
+  // mới được bridge sang tài khoản app1_ nội bộ để gọi API Phân công KSNB kiểm kê.
   useEffect(() => {
     const me = getUser();
     if (!me || !ADMIN_ROLES.includes(me.role)) {
@@ -49,7 +96,7 @@ export default function LichLamViecV2Page() {
     }
     llv2BridgeLogin()
       .then(() => setChecked(true))
-      .catch((e) => setBridgeError(e.message || "Không kết nối được chức năng Lịch làm việc v2"));
+      .catch((e) => setBridgeError(e.message || "Không kết nối được chức năng Phân công KSNB kiểm kê"));
   }, []);
 
   useEffect(() => {
@@ -64,14 +111,14 @@ export default function LichLamViecV2Page() {
       llv2GetShops(group).then(setShops).catch((e) => setError(e.message)).finally(done);
     } else if (view === "schedule") {
       llv2GetCandidates(group).then(setCandidates).catch((e) => setError(e.message)).finally(done);
-    } else if (view === "myshops") {
-      llv2GetMyShops().then(setMyShops).catch((e) => setError(e.message)).finally(done);
+    } else if (view === "today") {
+      llv2GetScheduledToday(group).then(setScheduledToday).catch((e) => setError(e.message)).finally(done);
     }
   }
 
   if (bridgeError) {
     return (
-      <Layout crumb="Lịch làm việc v2">
+      <Layout crumb="Phân công KSNB kiểm kê">
         <div className="placeholder-box">Không vào được chức năng này: {bridgeError}</div>
       </Layout>
     );
@@ -79,31 +126,43 @@ export default function LichLamViecV2Page() {
   if (!checked) return null;
 
   return (
-    <Layout crumb="Lịch làm việc v2 (Phân công & Quản lý)">
-      <div className="page-head">
-        <h1>Lịch làm việc — Chia lịch / Dời lịch / Phân loại shop</h1>
-        <p>Đang migrate từ hệ cũ (Cloudflare Worker) — chỉ admin xem được mục này. Dữ liệu vaccine đã nạp thật từ file bàn giao 13/08.</p>
+    <Layout crumb="Phân công KSNB kiểm kê (Phân công & Quản lý)">
+      <div className="llv-page">
+        <div className="page-head">
+          <h1>Phân công KSNB kiểm kê — Chia lịch / Dời lịch / Phân loại shop</h1>
+          <p>Đang migrate từ hệ cũ (Cloudflare Worker) — chỉ admin xem được mục này.</p>
+        </div>
+
+        <UploadDanhSachBar onDone={reload} />
+
+        <div className="month-tabs">
+          <div className={`month-tab ${group === "long_chau" ? "active" : ""}`} onClick={() => setGroup("long_chau")}>Long Châu</div>
+          <div className={`month-tab ${group === "vaccine" ? "active" : ""}`} onClick={() => setGroup("vaccine")}>Vaccine</div>
+        </div>
+
+        <div className="month-tabs">
+          <div className={`month-tab ${view === "list" ? "active" : ""}`} onClick={() => setView("list")}>📋 Danh sách shop</div>
+          <div className={`month-tab ${view === "schedule" ? "active" : ""}`} onClick={() => setView("schedule")}>🗓️ Cần chia lịch</div>
+          <div className={`month-tab ${view === "today" ? "active" : ""}`} onClick={() => setView("today")}>📌 Shop đã chia hôm nay</div>
+        </div>
+
+        {error && <div className="placeholder-box" style={{ marginBottom: 16 }}>Lỗi: {error}</div>}
+        {loading && <div style={{ fontSize: 13, color: "var(--text-600)", marginBottom: 12 }}><span className="tiny-spinner" /> Đang tải...</div>}
+
+        {view === "list" && shops && <ShopListView data={shops} onReload={reload} />}
+        {view === "schedule" && candidates && <ScheduleView data={candidates} group={group} onDone={reload} />}
+        {view === "today" && scheduledToday && <TodayScheduledView data={scheduledToday} onDone={reload} />}
+
+        <style jsx global>{`
+          .llv-page .llv-scroll { overflow: auto; }
+          .llv-page .llv-scroll table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 3;
+            background: #eaf1fc;
+          }
+        `}</style>
       </div>
-
-      <UploadDanhSachBar onDone={reload} />
-
-      <div className="month-tabs">
-        <div className={`month-tab ${group === "long_chau" ? "active" : ""}`} onClick={() => setGroup("long_chau")}>Long Châu</div>
-        <div className={`month-tab ${group === "vaccine" ? "active" : ""}`} onClick={() => setGroup("vaccine")}>Vaccine</div>
-      </div>
-
-      <div className="month-tabs">
-        <div className={`month-tab ${view === "list" ? "active" : ""}`} onClick={() => setView("list")}>📋 Danh sách shop</div>
-        <div className={`month-tab ${view === "schedule" ? "active" : ""}`} onClick={() => setView("schedule")}>🗓️ Cần chia lịch</div>
-        <div className={`month-tab ${view === "myshops" ? "active" : ""}`} onClick={() => setView("myshops")}>👤 Việc của tôi</div>
-      </div>
-
-      {error && <div className="placeholder-box" style={{ marginBottom: 16 }}>Lỗi: {error}</div>}
-      {loading && <div style={{ fontSize: 13, color: "var(--text-600)", marginBottom: 12 }}><span className="tiny-spinner" /> Đang tải...</div>}
-
-      {view === "list" && shops && <ShopListView data={shops} onReload={reload} />}
-      {view === "schedule" && candidates && <ScheduleView data={candidates} group={group} onDone={reload} />}
-      {view === "myshops" && myShops && <MyShopsView data={myShops} onDone={reload} />}
     </Layout>
   );
 }
@@ -157,15 +216,17 @@ function UploadDanhSachBar({ onDone }) {
 }
 
 function ShopListView({ data, onReload }) {
-  const [q, setQ] = useState("");
+  const { filters, setFilter, applyFilters, hasActive, clearFilters } = useColumnFilters();
   const [editing, setEditing] = useState(null); // ma_shop đang sửa phân loại
   const [classForm, setClassForm] = useState({ phan_loai: "Định kỳ", ngay_can_kiem: "", ly_do_xin_kiem_ke: "" });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
-  const rows = (data.rows || []).filter((r) =>
-    !q || r.ma_shop.includes(q) || (r.ten_shop || "").toLowerCase().includes(q.toLowerCase())
-  );
+  const rows = applyFilters(data.rows || [], {
+    trang_thai: (r) => statusLabel(r.display_status),
+    ngay_can_kiem: (r) => r.next_due_date || r.ngay_can_kiem,
+    ksnb: (r) => r.last_ksnb || r.ksnb,
+  });
 
   async function submitClass(maShop) {
     setBusy(true);
@@ -193,16 +254,21 @@ function ShopListView({ data, onReload }) {
 
       <div className="card">
         <div className="card-head">
-          <h3>Danh sách shop ({rows.length})</h3>
-          <input className="finput" placeholder="Tìm mã/tên shop..." value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 240 }} />
+          <h3>Danh sách shop ({rows.length}/{(data.rows || []).length})</h3>
+          {hasActive && <button className="fbtn" onClick={clearFilters}>Xóa bộ lọc</button>}
         </div>
-        <div className="card-body" style={{ padding: 0, overflowX: "auto", maxHeight: 560, overflowY: "auto" }}>
+        <div className="card-body llv-scroll" style={{ padding: 0, maxHeight: 560 }}>
           {msg && <div style={{ padding: "8px 20px", fontSize: 12.5 }}>{msg}</div>}
           <table>
             <thead>
               <tr>
-                <th style={{ textAlign: "left" }}>Mã shop</th><th style={{ textAlign: "left" }}>Tên shop</th>
-                <th>Phân loại</th><th>Trạng thái</th><th>Ngày cần kiểm</th><th>KSNB gần nhất</th><th></th>
+                <FilterTh label="Mã shop" align="left" value={filters.ma_shop} onChange={(v) => setFilter("ma_shop", v)} />
+                <FilterTh label="Tên shop" align="left" value={filters.ten_shop} onChange={(v) => setFilter("ten_shop", v)} minWidth={220} />
+                <FilterTh label="Phân loại" value={filters.phan_loai} onChange={(v) => setFilter("phan_loai", v)} />
+                <FilterTh label="Trạng thái" value={filters.trang_thai} onChange={(v) => setFilter("trang_thai", v)} />
+                <FilterTh label="Ngày cần kiểm" value={filters.ngay_can_kiem} onChange={(v) => setFilter("ngay_can_kiem", v)} />
+                <FilterTh label="KSNB gần nhất" value={filters.ksnb} onChange={(v) => setFilter("ksnb", v)} />
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -211,7 +277,7 @@ function ShopListView({ data, onReload }) {
                   <td style={{ textAlign: "left", fontVariantNumeric: "tabular-nums" }}>{r.ma_shop}</td>
                   <td style={{ textAlign: "left" }}>{r.ten_shop}</td>
                   <td><Pill kind={PHAN_LOAI_PILL[r.phan_loai]}>{r.phan_loai || "—"}</Pill></td>
-                  <td style={{ fontSize: 11.5 }}>{r.display_status}</td>
+                  <td style={{ fontSize: 11.5 }}>{statusLabel(r.display_status)}</td>
                   <td>{r.next_due_date || r.ngay_can_kiem || "—"}</td>
                   <td>{r.last_ksnb || r.ksnb || "—"}</td>
                   <td>
@@ -259,6 +325,7 @@ function ShopListView({ data, onReload }) {
 }
 
 function ScheduleView({ data, group, onDone }) {
+  const { filters, setFilter, applyFilters, hasActive, clearFilters } = useColumnFilters();
   const [selected, setSelected] = useState(new Set());
   const [quotas, setQuotas] = useState([{ ksnb: "", so_luong: 1 }]);
   const [ngayKiem, setNgayKiem] = useState(todayIso());
@@ -266,11 +333,36 @@ function ScheduleView({ data, group, onDone }) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [err, setErr] = useState("");
+  const [quotaBusy, setQuotaBusy] = useState(false);
+  const [quotaMsg, setQuotaMsg] = useState("");
+
+  const rows = applyFilters(data.rows || [], {
+    qua_han: (r) => (r.is_overdue ? "Quá hạn" : ""),
+  });
+
+  const quotaTotal = quotas.reduce((s, q) => s + (Number(q.so_luong) || 0), 0);
 
   function toggle(ma) {
     const next = new Set(selected);
     next.has(ma) ? next.delete(ma) : next.add(ma);
     setSelected(next);
+  }
+
+  async function onUploadQuota(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    setQuotaBusy(true);
+    setQuotaMsg("");
+    try {
+      const r = await llv2UploadQuota(file);
+      setQuotas(r.quotas.map((q) => ({ ksnb: q.ksnb, so_luong: q.so_luong })));
+      setQuotaMsg(`✅ Đã điền ${r.quotas.length} KSNB từ file`);
+    } catch (e2) {
+      setQuotaMsg("❌ " + e2.message);
+    } finally {
+      setQuotaBusy(false);
+    }
   }
 
   async function submit() {
@@ -300,12 +392,23 @@ function ScheduleView({ data, group, onDone }) {
   return (
     <div className="two-col">
       <div className="card">
-        <div className="card-head"><h3>Shop chờ chia ({data.rows.length}) — ngày quét {data.scan_date}</h3></div>
-        <div className="card-body" style={{ padding: 0, maxHeight: 500, overflowY: "auto" }}>
+        <div className="card-head">
+          <h3>Shop chờ chia ({rows.length}/{data.rows.length}) — ngày quét {data.scan_date}</h3>
+          {hasActive && <button className="fbtn" onClick={clearFilters}>Xóa bộ lọc</button>}
+        </div>
+        <div className="card-body llv-scroll" style={{ padding: 0, maxHeight: 500 }}>
           <table>
-            <thead><tr><th></th><th style={{ textAlign: "left" }}>Mã shop</th><th style={{ textAlign: "left" }}>Tên shop</th><th>Phân loại</th><th>Quá hạn</th></tr></thead>
+            <thead>
+              <tr>
+                <th></th>
+                <FilterTh label="Mã shop" align="left" value={filters.ma_shop} onChange={(v) => setFilter("ma_shop", v)} />
+                <FilterTh label="Tên shop" align="left" value={filters.ten_shop} onChange={(v) => setFilter("ten_shop", v)} minWidth={200} />
+                <FilterTh label="Phân loại" value={filters.phan_loai} onChange={(v) => setFilter("phan_loai", v)} />
+                <FilterTh label="Quá hạn" value={filters.qua_han} onChange={(v) => setFilter("qua_han", v)} />
+              </tr>
+            </thead>
             <tbody>
-              {data.rows.map((r) => (
+              {rows.map((r) => (
                 <tr key={r.ma_shop} onClick={() => toggle(r.ma_shop)} style={{ cursor: "pointer", background: selected.has(r.ma_shop) ? "var(--bg)" : "" }}>
                   <td><input type="checkbox" checked={selected.has(r.ma_shop)} onChange={() => toggle(r.ma_shop)} /></td>
                   <td style={{ textAlign: "left" }}>{r.ma_shop}</td>
@@ -320,7 +423,7 @@ function ScheduleView({ data, group, onDone }) {
       </div>
 
       <div className="card">
-        <div className="card-head"><h3>Chia lịch — đã chọn {selected.size} shop</h3></div>
+        <div className="card-head"><h3>Chia lịch — đã tick đích danh {selected.size} shop</h3></div>
         <div className="card-body">
           <div className="field"><label>Ngày kiểm</label><input type="date" className="finput" style={{ width: "100%" }} value={ngayKiem} onChange={(e) => setNgayKiem(e.target.value)} /></div>
           <div className="field">
@@ -329,16 +432,33 @@ function ScheduleView({ data, group, onDone }) {
               {METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
-          <label className="flabel">Hạn mức theo KSNB</label>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <label className="flabel" style={{ margin: 0 }}>Hạn mức theo KSNB (tổng {quotaTotal})</label>
+            <label className="fbtn" style={{ cursor: quotaBusy ? "default" : "pointer", fontSize: 11.5, opacity: quotaBusy ? 0.6 : 1 }}>
+              {quotaBusy ? "Đang đọc..." : "⬆️ Upload danh sách KSNB"}
+              <input type="file" accept=".xlsx" onChange={onUploadQuota} disabled={quotaBusy} style={{ display: "none" }} />
+            </label>
+          </div>
+          {quotaMsg && <div style={{ fontSize: 11.5, marginBottom: 8, color: quotaMsg.startsWith("✅") ? "#3E7A2A" : "var(--danger)" }}>{quotaMsg}</div>}
           {quotas.map((q, i) => (
             <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <input className="finput" placeholder="Tên KSNB" style={{ flex: 1 }} value={q.ksnb}
                 onChange={(e) => setQuotas(quotas.map((x, j) => j === i ? { ...x, ksnb: e.target.value } : x))} />
               <input className="finput" type="number" min="0" style={{ width: 70 }} value={q.so_luong}
                 onChange={(e) => setQuotas(quotas.map((x, j) => j === i ? { ...x, so_luong: e.target.value } : x))} />
+              <button className="fbtn" onClick={() => setQuotas(quotas.filter((_, j) => j !== i))}>✕</button>
             </div>
           ))}
           <button className="fbtn" onClick={() => setQuotas([...quotas, { ksnb: "", so_luong: 1 }])}>+ Thêm KSNB</button>
+
+          <div style={{ fontSize: 11.5, color: "var(--text-600)", marginTop: 12, lineHeight: 1.5 }}>
+            {selected.size === 0
+              ? "Chưa tick shop nào → hệ thống tự random chọn đủ số lượng trong danh sách \"cần chia lịch\" (ưu tiên shop Xin kiểm kê/Đóng cửa/Vi phạm trước)."
+              : selected.size < quotaTotal
+                ? `Đã tick ${selected.size}/${quotaTotal} shop → ${quotaTotal - selected.size} shop còn lại sẽ tự random bổ sung (ưu tiên shop khẩn trước).`
+                : "Đã tick đủ/thừa số lượng → chia đúng các shop đã tick."}
+          </div>
+
           <div style={{ marginTop: 16 }}>
             <button className="login-btn" style={{ width: "auto", padding: "10px 24px" }} disabled={busy} onClick={submit}>{busy ? "Đang chia..." : "Chia lịch"}</button>
           </div>
@@ -350,11 +470,16 @@ function ScheduleView({ data, group, onDone }) {
   );
 }
 
-function MyShopsView({ data, onDone }) {
+function TodayScheduledView({ data, onDone }) {
+  const { filters, setFilter, applyFilters, hasActive, clearFilters } = useColumnFilters();
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ ngay_can_kiem: "", ly_do: "" });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+
+  const rows = applyFilters(data.rows || [], {
+    trang_thai: (r) => statusLabel(r.display_status),
+  });
 
   async function submit(id) {
     setBusy(true);
@@ -372,22 +497,39 @@ function MyShopsView({ data, onDone }) {
 
   return (
     <div className="card">
-      <div className="card-head"><h3>Kỳ kiểm được giao cho {data.ksnb || "(chưa xác định KSNB)"} — {data.rows.length} kỳ</h3></div>
-      <div className="card-body" style={{ padding: 0 }}>
+      <div className="card-head">
+        <h3>Shop đã chia hôm nay ({rows.length}/{data.rows.length}) — {data.date}</h3>
+        {hasActive && <button className="fbtn" onClick={clearFilters}>Xóa bộ lọc</button>}
+      </div>
+      <div className="card-body llv-scroll" style={{ padding: 0, maxHeight: 600 }}>
         {msg && <div style={{ padding: "8px 20px", fontSize: 12.5 }}>{msg}</div>}
         <table>
-          <thead><tr><th style={{ textAlign: "left" }}>Mã shop</th><th>Ngày kiểm</th><th>Trạng thái</th><th></th></tr></thead>
+          <thead>
+            <tr>
+              <FilterTh label="Mã shop" align="left" value={filters.ma_shop} onChange={(v) => setFilter("ma_shop", v)} minWidth={200} />
+              <FilterTh label="KSNB phụ trách" value={filters.ksnb} onChange={(v) => setFilter("ksnb", v)} />
+              <FilterTh label="Ngày kiểm" value={filters.ngay_kiem} onChange={(v) => setFilter("ngay_kiem", v)} />
+              <FilterTh label="Hình thức" value={filters.hinh_thuc} onChange={(v) => setFilter("hinh_thuc", v)} />
+              <FilterTh label="Trạng thái" value={filters.trang_thai} onChange={(v) => setFilter("trang_thai", v)} />
+              <th></th>
+            </tr>
+          </thead>
           <tbody>
-            {data.rows.map((r) => (
+            {rows.map((r) => (
               <tr key={r.id}>
-                <td style={{ textAlign: "left" }}>{r.ma_shop} {r.replacement_note && <Pill kind="warn">{r.replacement_note}</Pill>}</td>
+                <td style={{ textAlign: "left" }}>{r.ma_shop} — {r.ten_shop} {r.replacement_note && <Pill kind="warn">{r.replacement_note}</Pill>}</td>
+                <td>{r.ksnb}</td>
                 <td>{r.ngay_kiem}</td>
-                <td>{r.display_status}</td>
+                <td>{r.hinh_thuc}</td>
+                <td style={{ fontSize: 11.5 }}>{statusLabel(r.display_status)}</td>
                 <td>
                   <button className="fbtn" onClick={() => { setEditing(r.id); setForm({ ngay_can_kiem: "", ly_do: "" }); setMsg(""); }}>Dời lịch</button>
                 </td>
               </tr>
             ))}
+            {!rows.length && (
+              <tr><td colSpan={6} style={{ color: "var(--text-400)", padding: 24 }}>Chưa có shop nào được chia hôm nay.</td></tr>
+            )}
           </tbody>
         </table>
         {editing && (
