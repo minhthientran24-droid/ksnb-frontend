@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+import Layout from "../components/Layout";
+import { getUser } from "../lib/api";
 import {
-  llv2GetToken, llv2GetUser, llv2Login, llv2Logout,
+  llv2BridgeLogin, llv2GetToken,
   llv2GetShops, llv2GetCandidates, llv2GetMyShops,
   llv2Schedule, llv2Reschedule, llv2SetClass,
 } from "../lib/llv2Api";
+
+const ADMIN_ROLES = ["admin", "super_admin"];
 
 const PHAN_LOAI_PILL = {
   "Xin kiểm kê": "danger",
@@ -21,28 +26,34 @@ function todayIso() {
 }
 
 export default function LichLamViecV2Page() {
+  const router = useRouter();
   const [checked, setChecked] = useState(false);
-  const [user, setUser] = useState(null);
-  const [loginForm, setLoginForm] = useState({ username: "", password: "" });
-  const [loginError, setLoginError] = useState("");
-  const [loginBusy, setLoginBusy] = useState(false);
+  const [bridgeError, setBridgeError] = useState("");
 
   const [group, setGroup] = useState("long_chau");
-  const [view, setView] = useState("schedule"); // list | schedule | myshops — mặc định vào thẳng Chia lịch theo yêu cầu hiện tại
+  const [view, setView] = useState("schedule"); // list | schedule | myshops
   const [shops, setShops] = useState(null);
   const [candidates, setCandidates] = useState(null);
   const [myShops, setMyShops] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Không tự đăng nhập riêng — dùng chung phiên web, chỉ admin/super_admin
+  // mới được bridge sang tài khoản app1_ nội bộ để gọi API Lịch làm việc v2.
   useEffect(() => {
-    setUser(llv2GetUser());
-    setChecked(true);
+    const me = getUser();
+    if (!me || !ADMIN_ROLES.includes(me.role)) {
+      router.replace("/");
+      return;
+    }
+    llv2BridgeLogin()
+      .then(() => setChecked(true))
+      .catch((e) => setBridgeError(e.message || "Không kết nối được chức năng Lịch làm việc v2"));
   }, []);
 
   useEffect(() => {
-    if (user) reload();
-  }, [user, group, view]);
+    if (checked) reload();
+  }, [checked, group, view]);
 
   function reload() {
     setLoading(true);
@@ -57,87 +68,40 @@ export default function LichLamViecV2Page() {
     }
   }
 
-  async function handleLogin(e) {
-    e.preventDefault();
-    setLoginBusy(true);
-    setLoginError("");
-    try {
-      const { user: u } = await llv2Login(loginForm.username, loginForm.password);
-      setUser(u);
-    } catch (err) {
-      setLoginError(err.message || "Đăng nhập thất bại");
-    } finally {
-      setLoginBusy(false);
-    }
-  }
-
-  function handleLogout() {
-    llv2Logout();
-    setUser(null);
-  }
-
-  if (!checked) return null;
-
-  if (!user) {
+  if (bridgeError) {
     return (
-      <div className="login-screen">
-        <div className="login-card">
-          <div className="login-logo"><div className="logo-text">FPT Retail<br /><small style={{ fontWeight: 500, opacity: 0.7 }}>Phân công &amp; Quản lý — Lịch làm việc v2</small></div></div>
-          <div className="login-title">Đăng nhập tài khoản App</div>
-          <div className="login-sub">Tài khoản app1_ (riêng biệt với web KSNB) — đăng nhập bằng Username, không phải email.</div>
-          <form onSubmit={handleLogin}>
-            <div className="field">
-              <label>Username</label>
-              <input value={loginForm.username} onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })} placeholder="Admin" />
-            </div>
-            <div className="field">
-              <label>Mật khẩu</label>
-              <input type="password" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} />
-            </div>
-            {loginError && <div className="login-error">{loginError}</div>}
-            <button className="login-btn" disabled={loginBusy}>{loginBusy ? "Đang đăng nhập..." : "Đăng nhập"}</button>
-          </form>
-        </div>
-      </div>
+      <Layout crumb="Lịch làm việc v2">
+        <div className="placeholder-box">Không vào được chức năng này: {bridgeError}</div>
+      </Layout>
     );
   }
+  if (!checked) return null;
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
-      <div className="topbar" style={{ position: "static" }}>
-        <div className="crumb-current">Lịch làm việc v2 — Phân công &amp; Quản lý</div>
-        <div className="tb-user">
-          <div className="avatar">{(user.display_name || user.username || "?").slice(0, 1).toUpperCase()}</div>
-          {user.display_name || user.username} ({user.role})
-          <button className="logout-btn" onClick={handleLogout}>Đăng xuất</button>
-        </div>
+    <Layout crumb="Lịch làm việc v2 (Phân công & Quản lý)">
+      <div className="page-head">
+        <h1>Lịch làm việc — Chia lịch / Dời lịch / Phân loại shop</h1>
+        <p>Đang migrate từ hệ cũ (Cloudflare Worker) — chỉ admin xem được mục này. Dữ liệu vaccine đã nạp thật từ file bàn giao 13/08.</p>
       </div>
 
-      <div className="content">
-        <div className="page-head">
-          <h1>Lịch làm việc — Chia lịch / Dời lịch / Phân loại shop</h1>
-          <p>Đang migrate từ hệ cũ (Cloudflare Worker) — dữ liệu vaccine đã nạp thật từ file bàn giao 13/08.</p>
-        </div>
-
-        <div className="month-tabs">
-          <div className={`month-tab ${group === "long_chau" ? "active" : ""}`} onClick={() => setGroup("long_chau")}>Long Châu</div>
-          <div className={`month-tab ${group === "vaccine" ? "active" : ""}`} onClick={() => setGroup("vaccine")}>Vaccine</div>
-        </div>
-
-        <div className="month-tabs">
-          <div className={`month-tab ${view === "list" ? "active" : ""}`} onClick={() => setView("list")}>📋 Danh sách shop</div>
-          <div className={`month-tab ${view === "schedule" ? "active" : ""}`} onClick={() => setView("schedule")}>🗓️ Cần chia lịch</div>
-          <div className={`month-tab ${view === "myshops" ? "active" : ""}`} onClick={() => setView("myshops")}>👤 Việc của tôi</div>
-        </div>
-
-        {error && <div className="placeholder-box" style={{ marginBottom: 16 }}>Lỗi: {error}</div>}
-        {loading && <div style={{ fontSize: 13, color: "var(--text-600)", marginBottom: 12 }}><span className="tiny-spinner" /> Đang tải...</div>}
-
-        {view === "list" && shops && <ShopListView data={shops} onReload={reload} />}
-        {view === "schedule" && candidates && <ScheduleView data={candidates} group={group} onDone={reload} />}
-        {view === "myshops" && myShops && <MyShopsView data={myShops} onDone={reload} />}
+      <div className="month-tabs">
+        <div className={`month-tab ${group === "long_chau" ? "active" : ""}`} onClick={() => setGroup("long_chau")}>Long Châu</div>
+        <div className={`month-tab ${group === "vaccine" ? "active" : ""}`} onClick={() => setGroup("vaccine")}>Vaccine</div>
       </div>
-    </div>
+
+      <div className="month-tabs">
+        <div className={`month-tab ${view === "list" ? "active" : ""}`} onClick={() => setView("list")}>📋 Danh sách shop</div>
+        <div className={`month-tab ${view === "schedule" ? "active" : ""}`} onClick={() => setView("schedule")}>🗓️ Cần chia lịch</div>
+        <div className={`month-tab ${view === "myshops" ? "active" : ""}`} onClick={() => setView("myshops")}>👤 Việc của tôi</div>
+      </div>
+
+      {error && <div className="placeholder-box" style={{ marginBottom: 16 }}>Lỗi: {error}</div>}
+      {loading && <div style={{ fontSize: 13, color: "var(--text-600)", marginBottom: 12 }}><span className="tiny-spinner" /> Đang tải...</div>}
+
+      {view === "list" && shops && <ShopListView data={shops} onReload={reload} />}
+      {view === "schedule" && candidates && <ScheduleView data={candidates} group={group} onDone={reload} />}
+      {view === "myshops" && myShops && <MyShopsView data={myShops} onDone={reload} />}
+    </Layout>
   );
 }
 
