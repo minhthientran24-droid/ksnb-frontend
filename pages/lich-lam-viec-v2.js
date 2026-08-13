@@ -28,7 +28,7 @@ export default function LichLamViecV2Page() {
   const [loginBusy, setLoginBusy] = useState(false);
 
   const [group, setGroup] = useState("long_chau");
-  const [view, setView] = useState("list"); // list | schedule | myshops
+  const [view, setView] = useState("schedule"); // list | schedule | myshops — mặc định vào thẳng Chia lịch theo yêu cầu hiện tại
   const [shops, setShops] = useState(null);
   const [candidates, setCandidates] = useState(null);
   const [myShops, setMyShops] = useState(null);
