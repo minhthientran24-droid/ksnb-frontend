@@ -24,7 +24,7 @@ const REQUEST_REASONS = ["Rà soát hàng hóa", "Luân chuyển nhân sự", "N
 const METHODS = ["Online", "Trực tiếp", "Thanh lý"];
 const STATUS_LABELS = {
   cho_chia: "Chờ chia lịch", cho_den_han: "Chờ đến kỳ", qua_han_chia: "Quá hạn chia lịch",
-  sap_kiem: "Sắp đến kỳ kiểm", dang_kiem: "Đang trong kỳ kiểm", da_doi_lich: "Đã dời lịch",
+  sap_kiem: "Chuẩn bị kiểm kê", dang_kiem: "Đang trong kỳ kiểm", da_doi_lich: "Đã dời lịch",
   cho_xac_nhan_doi_lich: "Chờ chia lại (đã dời lịch)", cho_chia_lai: "Chờ chia lại",
   ngung_theo_doi: "Ngừng theo dõi", da_kiem: "Đã kiểm", da_kiem_lich_su: "Đã kiểm (lịch sử)",
   da_chia: "Đã chia lịch", da_huy: "Đã huỷ",
