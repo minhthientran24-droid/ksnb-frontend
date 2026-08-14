@@ -286,7 +286,7 @@ export default function TheoDoiKiemKePage() {
           ⏳ Đang kiểm
         </div>
         <div className={`month-tab ${loai === "shop_chia_hom_nay" ? "active" : ""}`} onClick={() => setLoai("shop_chia_hom_nay")}>
-          📌 Shop được chia hôm nay
+          📌 Shop được chia - Chuẩn bị kiểm kê
         </div>
       </div>
 
@@ -328,7 +328,7 @@ export default function TheoDoiKiemKePage() {
 
       {loai === "shop_chia_hom_nay" && shopHomNay && (
         <LlvRowsTable
-          title="Shop được chia lịch hôm nay"
+          title="Shop được chia - Chuẩn bị kiểm kê"
           data={shopHomNay}
           isAdmin={isAdmin}
           searchQuery={searchQuery}

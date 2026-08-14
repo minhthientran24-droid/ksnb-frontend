@@ -143,7 +143,7 @@ export default function LichLamViecV2Page() {
         <div className="month-tabs">
           <div className={`month-tab ${view === "list" ? "active" : ""}`} onClick={() => setView("list")}>📋 Danh sách shop</div>
           <div className={`month-tab ${view === "schedule" ? "active" : ""}`} onClick={() => setView("schedule")}>🗓️ Cần chia lịch</div>
-          <div className={`month-tab ${view === "today" ? "active" : ""}`} onClick={() => setView("today")}>📌 Shop đã chia hôm nay</div>
+          <div className={`month-tab ${view === "today" ? "active" : ""}`} onClick={() => setView("today")}>📌 Shop được chia - Chuẩn bị kiểm kê</div>
         </div>
 
         {error && <div className="placeholder-box" style={{ marginBottom: 16 }}>Lỗi: {error}</div>}
@@ -587,7 +587,7 @@ function TodayScheduledView({ data, onDone }) {
   return (
     <div className="card">
       <div className="card-head">
-        <h3>Shop đã chia hôm nay ({rows.length}/{data.rows.length}) — {data.date}</h3>
+        <h3>Shop được chia - Chuẩn bị kiểm kê ({rows.length}/{data.rows.length}) — {data.date}</h3>
         {hasActive && <button className="fbtn" onClick={clearFilters}>Xóa bộ lọc</button>}
       </div>
       <div className="card-body llv-scroll" style={{ padding: 0, maxHeight: 600 }}>
