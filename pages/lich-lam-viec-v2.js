@@ -7,7 +7,7 @@ import {
   llv2GetShops, llv2GetCandidates, llv2GetScheduledToday,
   llv2Schedule, llv2Reschedule, llv2SetClass,
   llv2UploadDanhSach, llv2DownloadDanhSachUrl, llv2UploadQuota,
-  llv2BulkCreateTickets, llv2BulkCreateEho, llv2CreateDanhSachChia,
+  llv2BulkCreateTickets, llv2CreateDanhSachChia, llv2EhoAllShopAuditUrl,
 } from "../lib/llv2Api";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
@@ -577,9 +577,11 @@ function TodayScheduledView({ data, group, onDone }) {
   const [form, setForm] = useState({ ngay_can_kiem: "", ly_do: "" });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
-  const [bulkBusy, setBulkBusy] = useState(""); // "" | "ticket" | "eho"
+  const [bulkBusy, setBulkBusy] = useState(false); // đang xếp hàng ticket SSC
   const [bulkMsg, setBulkMsg] = useState("");
-  const [proc, setProc] = useState(null); // {kind:"ticket"|"eho", ids:Set<number>} — popup đang xử lý
+  const [proc, setProc] = useState(null); // {ids:Set<number>} — popup đang xử lý ticket SSC
+  const [ehoBusy, setEhoBusy] = useState(false); // đang tải file EHO
+  const [ehoMsg, setEhoMsg] = useState("");
 
   const rows = applyFilters(data.rows || [], {
     trang_thai: (r) => statusLabel(r.display_status),
@@ -632,9 +634,7 @@ function TodayScheduledView({ data, group, onDone }) {
   }, [proc]);
 
   const procRows = proc ? (data.rows || []).filter((r) => proc.ids.has(r.id)) : [];
-  const procDoneCount = procRows.filter((r) =>
-    ["da_tao", "loi", "can_xac_minh"].includes(proc?.kind === "ticket" ? r.ticket_status : r.eho_status)
-  ).length;
+  const procDoneCount = procRows.filter((r) => ["da_tao", "loi", "can_xac_minh"].includes(r.ticket_status)).length;
 
   function openEdit(row) {
     setEditing(row);
@@ -657,27 +657,61 @@ function TodayScheduledView({ data, group, onDone }) {
   }
 
   // Bấm 1 lần cho CẢ danh sách đang hiện trên tab này — đẩy vào hàng đợi,
-  // tiến trình tự động ngoài (SSC đã có sẵn, EHO chờ anh Thiện cung cấp)
-  // mới thực sự tạo. An toàn bấm lại nhiều lần: shop đã có ticket/phiếu bị
-  // bỏ qua, chỉ shop chưa có hoặc lỗi mới được xếp hàng lại.
-  async function runBulk(kind) {
+  // chương trình automation SSC chạy riêng trên máy anh mới thực sự tạo.
+  // An toàn bấm lại nhiều lần: shop đã có ticket bị bỏ qua, chỉ shop chưa
+  // có hoặc lỗi mới được xếp hàng lại.
+  async function runBulkTicket() {
     const ids = (data.rows || []).map((r) => r.id);
     if (!ids.length) return;
-    setBulkBusy(kind);
+    setBulkBusy(true);
     setBulkMsg("");
     try {
-      const fn = kind === "ticket" ? llv2BulkCreateTickets : llv2BulkCreateEho;
-      const r = await fn(ids);
+      const r = await llv2BulkCreateTickets(ids);
       const parts = [`✅ Đã xếp hàng ${r.queued_count} shop`];
       if (r.already_done_count) parts.push(`${r.already_done_count} shop đã có từ trước`);
       if (r.skipped_count) parts.push(`${r.skipped_count} shop bỏ qua (Thanh lý)`);
       setBulkMsg(parts.join(" — "));
-      setProc({ kind, ids: new Set(ids) });
+      setProc({ ids: new Set(ids) });
       onDone();
     } catch (e) {
       setBulkMsg("❌ " + e.message);
     } finally {
-      setBulkBusy("");
+      setBulkBusy(false);
+    }
+  }
+
+  // Khác ticket SSC (automation ngoài, không đồng bộ) — file EHO tải NGAY,
+  // không có gì để xếp hàng/theo dõi. Dùng fetch+blob thay vì <a href> thẳng
+  // để bắt được lỗi (VD danh sách rỗng) và hiện thông báo tử tế thay vì mở
+  // tab trống ra JSON lỗi.
+  async function onExportEho() {
+    const ids = (data.rows || []).map((r) => r.id);
+    if (!ids.length) return;
+    setEhoBusy(true);
+    setEhoMsg("");
+    try {
+      const res = await fetch(llv2EhoAllShopAuditUrl(ids));
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || `Lỗi ${res.status}`);
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const filename = match ? match[1] : "AllShopAudit.xlsx";
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objUrl);
+      setEhoMsg(`✅ Đã tải file ${filename}`);
+    } catch (e) {
+      setEhoMsg("❌ " + e.message);
+    } finally {
+      setEhoBusy(false);
     }
   }
 
@@ -687,11 +721,11 @@ function TodayScheduledView({ data, group, onDone }) {
         <h3>Shop được chia - Chuẩn bị kiểm kê ({rows.length}/{data.rows.length}) — {data.date}</h3>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {hasActive && <button className="fbtn" onClick={clearFilters}>Xóa bộ lọc</button>}
-          <button className="fbtn" disabled={!!bulkBusy} onClick={() => runBulk("ticket")}>
-            {bulkBusy === "ticket" ? "Đang xếp hàng..." : "📨 Tạo ticket thông báo"}
+          <button className="fbtn" disabled={bulkBusy} onClick={runBulkTicket}>
+            {bulkBusy ? "Đang xếp hàng..." : "📨 Tạo ticket thông báo"}
           </button>
-          <button className="fbtn" disabled={!!bulkBusy} onClick={() => runBulk("eho")}>
-            {bulkBusy === "eho" ? "Đang xếp hàng..." : "📋 Tạo phiếu kiểm kê"}
+          <button className="fbtn" disabled={ehoBusy} onClick={onExportEho}>
+            {ehoBusy ? "Đang tải..." : "📋 Tạo phiếu kiểm kê"}
           </button>
           <button className="fbtn" disabled={dsChiaBusy} onClick={onCreateDanhSachChia}>
             {dsChiaBusy ? "Đang tạo..." : "🗂️ Tạo danh sách chia"}
@@ -718,6 +752,7 @@ function TodayScheduledView({ data, group, onDone }) {
       <div className="card-body llv-scroll" style={{ padding: 0, maxHeight: 600 }}>
         {msg && <div style={{ padding: "8px 20px", fontSize: 12.5 }}>{msg}</div>}
         {bulkMsg && <div style={{ padding: "8px 20px", fontSize: 12.5, color: bulkMsg.startsWith("✅") ? "#3E7A2A" : "var(--danger)" }}>{bulkMsg}</div>}
+        {ehoMsg && <div style={{ padding: "8px 20px", fontSize: 12.5, color: ehoMsg.startsWith("✅") ? "#3E7A2A" : "var(--danger)" }}>{ehoMsg}</div>}
         <table>
           <thead>
             <tr>
@@ -727,7 +762,6 @@ function TodayScheduledView({ data, group, onDone }) {
               <FilterTh label="Hình thức" value={filters.hinh_thuc} onChange={(v) => setFilter("hinh_thuc", v)} />
               <FilterTh label="Trạng thái" value={filters.trang_thai} onChange={(v) => setFilter("trang_thai", v)} />
               <th>Ticket thông báo</th>
-              <th>Phiếu kiểm kê</th>
               <th></th>
             </tr>
           </thead>
@@ -740,14 +774,13 @@ function TodayScheduledView({ data, group, onDone }) {
                 <td>{r.hinh_thuc}</td>
                 <td style={{ fontSize: 11.5 }}>{statusLabel(r.display_status)}</td>
                 <td><JobStatusBadge status={r.ticket_status} url={r.ticket_url} /></td>
-                <td><JobStatusBadge status={r.eho_status} url={r.eho_url} /></td>
                 <td>
                   <button className="fbtn" onClick={() => openEdit(r)}>Dời lịch</button>
                 </td>
               </tr>
             ))}
             {!rows.length && (
-              <tr><td colSpan={8} style={{ color: "var(--text-400)", padding: 24 }}>Chưa có shop nào được chia hôm nay.</td></tr>
+              <tr><td colSpan={7} style={{ color: "var(--text-400)", padding: 24 }}>Chưa có shop nào được chia hôm nay.</td></tr>
             )}
           </tbody>
         </table>
@@ -777,14 +810,14 @@ function TodayScheduledView({ data, group, onDone }) {
 
       {proc && (
         <Modal
-          title={proc.kind === "ticket" ? "Đang xử lý — Tạo ticket thông báo" : "Đang xử lý — Tạo phiếu kiểm kê"}
+          title="Đang xử lý — Tạo ticket thông báo"
           subtitle={`${procDoneCount}/${procRows.length} shop đã có kết quả — tự làm mới mỗi 3 giây`}
           onClose={() => setProc(null)}
         >
           <div style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 10 }}>
-            Việc tạo {proc.kind === "ticket" ? "ticket" : "phiếu kiểm kê"} thật do chương trình automation chạy
-            riêng (ngoài trình duyệt) xử lý — màn hình này chỉ theo dõi kết quả, có thể đóng lại và mở
-            "Shop được chia - Chuẩn bị kiểm kê" xem sau, không cần chờ ở đây.
+            Việc tạo ticket thật do chương trình automation chạy riêng (ngoài trình duyệt) xử lý — màn hình
+            này chỉ theo dõi kết quả, có thể đóng lại và mở "Shop được chia - Chuẩn bị kiểm kê" xem sau,
+            không cần chờ ở đây.
           </div>
           <div className="llv-scroll" style={{ maxHeight: 320, overflowY: "auto" }}>
             <table>
@@ -795,7 +828,7 @@ function TodayScheduledView({ data, group, onDone }) {
                 {procRows.map((r) => (
                   <tr key={r.id}>
                     <td style={{ textAlign: "left" }}>{r.ma_shop} — {r.ten_shop}</td>
-                    <td><JobStatusBadge status={proc.kind === "ticket" ? r.ticket_status : r.eho_status} url={proc.kind === "ticket" ? r.ticket_url : r.eho_url} /></td>
+                    <td><JobStatusBadge status={r.ticket_status} url={r.ticket_url} /></td>
                   </tr>
                 ))}
               </tbody>
