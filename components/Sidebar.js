@@ -14,6 +14,7 @@ const NAV_ITEMS_BOTTOM = [
   { href: "/ghi-nhan-case", icon: "📝", label: "Ghi nhận case vi phạm" },
   { href: "/theo-doi-chu-de", icon: "☰", label: "Theo dõi chủ đề" },
   { href: "/ho-tro-kiem-ke", icon: "🧰", label: "Hỗ Trợ Kiểm Kê" },
+  { href: "/gui-mail-bcks", icon: "📧", label: "Gửi mail BCKS" },
   { href: "/hoat-dong", icon: "☺", label: "Hoạt động phòng ban" },
 ];
 
