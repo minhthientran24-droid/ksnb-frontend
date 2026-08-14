@@ -7,6 +7,7 @@ import {
   llv2GetShops, llv2GetCandidates, llv2GetScheduledToday,
   llv2Schedule, llv2Reschedule, llv2SetClass,
   llv2UploadDanhSach, llv2DownloadDanhSachUrl, llv2UploadQuota,
+  llv2BulkCreateTickets, llv2BulkCreateEho,
 } from "../lib/llv2Api";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
@@ -29,6 +30,19 @@ const STATUS_LABELS = {
   da_chia: "Đã chia lịch", da_huy: "Đã huỷ",
 };
 const statusLabel = (code) => STATUS_LABELS[code] || code || "—";
+
+const JOB_STATUS_LABELS = {
+  "": "Chưa tạo", cho_tao: "Đang chờ tạo", da_tao: "Đã tạo",
+  loi: "Lỗi — cần kiểm tra", can_xac_minh: "Cần xác minh", da_huy: "Đã huỷ",
+};
+const JOB_STATUS_PILL = { da_tao: "ok", loi: "danger", can_xac_minh: "warn", cho_tao: "warn" };
+function JobStatusBadge({ status, url }) {
+  const s = status || "";
+  const kind = JOB_STATUS_PILL[s];
+  const label = JOB_STATUS_LABELS[s] || s;
+  if (url) return <a href={url} target="_blank" rel="noreferrer"><Pill kind={kind}>{label}</Pill></a>;
+  return <Pill kind={kind}>{label}</Pill>;
+}
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -563,6 +577,8 @@ function TodayScheduledView({ data, onDone }) {
   const [form, setForm] = useState({ ngay_can_kiem: "", ly_do: "" });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(""); // "" | "ticket" | "eho"
+  const [bulkMsg, setBulkMsg] = useState("");
 
   const rows = applyFilters(data.rows || [], {
     trang_thai: (r) => statusLabel(r.display_status),
@@ -588,14 +604,47 @@ function TodayScheduledView({ data, onDone }) {
     }
   }
 
+  // Bấm 1 lần cho CẢ danh sách đang hiện trên tab này — đẩy vào hàng đợi,
+  // tiến trình tự động ngoài (SSC đã có sẵn, EHO chờ anh Thiện cung cấp)
+  // mới thực sự tạo. An toàn bấm lại nhiều lần: shop đã có ticket/phiếu bị
+  // bỏ qua, chỉ shop chưa có hoặc lỗi mới được xếp hàng lại.
+  async function runBulk(kind) {
+    const ids = (data.rows || []).map((r) => r.id);
+    if (!ids.length) return;
+    setBulkBusy(kind);
+    setBulkMsg("");
+    try {
+      const fn = kind === "ticket" ? llv2BulkCreateTickets : llv2BulkCreateEho;
+      const r = await fn(ids);
+      const parts = [`✅ Đã xếp hàng ${r.queued_count} shop`];
+      if (r.already_done_count) parts.push(`${r.already_done_count} shop đã có từ trước`);
+      if (r.skipped_count) parts.push(`${r.skipped_count} shop bỏ qua (Thanh lý)`);
+      setBulkMsg(parts.join(" — "));
+      onDone();
+    } catch (e) {
+      setBulkMsg("❌ " + e.message);
+    } finally {
+      setBulkBusy("");
+    }
+  }
+
   return (
     <div className="card">
       <div className="card-head">
         <h3>Shop được chia - Chuẩn bị kiểm kê ({rows.length}/{data.rows.length}) — {data.date}</h3>
-        {hasActive && <button className="fbtn" onClick={clearFilters}>Xóa bộ lọc</button>}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {hasActive && <button className="fbtn" onClick={clearFilters}>Xóa bộ lọc</button>}
+          <button className="fbtn" disabled={!!bulkBusy} onClick={() => runBulk("ticket")}>
+            {bulkBusy === "ticket" ? "Đang xếp hàng..." : "📨 Tạo ticket thông báo"}
+          </button>
+          <button className="fbtn" disabled={!!bulkBusy} onClick={() => runBulk("eho")}>
+            {bulkBusy === "eho" ? "Đang xếp hàng..." : "📋 Tạo phiếu kiểm kê"}
+          </button>
+        </div>
       </div>
       <div className="card-body llv-scroll" style={{ padding: 0, maxHeight: 600 }}>
         {msg && <div style={{ padding: "8px 20px", fontSize: 12.5 }}>{msg}</div>}
+        {bulkMsg && <div style={{ padding: "8px 20px", fontSize: 12.5, color: bulkMsg.startsWith("✅") ? "#3E7A2A" : "var(--danger)" }}>{bulkMsg}</div>}
         <table>
           <thead>
             <tr>
@@ -604,6 +653,8 @@ function TodayScheduledView({ data, onDone }) {
               <FilterTh label="Ngày kiểm" value={filters.ngay_kiem} onChange={(v) => setFilter("ngay_kiem", v)} />
               <FilterTh label="Hình thức" value={filters.hinh_thuc} onChange={(v) => setFilter("hinh_thuc", v)} />
               <FilterTh label="Trạng thái" value={filters.trang_thai} onChange={(v) => setFilter("trang_thai", v)} />
+              <th>Ticket thông báo</th>
+              <th>Phiếu kiểm kê</th>
               <th></th>
             </tr>
           </thead>
@@ -615,13 +666,15 @@ function TodayScheduledView({ data, onDone }) {
                 <td>{r.ngay_kiem}</td>
                 <td>{r.hinh_thuc}</td>
                 <td style={{ fontSize: 11.5 }}>{statusLabel(r.display_status)}</td>
+                <td><JobStatusBadge status={r.ticket_status} url={r.ticket_url} /></td>
+                <td><JobStatusBadge status={r.eho_status} url={r.eho_url} /></td>
                 <td>
                   <button className="fbtn" onClick={() => openEdit(r)}>Dời lịch</button>
                 </td>
               </tr>
             ))}
             {!rows.length && (
-              <tr><td colSpan={6} style={{ color: "var(--text-400)", padding: 24 }}>Chưa có shop nào được chia hôm nay.</td></tr>
+              <tr><td colSpan={8} style={{ color: "var(--text-400)", padding: 24 }}>Chưa có shop nào được chia hôm nay.</td></tr>
             )}
           </tbody>
         </table>
