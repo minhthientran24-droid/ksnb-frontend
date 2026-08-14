@@ -1,17 +1,27 @@
 import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
-import { getKiemKePeriods, listKiemKe, updateKiemKeGhiChu, syncKiemKeNow, getUser } from "../lib/api";
+import { getKiemKePeriods, listKiemKe, updateKiemKeGhiChu, syncKiemKeNow, getShopChiaHomNay, getUser } from "../lib/api";
 
 function fmtMoney(n) {
   if (n === undefined || n === null) return "-";
   return n.toLocaleString("vi-VN");
 }
 
+const STATUS_LABELS = {
+  cho_chia: "Chờ chia lịch", cho_den_han: "Chờ đến kỳ", qua_han_chia: "Quá hạn chia lịch",
+  sap_kiem: "Sắp đến kỳ kiểm", dang_kiem: "Đang trong kỳ kiểm", da_doi_lich: "Đã dời lịch",
+  cho_xac_nhan_doi_lich: "Chờ chia lại (đã dời lịch)", cho_chia_lai: "Chờ chia lại",
+  ngung_theo_doi: "Ngừng theo dõi", da_kiem: "Đã kiểm", da_kiem_lich_su: "Đã kiểm (lịch sử)",
+  da_chia: "Đã chia lịch", da_huy: "Đã huỷ",
+};
+const statusLabel = (code) => STATUS_LABELS[code] || code || "—";
+
 export default function TheoDoiKiemKePage() {
-  const [loai, setLoai] = useState("da_kiem"); // "da_kiem" | "dang_kiem"
+  const [loai, setLoai] = useState("da_kiem"); // "da_kiem" | "dang_kiem" | "shop_chia_hom_nay"
   const [periods, setPeriods] = useState([]);
   const [period, setPeriod] = useState(null);
   const [rows, setRows] = useState([]);
+  const [shopHomNay, setShopHomNay] = useState(null); // { date, rows }
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [noteDraft, setNoteDraft] = useState("");
@@ -20,9 +30,15 @@ export default function TheoDoiKiemKePage() {
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const isAdmin = ["admin", "super_admin"].includes(getUser()?.role);
+  const isHomNay = loai === "shop_chia_hom_nay";
 
   // Khi đổi tab Đã kiểm / Đang kiểm -> nạp lại danh sách kỳ tương ứng
   useEffect(() => {
+    if (isHomNay) {
+      setPeriods([]);
+      setPeriod(null);
+      return;
+    }
     getKiemKePeriods(loai)
       .then((list) => {
         setPeriods(list);
@@ -33,9 +49,16 @@ export default function TheoDoiKiemKePage() {
   }, [loai]);
 
   useEffect(() => {
-    if (!period) return;
+    if (!period || isHomNay) return;
     listKiemKe(period, loai).then(setRows).catch((err) => setError(err.message));
   }, [period, loai]);
+
+  // Tab "Shop được chia hôm nay" — nạp riêng, không theo kỳ tháng
+  useEffect(() => {
+    if (!isHomNay) return;
+    setError("");
+    getShopChiaHomNay().then(setShopHomNay).catch((err) => setError(err.message));
+  }, [loai]);
 
   function startEditNote(row) {
     setEditingId(row.id);
@@ -73,6 +96,14 @@ export default function TheoDoiKiemKePage() {
     })
     .sort((a, b) => Math.abs(b.gia_tri_that_thoat || 0) - Math.abs(a.gia_tri_that_thoat || 0));
 
+  const homNayRows = (shopHomNay?.rows || []).filter((r) => {
+    if (!searchQuery) return true;
+    return (
+      (r.ma_shop || "").toLowerCase().includes(searchQuery) ||
+      (r.ten_shop || "").toLowerCase().includes(searchQuery)
+    );
+  });
+
   async function handleSyncNow() {
     setSyncing(true);
     setSyncMsg("");
@@ -103,7 +134,7 @@ export default function TheoDoiKiemKePage() {
           <h1>Theo dõi kiểm kê</h1>
           <p>Đồng bộ tự động từ Excel local trên PC lúc 23h mỗi ngày. Cột Ghi chú do NV KSNB tự cập nhật.</p>
         </div>
-        {isAdmin && (
+        {isAdmin && !isHomNay && (
           <div style={{ textAlign: "right" }}>
             <button onClick={handleSyncNow} disabled={syncing} style={syncBtnStyle}>
               {syncing ? "Đang đồng bộ..." : "🔄 Đồng bộ ngay"}
@@ -117,7 +148,7 @@ export default function TheoDoiKiemKePage() {
         )}
       </div>
 
-      {/* Tab chọn Đã kiểm / Đang kiểm — giống kiểu tab ở Báo cáo tháng */}
+      {/* Tab chọn Đã kiểm / Đang kiểm / Shop được chia hôm nay */}
       <div className="month-tabs">
         <div className={`month-tab ${loai === "da_kiem" ? "active" : ""}`} onClick={() => setLoai("da_kiem")}>
           ✅ Đã kiểm
@@ -125,9 +156,12 @@ export default function TheoDoiKiemKePage() {
         <div className={`month-tab ${loai === "dang_kiem" ? "active" : ""}`} onClick={() => setLoai("dang_kiem")}>
           ⏳ Đang kiểm
         </div>
+        <div className={`month-tab ${isHomNay ? "active" : ""}`} onClick={() => setLoai("shop_chia_hom_nay")}>
+          📌 Shop được chia hôm nay
+        </div>
       </div>
 
-      {periods.length > 0 && (
+      {!isHomNay && periods.length > 0 && (
         <div className="month-tabs">
           {periods.map((p) => (
             <div key={p} className={`month-tab ${p === period ? "active" : ""}`} onClick={() => setPeriod(p)}>
@@ -138,13 +172,13 @@ export default function TheoDoiKiemKePage() {
       )}
 
       {error && <div className="placeholder-box">Không tải được dữ liệu: {error}</div>}
-      {!error && periods.length === 0 && (
+      {!isHomNay && !error && periods.length === 0 && (
         <div className="placeholder-box">
           Chưa có dữ liệu "{loai === "da_kiem" ? "Đã kiểm" : "Đang kiểm"}" nào được đồng bộ.
         </div>
       )}
 
-      {periods.length > 0 && (
+      {(isHomNay || periods.length > 0) && (
         <div className="card" style={{ marginBottom: 14 }}>
           <div className="card-body" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "14px 18px" }}>
             <input
@@ -165,7 +199,47 @@ export default function TheoDoiKiemKePage() {
         </div>
       )}
 
-      {period && (
+      {isHomNay && shopHomNay && (
+        <div className="card">
+          <div className="card-head">
+            <h3>Shop được chia lịch hôm nay — {shopHomNay.date}</h3>
+            <span className="note">
+              {searchQuery ? `${homNayRows.length}/${shopHomNay.rows.length} shop (đang lọc)` : `${shopHomNay.rows.length} shop`}
+              {!isAdmin && " · chỉ hiện shop do bạn phụ trách"}
+            </span>
+          </div>
+          <div className="card-body">
+            <table>
+              <thead>
+                <tr>
+                  <th>Vùng</th><th>Mã shop</th><th>Tên shop</th><th>KSNB phụ trách</th>
+                  <th>Ngày kiểm</th><th>Hình thức</th><th>Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody>
+                {homNayRows.map((r) => (
+                  <tr key={r.id}>
+                    <td style={{ textAlign: "left" }}>{r.vung || "-"}</td>
+                    <td>{r.ma_shop}</td>
+                    <td style={{ textAlign: "left" }}>{r.ten_shop || "-"}</td>
+                    <td>{r.ksnb || "-"}</td>
+                    <td>{r.ngay_kiem || "-"}</td>
+                    <td>{r.hinh_thuc || "-"}</td>
+                    <td style={{ fontSize: 12 }}>{statusLabel(r.display_status)}</td>
+                  </tr>
+                ))}
+                {homNayRows.length === 0 && (
+                  <tr><td colSpan={7} style={{ textAlign: "center", color: "var(--text-400)" }}>
+                    {searchQuery ? "Không tìm thấy shop nào khớp" : "Chưa có shop nào được chia lịch hôm nay"}
+                  </td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {!isHomNay && period && (
         <div className="card">
           <div className="card-head">
             <h3>Kỳ {period}</h3>
