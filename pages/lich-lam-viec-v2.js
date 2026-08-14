@@ -441,6 +441,10 @@ function ScheduleView({ data, group, onDone }) {
   }
 
   async function submit() {
+    if (ngayKiem === todayIso()) {
+      const ok = window.confirm("Ngày bắt đầu kiểm là ngày hôm nay, Admin cần kiểm tra lại.\n\nBấm OK để xác nhận chia lịch, Hủy để quay lại chỉnh sửa.");
+      if (!ok) return;
+    }
     setBusy(true);
     setErr("");
     setResult(null);
