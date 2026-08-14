@@ -3,9 +3,10 @@ import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import { listUsers, createUserAccount, updateUserAccount, deleteUserAccount, getUser } from "../lib/api";
 
-const emptyForm = { email: "", full_name: "", position: "", password: "", role: "viewer", xlkk_app_access: false };
+const emptyForm = { email: "", full_name: "", position: "", password: "", role: "viewer", xlkk_app_access: false, kiem_ke_permission: false, khu_vuc: "" };
 const ADMIN_ROLES = ["admin", "super_admin"];
 const ROLE_LABELS = { super_admin: "Super Admin", admin: "Admin", editor: "Editor", viewer: "Viewer" };
+const KHU_VUC_OPTIONS = ["VP HCM", "VP HNI"];
 
 export default function QuanLyTaiKhoanPage() {
   const router = useRouter();
@@ -95,6 +96,26 @@ export default function QuanLyTaiKhoanPage() {
     }
   }
 
+  async function handleToggleKiemKePermission(u) {
+    try {
+      await updateUserAccount(u.id, { kiem_ke_permission: !u.kiem_ke_permission });
+      load();
+    } catch (err) {
+      alert(err.message || "Cập nhật thất bại");
+    }
+  }
+
+  async function handleKhuVucChange(u, khu_vuc) {
+    // Gửi chuỗi rỗng (không phải null) khi bỏ chọn — backend coi null là
+    // "không đổi field này", còn "" mới thật sự xóa Khu vực đang có.
+    try {
+      await updateUserAccount(u.id, { khu_vuc });
+      load();
+    } catch (err) {
+      alert(err.message || "Cập nhật thất bại");
+    }
+  }
+
   function startEdit(u) {
     setEditingId(u.id);
     setEditForm({ full_name: u.full_name || "", password: "" });
@@ -176,6 +197,11 @@ export default function QuanLyTaiKhoanPage() {
                 <option value="admin">Admin — sửa mọi nội dung</option>
                 {me?.role === "super_admin" && <option value="super_admin">Super Admin — toàn quyền</option>}
               </select></div>
+            <div><label style={labelStyle}>Khu vực làm việc</label>
+              <select style={inputStyle} value={form.khu_vuc} onChange={(e) => setForm({ ...form, khu_vuc: e.target.value })}>
+                <option value="">— chưa chọn —</option>
+                {KHU_VUC_OPTIONS.map((k) => <option key={k} value={k}>{k}</option>)}
+              </select></div>
             <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 8 }}>
               <input
                 id="xlkk_app_access"
@@ -185,6 +211,17 @@ export default function QuanLyTaiKhoanPage() {
               />
               <label htmlFor="xlkk_app_access" style={{ fontSize: 13, color: "var(--text-600)", cursor: "pointer" }}>
                 Cấp quyền dùng App Kiểm kê (XLKK) — cho phép đăng nhập app desktop kiểm kê bằng tài khoản này
+              </label>
+            </div>
+            <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                id="kiem_ke_permission"
+                type="checkbox"
+                checked={form.kiem_ke_permission}
+                onChange={(e) => setForm({ ...form, kiem_ke_permission: e.target.checked })}
+              />
+              <label htmlFor="kiem_ke_permission" style={{ fontSize: 13, color: "var(--text-600)", cursor: "pointer" }}>
+                Quyền Kiểm Kê — có tên trong danh sách KSNB khi Load danh sách ở Phân công KSNB kiểm kê
               </label>
             </div>
             {saveError && <div style={{ gridColumn: "1 / -1", fontSize: 12.5, color: "var(--danger)" }}>{saveError}</div>}
@@ -201,10 +238,14 @@ export default function QuanLyTaiKhoanPage() {
       {error && <div className="placeholder-box">Không tải được dữ liệu: {error}</div>}
 
       <div className="card">
-        <div className="card-body">
+        <div className="card-body" style={{ padding: 0, maxHeight: 620, overflow: "auto" }}>
           <table>
             <thead>
-              <tr><th>Email</th><th>Họ tên</th><th>Chức danh</th><th>Quyền</th><th>Trạng thái</th><th>App XLKK</th><th></th></tr>
+              <tr>
+                {["Email", "Họ tên", "Chức danh", "Khu vực", "Quyền", "Trạng thái", "App XLKK", "Quyền Kiểm Kê", ""].map((h) => (
+                  <th key={h} style={{ position: "sticky", top: 0, zIndex: 2, background: "#eaf1fc" }}>{h}</th>
+                ))}
+              </tr>
             </thead>
             <tbody>
               {list.map((u) => (
@@ -219,6 +260,16 @@ export default function QuanLyTaiKhoanPage() {
                         placeholder="Chưa có"
                         style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 12.5, width: 140 }}
                       />
+                    </td>
+                    <td>
+                      <select
+                        value={u.khu_vuc || ""}
+                        onChange={(e) => handleKhuVucChange(u, e.target.value)}
+                        style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 12.5 }}
+                      >
+                        <option value="">— chưa chọn —</option>
+                        {KHU_VUC_OPTIONS.map((k) => <option key={k} value={k}>{k}</option>)}
+                      </select>
                     </td>
                     <td>
                       <select
@@ -246,6 +297,13 @@ export default function QuanLyTaiKhoanPage() {
                         </span>
                       </button>
                     </td>
+                    <td>
+                      <button onClick={() => handleToggleKiemKePermission(u)} style={btnStyle}>
+                        <span className={`pill ${u.kiem_ke_permission ? "ok" : "warn"}`}>
+                          {u.kiem_ke_permission ? "Đã cấp quyền" : "Chưa cấp quyền"}
+                        </span>
+                      </button>
+                    </td>
                     <td style={{ display: "flex", gap: 8 }}>
                       <button onClick={() => startEdit(u)} style={btnStyle}>
                         Sửa
@@ -260,7 +318,7 @@ export default function QuanLyTaiKhoanPage() {
                   </tr>
                   {editingId === u.id && (
                     <tr>
-                      <td colSpan={7} style={{ background: "var(--bg)", padding: "14px 16px" }}>
+                      <td colSpan={9} style={{ background: "var(--bg)", padding: "14px 16px" }}>
                         <div style={{ display: "flex", gap: 14, alignItems: "flex-end", flexWrap: "wrap" }}>
                           <div>
                             <label style={labelStyle}>Họ tên</label>

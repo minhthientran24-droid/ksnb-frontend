@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
-import { getUser } from "../lib/api";
+import { getUser, listKiemKeStaff } from "../lib/api";
 import {
   llv2BridgeLogin,
   llv2GetShops, llv2GetCandidates, llv2GetScheduledToday,
@@ -419,6 +419,27 @@ function ScheduleView({ data, group, onDone }) {
     }
   }
 
+  // Load thẳng danh sách KSNB đang có Quyền Kiểm Kê (Quản lý tài khoản) —
+  // thay cho phải upload Excel. Không kiểm shop nào trong đợt: bấm ✕ xóa
+  // dòng, hoặc để Số lượng = 0 (không gửi lên khi Chia lịch).
+  async function onLoadKsnbList() {
+    setQuotaBusy(true);
+    setQuotaMsg("");
+    try {
+      const staff = await listKiemKeStaff();
+      if (!staff.length) {
+        setQuotaMsg("⚠️ Chưa có KSNB nào được cấp Quyền Kiểm Kê ở Quản lý tài khoản.");
+        return;
+      }
+      setQuotas(staff.map((s) => ({ ksnb: s.full_name, so_luong: 1 })));
+      setQuotaMsg(`✅ Đã tải ${staff.length} KSNB có Quyền Kiểm Kê`);
+    } catch (e2) {
+      setQuotaMsg("❌ " + e2.message);
+    } finally {
+      setQuotaBusy(false);
+    }
+  }
+
   async function submit() {
     setBusy(true);
     setErr("");
@@ -486,12 +507,20 @@ function ScheduleView({ data, group, onDone }) {
               {METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, flexWrap: "wrap", gap: 8 }}>
             <label className="flabel" style={{ margin: 0 }}>Hạn mức theo KSNB (tổng {quotaTotal})</label>
-            <label className="fbtn" style={{ cursor: quotaBusy ? "default" : "pointer", fontSize: 11.5, opacity: quotaBusy ? 0.6 : 1 }}>
-              {quotaBusy ? "Đang đọc..." : "⬆️ Upload danh sách KSNB"}
-              <input type="file" accept=".xlsx" onChange={onUploadQuota} disabled={quotaBusy} style={{ display: "none" }} />
-            </label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="fbtn" onClick={onLoadKsnbList} disabled={quotaBusy} style={{ fontSize: 11.5 }}>
+                {quotaBusy ? "Đang tải..." : "📥 Load danh sách KSNB"}
+              </button>
+              <label className="fbtn" style={{ cursor: quotaBusy ? "default" : "pointer", fontSize: 11.5, opacity: quotaBusy ? 0.6 : 1 }}>
+                {quotaBusy ? "Đang đọc..." : "⬆️ Upload danh sách KSNB"}
+                <input type="file" accept=".xlsx" onChange={onUploadQuota} disabled={quotaBusy} style={{ display: "none" }} />
+              </label>
+            </div>
+          </div>
+          <div style={{ fontSize: 11, color: "var(--text-600)", marginBottom: 8 }}>
+            KSNB nào không kiểm trong đợt này: bấm ✕ xóa dòng, hoặc để Số lượng = 0.
           </div>
           {quotaMsg && <div style={{ fontSize: 11.5, marginBottom: 8, color: quotaMsg.startsWith("✅") ? "#3E7A2A" : "var(--danger)" }}>{quotaMsg}</div>}
           {quotas.map((q, i) => (
