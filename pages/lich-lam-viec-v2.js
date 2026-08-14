@@ -7,7 +7,7 @@ import {
   llv2GetShops, llv2GetCandidates, llv2GetScheduledToday,
   llv2Schedule, llv2Reschedule, llv2SetClass,
   llv2UploadDanhSach, llv2DownloadDanhSachUrl, llv2UploadQuota,
-  llv2BulkCreateTickets, llv2BulkCreateEho,
+  llv2BulkCreateTickets, llv2BulkCreateEho, llv2CreateDanhSachChia,
 } from "../lib/llv2Api";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
@@ -165,7 +165,7 @@ export default function LichLamViecV2Page() {
 
         {view === "list" && shops && <ShopListView data={shops} onReload={reload} />}
         {view === "schedule" && candidates && <ScheduleView data={candidates} group={group} onDone={reload} />}
-        {view === "today" && scheduledToday && <TodayScheduledView data={scheduledToday} onDone={reload} />}
+        {view === "today" && scheduledToday && <TodayScheduledView data={scheduledToday} group={group} onDone={reload} />}
 
         <style jsx global>{`
           .llv-page .llv-scroll { overflow: auto; }
@@ -571,7 +571,7 @@ function ScheduleView({ data, group, onDone }) {
   );
 }
 
-function TodayScheduledView({ data, onDone }) {
+function TodayScheduledView({ data, group, onDone }) {
   const { filters, setFilter, applyFilters, hasActive, clearFilters } = useColumnFilters();
   const [editing, setEditing] = useState(null); // row đang dời lịch
   const [form, setForm] = useState({ ngay_can_kiem: "", ly_do: "" });
@@ -585,15 +585,39 @@ function TodayScheduledView({ data, onDone }) {
     trang_thai: (r) => statusLabel(r.display_status),
   });
 
-  // Mã đợt chia (batch_chia) — chương trình tự động tạo ticket SSC chạy trên
-  // máy anh cần nhập đúng mã này. 1 ngày có thể bấm "Chia lịch" nhiều lần
-  // nên hiện đủ mọi đợt khác nhau đang có trong danh sách, không chỉ 1 mã.
-  const batches = [...new Set((data.rows || []).map((r) => r.batch_chia).filter(Boolean))];
-  const [copiedBatch, setCopiedBatch] = useState("");
-  function copyBatch(b) {
-    navigator.clipboard?.writeText(b).then(() => {
-      setCopiedBatch(b);
-      setTimeout(() => setCopiedBatch(""), 1500);
+  // Mã phiếu chia — CHỈ sinh khi Admin chủ động bấm nút "Tạo danh sách chia",
+  // không tự quét khi tải trang. Gộp mọi shop đang chờ tạo/lỗi (dù đến từ
+  // nhiều lần bấm "Chia lịch" trong ngày, mỗi lần vốn 1 mã đợt khác nhau)
+  // thành 1 mã duy nhất — Admin chỉ cần đưa 1 mã cho script tạo ticket SSC.
+  const [dsChiaBusy, setDsChiaBusy] = useState(false);
+  const [maPhieuChia, setMaPhieuChia] = useState("");
+  const [dsChiaMsg, setDsChiaMsg] = useState("");
+  const [copiedPhieu, setCopiedPhieu] = useState(false);
+
+  async function onCreateDanhSachChia() {
+    const ids = (data.rows || []).map((r) => r.id);
+    if (!ids.length) return;
+    setDsChiaBusy(true);
+    setDsChiaMsg("");
+    setMaPhieuChia("");
+    try {
+      const r = await llv2CreateDanhSachChia(ids, group);
+      setMaPhieuChia(r.ma_phieu_chia);
+      const parts = [`${r.included_count} shop`];
+      if (r.already_done_count) parts.push(`${r.already_done_count} shop đã có ticket từ trước không gộp vào`);
+      if (r.skipped_count) parts.push(`${r.skipped_count} shop bỏ qua (Thanh lý)`);
+      setDsChiaMsg(`✅ Đã gộp ${parts.join(" — ")}`);
+    } catch (e) {
+      setDsChiaMsg("❌ " + e.message);
+    } finally {
+      setDsChiaBusy(false);
+    }
+  }
+
+  function copyPhieu() {
+    navigator.clipboard?.writeText(maPhieuChia).then(() => {
+      setCopiedPhieu(true);
+      setTimeout(() => setCopiedPhieu(false), 1500);
     });
   }
 
@@ -669,21 +693,26 @@ function TodayScheduledView({ data, onDone }) {
           <button className="fbtn" disabled={!!bulkBusy} onClick={() => runBulk("eho")}>
             {bulkBusy === "eho" ? "Đang xếp hàng..." : "📋 Tạo phiếu kiểm kê"}
           </button>
+          <button className="fbtn" disabled={dsChiaBusy} onClick={onCreateDanhSachChia}>
+            {dsChiaBusy ? "Đang tạo..." : "🗂️ Tạo danh sách chia"}
+          </button>
         </div>
       </div>
-      {!!batches.length && (
-        <div style={{ padding: "0 20px 12px", fontSize: 11.5, color: "var(--text-600)", display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-          <span>Mã đợt chia hôm nay (dùng cho script tạo ticket SSC):</span>
-          {batches.map((b) => (
-            <code
-              key={b}
-              onClick={() => copyBatch(b)}
-              title="Bấm để copy"
-              style={{ cursor: "pointer", background: "var(--bg)", padding: "2px 8px", borderRadius: 4, fontSize: 11 }}
-            >
-              {copiedBatch === b ? "✅ Đã copy" : b}
-            </code>
-          ))}
+      {(maPhieuChia || dsChiaMsg) && (
+        <div style={{ padding: "0 20px 14px", display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+          {maPhieuChia && (
+            <>
+              <span style={{ fontSize: 14 }}>Mã phiếu chia (dùng cho script tạo ticket SSC):</span>
+              <code
+                onClick={copyPhieu}
+                title="Bấm để copy"
+                style={{ cursor: "pointer", background: "var(--bg)", padding: "5px 14px", borderRadius: 6, fontSize: 16, fontWeight: 600 }}
+              >
+                {copiedPhieu ? "✅ Đã copy" : maPhieuChia}
+              </code>
+            </>
+          )}
+          {dsChiaMsg && <div style={{ fontSize: 14, color: dsChiaMsg.startsWith("✅") ? "#3E7A2A" : "var(--danger)" }}>{dsChiaMsg}</div>}
         </div>
       )}
       <div className="card-body llv-scroll" style={{ padding: 0, maxHeight: 600 }}>
