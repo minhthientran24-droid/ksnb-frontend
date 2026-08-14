@@ -51,10 +51,26 @@ function daysBetween(todayStr, dateStr) {
   return Math.round((a - b) / 86400000);
 }
 
+// Badge trạng thái ticket thông báo SSC — giống hệt bên trang Phân công
+// KSNB kiểm kê (lich-lam-viec-v2.js), lặp lại ở đây vì 2 trang khác nhau
+// không share component, chỉ share class .pill định nghĩa ở globals.css.
+const JOB_STATUS_LABELS = {
+  "": "Chưa tạo", cho_tao: "Đang chờ tạo", da_tao: "Đã tạo",
+  loi: "Lỗi — cần kiểm tra", can_xac_minh: "Cần xác minh", da_huy: "Đã huỷ",
+};
+const JOB_STATUS_PILL = { da_tao: "ok", loi: "danger", can_xac_minh: "warn", cho_tao: "warn" };
+function JobStatusBadge({ status, url }) {
+  const s = status || "";
+  const kind = JOB_STATUS_PILL[s] || "";
+  const label = JOB_STATUS_LABELS[s] || s;
+  const badge = <span className={`pill ${kind}`}>{label}</span>;
+  return url ? <a href={url} target="_blank" rel="noreferrer">{badge}</a> : badge;
+}
+
 // Bảng dùng chung cho 2 tab lấy dữ liệu từ Phân công KSNB kiểm kê (LLV v2):
 // "Shop được chia - Chuẩn bị kiểm kê" (có nút Dời lịch) và "Đang kiểm" (chỉ
 // xem, có thêm cột Số ngày kiểm + cảnh báo trễ hạn, sắp theo số ngày giảm dần).
-function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canReschedule, onOpenReschedule, emptyText, showSoNgayKiem }) {
+function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canReschedule, onOpenReschedule, emptyText, showSoNgayKiem, showTicket }) {
   let rows = (data?.rows || []).filter((r) => {
     if (!searchQuery) return true;
     return (
@@ -69,7 +85,7 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
       .sort((a, b) => (b._soNgayKiem ?? -Infinity) - (a._soNgayKiem ?? -Infinity));
   }
 
-  const colCount = 7 + (showSoNgayKiem ? 1 : 0) + (showDoiLich ? 1 : 0);
+  const colCount = 7 + (showSoNgayKiem ? 1 : 0) + (showTicket ? 1 : 0) + (showDoiLich ? 1 : 0);
 
   return (
     <div className="card">
@@ -86,7 +102,7 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
             <tr>
               <th>Vùng</th><th>Mã shop</th><th>Tên shop</th><th>KSNB phụ trách</th>
               <th>Ngày kiểm</th>{showSoNgayKiem && <th>Số ngày kiểm</th>}
-              <th>Hình thức</th><th>Trạng thái</th>{showDoiLich && <th></th>}
+              <th>Hình thức</th><th>Trạng thái</th>{showTicket && <th>Ticket thông báo</th>}{showDoiLich && <th></th>}
             </tr>
           </thead>
           <tbody>
@@ -122,6 +138,7 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
                   {showSoNgayKiem && <td>{soNgayKiem ?? "-"}</td>}
                   <td>{r.hinh_thuc || "-"}</td>
                   <td style={{ fontSize: 12 }}>{statusText}</td>
+                  {showTicket && <td><JobStatusBadge status={r.ticket_status} url={r.ticket_url} /></td>}
                   {showDoiLich && (
                     <td>
                       {canReschedule(r) && r.display_status !== "da_doi_lich" && (
@@ -365,6 +382,7 @@ export default function TheoDoiKiemKePage() {
           data={shopHomNay}
           isAdmin={isAdmin}
           searchQuery={searchQuery}
+          showTicket
           showDoiLich
           canReschedule={canReschedule}
           onOpenReschedule={openReschedule}
