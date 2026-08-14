@@ -1,6 +1,29 @@
 import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
-import { getKiemKePeriods, listKiemKe, updateKiemKeGhiChu, syncKiemKeNow, getShopChiaHomNay, getUser } from "../lib/api";
+import { getKiemKePeriods, listKiemKe, updateKiemKeGhiChu, syncKiemKeNow, getShopChiaHomNay, doiLichShopChiaHomNay, getUser } from "../lib/api";
+
+function normName(s) {
+  return String(s == null ? "" : s).toLowerCase().trim()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d").replace(/\s+/g, " ");
+}
+
+function Modal({ title, subtitle, onClose, children }) {
+  return (
+    <div className="llv-modal-overlay" onClick={onClose}>
+      <div className="llv-modal-card" onClick={(e) => e.stopPropagation()}>
+        <div className="llv-modal-head">
+          <div>
+            <h3>{title}</h3>
+            {subtitle && <div className="llv-modal-subtitle">{subtitle}</div>}
+          </div>
+          <button className="llv-modal-close" onClick={onClose} aria-label="Đóng">✕</button>
+        </div>
+        <div className="llv-modal-body">{children}</div>
+      </div>
+    </div>
+  );
+}
 
 function fmtMoney(n) {
   if (n === undefined || n === null) return "-";
@@ -29,8 +52,43 @@ export default function TheoDoiKiemKePage() {
   const [syncMsg, setSyncMsg] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const isAdmin = ["admin", "super_admin"].includes(getUser()?.role);
+  const me = getUser();
+  const isAdmin = ["admin", "super_admin"].includes(me?.role);
   const isHomNay = loai === "shop_chia_hom_nay";
+
+  // Dời lịch tự phục vụ — popup + tự nạp lại danh sách sau khi có shop thay thế
+  const [rescheduling, setRescheduling] = useState(null); // row đang dời
+  const [rescheduleForm, setRescheduleForm] = useState({ ngay_can_kiem: "", ly_do: "" });
+  const [rescheduleBusy, setRescheduleBusy] = useState(false);
+  const [rescheduleMsg, setRescheduleMsg] = useState("");
+
+  function canReschedule(row) {
+    return isAdmin || normName(row.ksnb) === normName(me?.full_name);
+  }
+
+  function openReschedule(row) {
+    setRescheduling(row);
+    setRescheduleForm({ ngay_can_kiem: "", ly_do: "" });
+    setRescheduleMsg("");
+  }
+
+  async function submitReschedule() {
+    setRescheduleBusy(true);
+    setRescheduleMsg("");
+    try {
+      const r = await doiLichShopChiaHomNay(rescheduling.id, rescheduleForm.ngay_can_kiem, rescheduleForm.ly_do);
+      const replacementText = r.replacement
+        ? `Đã tự động chọn shop thay thế: ${r.replacement.ma_shop} — ${r.replacement.ten_shop}.`
+        : `⚠️ Không tìm được shop thay thế${r.replacement_error ? ` (${r.replacement_error})` : ""}.`;
+      setRescheduling(null);
+      getShopChiaHomNay().then(setShopHomNay).catch((err) => setError(err.message));
+      alert(`✅ Đã dời lịch shop ${r.ma_shop}. ${replacementText}`);
+    } catch (err) {
+      setRescheduleMsg("❌ " + err.message);
+    } finally {
+      setRescheduleBusy(false);
+    }
+  }
 
   // Khi đổi tab Đã kiểm / Đang kiểm -> nạp lại danh sách kỳ tương ứng
   useEffect(() => {
@@ -213,7 +271,7 @@ export default function TheoDoiKiemKePage() {
               <thead>
                 <tr>
                   <th>Vùng</th><th>Mã shop</th><th>Tên shop</th><th>KSNB phụ trách</th>
-                  <th>Ngày kiểm</th><th>Hình thức</th><th>Trạng thái</th>
+                  <th>Ngày kiểm</th><th>Hình thức</th><th>Trạng thái</th><th></th>
                 </tr>
               </thead>
               <tbody>
@@ -226,10 +284,15 @@ export default function TheoDoiKiemKePage() {
                     <td>{r.ngay_kiem || "-"}</td>
                     <td>{r.hinh_thuc || "-"}</td>
                     <td style={{ fontSize: 12 }}>{statusLabel(r.display_status)}</td>
+                    <td>
+                      {canReschedule(r) && r.display_status !== "da_doi_lich" && (
+                        <button className="fbtn" onClick={() => openReschedule(r)}>Dời lịch</button>
+                      )}
+                    </td>
                   </tr>
                 ))}
                 {homNayRows.length === 0 && (
-                  <tr><td colSpan={7} style={{ textAlign: "center", color: "var(--text-400)" }}>
+                  <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-400)" }}>
                     {searchQuery ? "Không tìm thấy shop nào khớp" : "Chưa có shop nào được chia lịch hôm nay"}
                   </td></tr>
                 )}
@@ -238,6 +301,64 @@ export default function TheoDoiKiemKePage() {
           </div>
         </div>
       )}
+
+      {rescheduling && (
+        <Modal
+          title={`Dời lịch — shop ${rescheduling.ma_shop}`}
+          subtitle={`${rescheduling.ten_shop || ""}${rescheduling.ngay_kiem ? ` · Ngày kiểm hiện tại: ${rescheduling.ngay_kiem}` : ""}`}
+          onClose={() => setRescheduling(null)}
+        >
+          <div className="field">
+            <label className="flabel">Ngày cần kiểm mới</label>
+            <input type="date" className="finput" style={{ width: "100%" }}
+              value={rescheduleForm.ngay_can_kiem}
+              onChange={(e) => setRescheduleForm({ ...rescheduleForm, ngay_can_kiem: e.target.value })} />
+          </div>
+          <div className="field">
+            <label className="flabel">Lý do</label>
+            <input className="finput" style={{ width: "100%" }}
+              value={rescheduleForm.ly_do}
+              onChange={(e) => setRescheduleForm({ ...rescheduleForm, ly_do: e.target.value })} />
+          </div>
+          <div style={{ fontSize: 11.5, color: "var(--text-600)", marginBottom: 12 }}>
+            Sau khi dời, hệ thống sẽ tự động chọn 1 shop thay thế cho bạn (cùng ngày kiểm/hình thức) và hiện luôn ở danh sách trên.
+          </div>
+          {rescheduleMsg && <div style={{ fontSize: 12.5, marginBottom: 12, color: "var(--danger)" }}>{rescheduleMsg}</div>}
+          <div className="llv-modal-actions">
+            <button className="login-btn" style={{ width: "auto", padding: "9px 20px" }} disabled={rescheduleBusy} onClick={submitReschedule}>
+              {rescheduleBusy ? "Đang lưu..." : "Xác nhận dời"}
+            </button>
+            <button className="fbtn" onClick={() => setRescheduling(null)}>Hủy</button>
+          </div>
+        </Modal>
+      )}
+
+      <style jsx global>{`
+        .llv-modal-overlay {
+          position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5);
+          display: flex; align-items: center; justify-content: center;
+          z-index: 100; padding: 20px;
+        }
+        .llv-modal-card {
+          background: var(--card); border-radius: var(--radius);
+          width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto;
+          box-shadow: 0 24px 60px rgba(10, 25, 55, 0.35);
+        }
+        .llv-modal-head {
+          padding: 18px 22px; border-bottom: 1px solid var(--border);
+          display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+        }
+        .llv-modal-head h3 { font-size: 15px; font-weight: 800; color: var(--navy-900); }
+        .llv-modal-subtitle { font-size: 12.5px; color: var(--text-600); margin-top: 4px; }
+        .llv-modal-close {
+          background: none; border: none; font-size: 15px; cursor: pointer;
+          color: var(--text-400); line-height: 1; flex-shrink: 0;
+        }
+        .llv-modal-close:hover { color: var(--text-900); }
+        .llv-modal-body { padding: 20px 22px; }
+        .llv-modal-body .field { margin-bottom: 16px; }
+        .llv-modal-actions { display: flex; gap: 10px; margin-top: 4px; }
+      `}</style>
 
       {!isHomNay && period && (
         <div className="card">
