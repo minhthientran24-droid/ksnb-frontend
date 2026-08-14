@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
-import { getKiemKePeriods, listKiemKe, updateKiemKeGhiChu, syncKiemKeNow, getShopChiaHomNay, doiLichShopChiaHomNay, getUser } from "../lib/api";
+import {
+  getKiemKePeriods, listKiemKe, updateKiemKeGhiChu, syncKiemKeNow,
+  getShopChiaHomNay, getDangKiem, doiLichShopChiaHomNay, getUser,
+} from "../lib/api";
 
 function normName(s) {
   return String(s == null ? "" : s).toLowerCase().trim()
@@ -32,12 +35,81 @@ function fmtMoney(n) {
 
 const STATUS_LABELS = {
   cho_chia: "Chờ chia lịch", cho_den_han: "Chờ đến kỳ", qua_han_chia: "Quá hạn chia lịch",
-  sap_kiem: "Sắp đến kỳ kiểm", dang_kiem: "Đang trong kỳ kiểm", da_doi_lich: "Đã dời lịch",
+  sap_kiem: "Sắp đến kỳ kiểm", dang_kiem: "Đang kiểm kê", da_doi_lich: "Đã dời lịch",
   cho_xac_nhan_doi_lich: "Chờ chia lại (đã dời lịch)", cho_chia_lai: "Chờ chia lại",
   ngung_theo_doi: "Ngừng theo dõi", da_kiem: "Đã kiểm", da_kiem_lich_su: "Đã kiểm (lịch sử)",
   da_chia: "Đã chia lịch", da_huy: "Đã huỷ",
 };
 const statusLabel = (code) => STATUS_LABELS[code] || code || "—";
+
+// Bảng dùng chung cho 2 tab lấy dữ liệu từ Phân công KSNB kiểm kê (LLV v2):
+// "Shop được chia hôm nay" (có nút Dời lịch) và "Đang kiểm" (chỉ xem).
+function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canReschedule, onOpenReschedule, emptyText }) {
+  const rows = (data?.rows || []).filter((r) => {
+    if (!searchQuery) return true;
+    return (
+      (r.ma_shop || "").toLowerCase().includes(searchQuery) ||
+      (r.ten_shop || "").toLowerCase().includes(searchQuery)
+    );
+  });
+
+  return (
+    <div className="card">
+      <div className="card-head">
+        <h3>{title} — {data.date}</h3>
+        <span className="note">
+          {searchQuery ? `${rows.length}/${data.rows.length} shop (đang lọc)` : `${data.rows.length} shop`}
+          {!isAdmin && " · chỉ hiện shop do bạn phụ trách"}
+        </span>
+      </div>
+      <div className="card-body">
+        <table>
+          <thead>
+            <tr>
+              <th>Vùng</th><th>Mã shop</th><th>Tên shop</th><th>KSNB phụ trách</th>
+              <th>Ngày kiểm</th><th>Hình thức</th><th>Trạng thái</th>{showDoiLich && <th></th>}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              // Shop đã dời lịch -> tên đỏ; shop được chia thay thế (có
+              // ky_goc_id, tức đứng vào chỗ 1 kỳ đã dời) -> tên xanh dương.
+              // Chỉ đổi màu chữ, không đổi màu nền.
+              const tenColor = r.display_status === "da_doi_lich"
+                ? "var(--danger)"
+                : r.ky_goc_id
+                  ? "var(--blue-accent)"
+                  : undefined;
+              return (
+                <tr key={r.id}>
+                  <td style={{ textAlign: "left" }}>{r.vung || "-"}</td>
+                  <td>{r.ma_shop}</td>
+                  <td style={{ textAlign: "left", color: tenColor }}>{r.ten_shop || "-"}</td>
+                  <td>{r.ksnb || "-"}</td>
+                  <td>{r.ngay_kiem || "-"}</td>
+                  <td>{r.hinh_thuc || "-"}</td>
+                  <td style={{ fontSize: 12 }}>{statusLabel(r.display_status)}</td>
+                  {showDoiLich && (
+                    <td>
+                      {canReschedule(r) && r.display_status !== "da_doi_lich" && (
+                        <button className="fbtn" onClick={() => onOpenReschedule(r)}>Dời lịch</button>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+            {rows.length === 0 && (
+              <tr><td colSpan={showDoiLich ? 8 : 7} style={{ textAlign: "center", color: "var(--text-400)" }}>
+                {searchQuery ? "Không tìm thấy shop nào khớp" : emptyText}
+              </td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 export default function TheoDoiKiemKePage() {
   const [loai, setLoai] = useState("da_kiem"); // "da_kiem" | "dang_kiem" | "shop_chia_hom_nay"
@@ -45,6 +117,7 @@ export default function TheoDoiKiemKePage() {
   const [period, setPeriod] = useState(null);
   const [rows, setRows] = useState([]);
   const [shopHomNay, setShopHomNay] = useState(null); // { date, rows }
+  const [dangKiemData, setDangKiemData] = useState(null); // { date, rows }
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [noteDraft, setNoteDraft] = useState("");
@@ -54,9 +127,11 @@ export default function TheoDoiKiemKePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const me = getUser();
   const isAdmin = ["admin", "super_admin"].includes(me?.role);
-  const isHomNay = loai === "shop_chia_hom_nay";
+  // 2 tab lấy dữ liệu từ Phân công KSNB kiểm kê (LLV v2) — không dùng kỳ/tháng
+  const isLlvTab = loai === "shop_chia_hom_nay" || loai === "dang_kiem";
 
-  // Dời lịch tự phục vụ — popup + tự nạp lại danh sách sau khi có shop thay thế
+  // Dời lịch tự phục vụ (chỉ ở tab Shop được chia hôm nay) — popup + tự nạp
+  // lại danh sách sau khi có shop thay thế
   const [rescheduling, setRescheduling] = useState(null); // row đang dời
   const [rescheduleForm, setRescheduleForm] = useState({ ngay_can_kiem: "", ly_do: "" });
   const [rescheduleBusy, setRescheduleBusy] = useState(false);
@@ -90,9 +165,9 @@ export default function TheoDoiKiemKePage() {
     }
   }
 
-  // Khi đổi tab Đã kiểm / Đang kiểm -> nạp lại danh sách kỳ tương ứng
+  // Tab Đã kiểm -> nạp danh sách kỳ (tháng) như cũ
   useEffect(() => {
-    if (isHomNay) {
+    if (isLlvTab) {
       setPeriods([]);
       setPeriod(null);
       return;
@@ -107,15 +182,19 @@ export default function TheoDoiKiemKePage() {
   }, [loai]);
 
   useEffect(() => {
-    if (!period || isHomNay) return;
+    if (!period || isLlvTab) return;
     listKiemKe(period, loai).then(setRows).catch((err) => setError(err.message));
   }, [period, loai]);
 
-  // Tab "Shop được chia hôm nay" — nạp riêng, không theo kỳ tháng
+  // Tab "Shop được chia hôm nay" / "Đang kiểm" — nạp riêng, không theo kỳ tháng
   useEffect(() => {
-    if (!isHomNay) return;
+    if (!isLlvTab) return;
     setError("");
-    getShopChiaHomNay().then(setShopHomNay).catch((err) => setError(err.message));
+    if (loai === "shop_chia_hom_nay") {
+      getShopChiaHomNay().then(setShopHomNay).catch((err) => setError(err.message));
+    } else {
+      getDangKiem().then(setDangKiemData).catch((err) => setError(err.message));
+    }
   }, [loai]);
 
   function startEditNote(row) {
@@ -154,14 +233,6 @@ export default function TheoDoiKiemKePage() {
     })
     .sort((a, b) => Math.abs(b.gia_tri_that_thoat || 0) - Math.abs(a.gia_tri_that_thoat || 0));
 
-  const homNayRows = (shopHomNay?.rows || []).filter((r) => {
-    if (!searchQuery) return true;
-    return (
-      (r.ma_shop || "").toLowerCase().includes(searchQuery) ||
-      (r.ten_shop || "").toLowerCase().includes(searchQuery)
-    );
-  });
-
   async function handleSyncNow() {
     setSyncing(true);
     setSyncMsg("");
@@ -192,7 +263,7 @@ export default function TheoDoiKiemKePage() {
           <h1>Theo dõi kiểm kê</h1>
           <p>Đồng bộ tự động từ Excel local trên PC lúc 23h mỗi ngày. Cột Ghi chú do NV KSNB tự cập nhật.</p>
         </div>
-        {isAdmin && !isHomNay && (
+        {isAdmin && loai === "da_kiem" && (
           <div style={{ textAlign: "right" }}>
             <button onClick={handleSyncNow} disabled={syncing} style={syncBtnStyle}>
               {syncing ? "Đang đồng bộ..." : "🔄 Đồng bộ ngay"}
@@ -214,12 +285,12 @@ export default function TheoDoiKiemKePage() {
         <div className={`month-tab ${loai === "dang_kiem" ? "active" : ""}`} onClick={() => setLoai("dang_kiem")}>
           ⏳ Đang kiểm
         </div>
-        <div className={`month-tab ${isHomNay ? "active" : ""}`} onClick={() => setLoai("shop_chia_hom_nay")}>
+        <div className={`month-tab ${loai === "shop_chia_hom_nay" ? "active" : ""}`} onClick={() => setLoai("shop_chia_hom_nay")}>
           📌 Shop được chia hôm nay
         </div>
       </div>
 
-      {!isHomNay && periods.length > 0 && (
+      {!isLlvTab && periods.length > 0 && (
         <div className="month-tabs">
           {periods.map((p) => (
             <div key={p} className={`month-tab ${p === period ? "active" : ""}`} onClick={() => setPeriod(p)}>
@@ -230,13 +301,11 @@ export default function TheoDoiKiemKePage() {
       )}
 
       {error && <div className="placeholder-box">Không tải được dữ liệu: {error}</div>}
-      {!isHomNay && !error && periods.length === 0 && (
-        <div className="placeholder-box">
-          Chưa có dữ liệu "{loai === "da_kiem" ? "Đã kiểm" : "Đang kiểm"}" nào được đồng bộ.
-        </div>
+      {loai === "da_kiem" && !error && periods.length === 0 && (
+        <div className="placeholder-box">Chưa có dữ liệu "Đã kiểm" nào được đồng bộ.</div>
       )}
 
-      {(isHomNay || periods.length > 0) && (
+      {(isLlvTab || periods.length > 0) && (
         <div className="card" style={{ marginBottom: 14 }}>
           <div className="card-body" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "14px 18px" }}>
             <input
@@ -257,59 +326,28 @@ export default function TheoDoiKiemKePage() {
         </div>
       )}
 
-      {isHomNay && shopHomNay && (
-        <div className="card">
-          <div className="card-head">
-            <h3>Shop được chia lịch hôm nay — {shopHomNay.date}</h3>
-            <span className="note">
-              {searchQuery ? `${homNayRows.length}/${shopHomNay.rows.length} shop (đang lọc)` : `${shopHomNay.rows.length} shop`}
-              {!isAdmin && " · chỉ hiện shop do bạn phụ trách"}
-            </span>
-          </div>
-          <div className="card-body">
-            <table>
-              <thead>
-                <tr>
-                  <th>Vùng</th><th>Mã shop</th><th>Tên shop</th><th>KSNB phụ trách</th>
-                  <th>Ngày kiểm</th><th>Hình thức</th><th>Trạng thái</th><th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {homNayRows.map((r) => {
-                  // Shop đã dời lịch -> tên đỏ; shop được chia thay thế (có
-                  // ky_goc_id, tức đứng vào chỗ 1 kỳ đã dời) -> tên xanh dương.
-                  // Chỉ đổi màu chữ, không đổi màu nền.
-                  const tenColor = r.display_status === "da_doi_lich"
-                    ? "var(--danger)"
-                    : r.ky_goc_id
-                      ? "var(--blue-accent)"
-                      : undefined;
-                  return (
-                    <tr key={r.id}>
-                      <td style={{ textAlign: "left" }}>{r.vung || "-"}</td>
-                      <td>{r.ma_shop}</td>
-                      <td style={{ textAlign: "left", color: tenColor }}>{r.ten_shop || "-"}</td>
-                      <td>{r.ksnb || "-"}</td>
-                      <td>{r.ngay_kiem || "-"}</td>
-                      <td>{r.hinh_thuc || "-"}</td>
-                      <td style={{ fontSize: 12 }}>{statusLabel(r.display_status)}</td>
-                      <td>
-                        {canReschedule(r) && r.display_status !== "da_doi_lich" && (
-                          <button className="fbtn" onClick={() => openReschedule(r)}>Dời lịch</button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {homNayRows.length === 0 && (
-                  <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-400)" }}>
-                    {searchQuery ? "Không tìm thấy shop nào khớp" : "Chưa có shop nào được chia lịch hôm nay"}
-                  </td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      {loai === "shop_chia_hom_nay" && shopHomNay && (
+        <LlvRowsTable
+          title="Shop được chia lịch hôm nay"
+          data={shopHomNay}
+          isAdmin={isAdmin}
+          searchQuery={searchQuery}
+          showDoiLich
+          canReschedule={canReschedule}
+          onOpenReschedule={openReschedule}
+          emptyText="Chưa có shop nào được chia lịch hôm nay."
+        />
+      )}
+
+      {loai === "dang_kiem" && dangKiemData && (
+        <LlvRowsTable
+          title="Shop đang kiểm kê"
+          data={dangKiemData}
+          isAdmin={isAdmin}
+          searchQuery={searchQuery}
+          showDoiLich={false}
+          emptyText="Không có shop nào đang trong kỳ kiểm."
+        />
       )}
 
       {rescheduling && (
@@ -370,7 +408,7 @@ export default function TheoDoiKiemKePage() {
         .llv-modal-actions { display: flex; gap: 10px; margin-top: 4px; }
       `}</style>
 
-      {!isHomNay && period && (
+      {loai === "da_kiem" && period && (
         <div className="card">
           <div className="card-head">
             <h3>Kỳ {period}</h3>
