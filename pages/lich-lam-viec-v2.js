@@ -44,6 +44,15 @@ function JobStatusBadge({ status, url }) {
   return <Pill kind={kind}>{label}</Pill>;
 }
 
+// Màu riêng cho 3 nút thao tác ở tab "Shop được chia - Chuẩn bị kiểm kê" —
+// cùng tông với .pill (nền nhạt + chữ đậm màu), khác nhau để dễ phân biệt
+// nhanh: xanh dương = ticket SSC, cam = phiếu EHO, xanh lá = danh sách chia.
+const ACTION_BTN_STYLES = {
+  blue: { background: "#EAF1FB", borderColor: "var(--blue-accent)", color: "var(--navy-800)" },
+  orange: { background: "#FFF1E1", borderColor: "var(--orange)", color: "var(--orange)" },
+  green: { background: "#EAF6E5", borderColor: "#4C9A2A", color: "#3E7A2A" },
+};
+
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -721,13 +730,13 @@ function TodayScheduledView({ data, group, onDone }) {
         <h3>Shop được chia - Chuẩn bị kiểm kê ({rows.length}/{data.rows.length}) — {data.date}</h3>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {hasActive && <button className="fbtn" onClick={clearFilters}>Xóa bộ lọc</button>}
-          <button className="fbtn" disabled={bulkBusy} onClick={runBulkTicket}>
+          <button className="fbtn" disabled={bulkBusy} onClick={runBulkTicket} style={ACTION_BTN_STYLES.blue}>
             {bulkBusy ? "Đang xếp hàng..." : "📨 Tạo ticket thông báo"}
           </button>
-          <button className="fbtn" disabled={ehoBusy} onClick={onExportEho}>
+          <button className="fbtn" disabled={ehoBusy} onClick={onExportEho} style={ACTION_BTN_STYLES.orange}>
             {ehoBusy ? "Đang tải..." : "📋 Tạo phiếu kiểm kê"}
           </button>
-          <button className="fbtn" disabled={dsChiaBusy} onClick={onCreateDanhSachChia}>
+          <button className="fbtn" disabled={dsChiaBusy} onClick={onCreateDanhSachChia} style={ACTION_BTN_STYLES.green}>
             {dsChiaBusy ? "Đang tạo..." : "🗂️ Tạo danh sách chia"}
           </button>
         </div>
