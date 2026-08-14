@@ -585,6 +585,18 @@ function TodayScheduledView({ data, onDone }) {
     trang_thai: (r) => statusLabel(r.display_status),
   });
 
+  // Mã đợt chia (batch_chia) — chương trình tự động tạo ticket SSC chạy trên
+  // máy anh cần nhập đúng mã này. 1 ngày có thể bấm "Chia lịch" nhiều lần
+  // nên hiện đủ mọi đợt khác nhau đang có trong danh sách, không chỉ 1 mã.
+  const batches = [...new Set((data.rows || []).map((r) => r.batch_chia).filter(Boolean))];
+  const [copiedBatch, setCopiedBatch] = useState("");
+  function copyBatch(b) {
+    navigator.clipboard?.writeText(b).then(() => {
+      setCopiedBatch(b);
+      setTimeout(() => setCopiedBatch(""), 1500);
+    });
+  }
+
   // Khi popup "Đang xử lý" đang mở, tự làm mới danh sách mỗi 3s để cập nhật
   // trạng thái ticket/phiếu ngay khi chương trình automation (chạy riêng
   // ngoài trình duyệt) xử lý xong từng shop — không có gì tự tạo ticket ở
@@ -659,6 +671,21 @@ function TodayScheduledView({ data, onDone }) {
           </button>
         </div>
       </div>
+      {!!batches.length && (
+        <div style={{ padding: "0 20px 12px", fontSize: 11.5, color: "var(--text-600)", display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+          <span>Mã đợt chia hôm nay (dùng cho script tạo ticket SSC):</span>
+          {batches.map((b) => (
+            <code
+              key={b}
+              onClick={() => copyBatch(b)}
+              title="Bấm để copy"
+              style={{ cursor: "pointer", background: "var(--bg)", padding: "2px 8px", borderRadius: 4, fontSize: 11 }}
+            >
+              {copiedBatch === b ? "✅ Đã copy" : b}
+            </code>
+          ))}
+        </div>
+      )}
       <div className="card-body llv-scroll" style={{ padding: 0, maxHeight: 600 }}>
         {msg && <div style={{ padding: "8px 20px", fontSize: 12.5 }}>{msg}</div>}
         {bulkMsg && <div style={{ padding: "8px 20px", fontSize: 12.5, color: bulkMsg.startsWith("✅") ? "#3E7A2A" : "var(--danger)" }}>{bulkMsg}</div>}
