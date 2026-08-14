@@ -161,6 +161,30 @@ export default function LichLamViecV2Page() {
             z-index: 3;
             background: #eaf1fc;
           }
+          .llv-modal-overlay {
+            position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 100; padding: 20px;
+          }
+          .llv-modal-card {
+            background: var(--card); border-radius: var(--radius);
+            width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto;
+            box-shadow: 0 24px 60px rgba(10, 25, 55, 0.35);
+          }
+          .llv-modal-head {
+            padding: 18px 22px; border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+          }
+          .llv-modal-head h3 { font-size: 15px; font-weight: 800; color: var(--navy-900); }
+          .llv-modal-subtitle { font-size: 12.5px; color: var(--text-600); margin-top: 4px; }
+          .llv-modal-close {
+            background: none; border: none; font-size: 15px; cursor: pointer;
+            color: var(--text-400); line-height: 1; flex-shrink: 0;
+          }
+          .llv-modal-close:hover { color: var(--text-900); }
+          .llv-modal-body { padding: 20px 22px; }
+          .llv-modal-body .field { margin-bottom: 16px; }
+          .llv-modal-actions { display: flex; gap: 10px; margin-top: 4px; }
         `}</style>
       </div>
     </Layout>
@@ -169,6 +193,26 @@ export default function LichLamViecV2Page() {
 
 function Pill({ children, kind }) {
   return <span className={`pill ${kind || ""}`}>{children}</span>;
+}
+
+// Popup dùng chung cho mọi form chỉnh sửa (Cập nhật phân loại, Dời lịch...)
+// — luôn hiện đè giữa màn hình kèm tên/mã shop đang thao tác, tránh tình
+// trạng form nằm khuất phía dưới cùng trang khiến không rõ đang sửa shop nào.
+function Modal({ title, subtitle, onClose, children }) {
+  return (
+    <div className="llv-modal-overlay" onClick={onClose}>
+      <div className="llv-modal-card" onClick={(e) => e.stopPropagation()}>
+        <div className="llv-modal-head">
+          <div>
+            <h3>{title}</h3>
+            {subtitle && <div className="llv-modal-subtitle">{subtitle}</div>}
+          </div>
+          <button className="llv-modal-close" onClick={onClose} aria-label="Đóng">✕</button>
+        </div>
+        <div className="llv-modal-body">{children}</div>
+      </div>
+    </div>
+  );
 }
 
 function UploadDanhSachBar({ onDone }) {
@@ -217,7 +261,7 @@ function UploadDanhSachBar({ onDone }) {
 
 function ShopListView({ data, onReload }) {
   const { filters, setFilter, applyFilters, hasActive, clearFilters } = useColumnFilters();
-  const [editing, setEditing] = useState(null); // ma_shop đang sửa phân loại
+  const [editing, setEditing] = useState(null); // row (mã + tên shop) đang cập nhật
   const [classForm, setClassForm] = useState({ phan_loai: "Định kỳ", ngay_can_kiem: "", ly_do_xin_kiem_ke: "" });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -228,12 +272,18 @@ function ShopListView({ data, onReload }) {
     ksnb: (r) => r.last_ksnb || r.ksnb,
   });
 
-  async function submitClass(maShop) {
+  function openEdit(row) {
+    setEditing(row);
+    setClassForm({ phan_loai: row.phan_loai || "Định kỳ", ngay_can_kiem: "", ly_do_xin_kiem_ke: "" });
+    setMsg("");
+  }
+
+  async function submitClass() {
     setBusy(true);
     setMsg("");
     try {
-      await llv2SetClass({ ma_shop: maShop, ...classForm });
-      setMsg("✅ Đã cập nhật phân loại");
+      await llv2SetClass({ ma_shop: editing.ma_shop, ...classForm });
+      setMsg("✅ Đã cập nhật");
       setEditing(null);
       onReload();
     } catch (e) {
@@ -281,7 +331,7 @@ function ShopListView({ data, onReload }) {
                   <td>{r.next_due_date || r.ngay_can_kiem || "—"}</td>
                   <td>{r.last_ksnb || r.ksnb || "—"}</td>
                   <td>
-                    <button className="fbtn" onClick={() => { setEditing(r.ma_shop); setClassForm({ phan_loai: r.phan_loai || "Định kỳ", ngay_can_kiem: "", ly_do_xin_kiem_ke: "" }); setMsg(""); }}>Sửa phân loại</button>
+                    <button className="fbtn" onClick={() => openEdit(r)}>Cập nhật</button>
                   </td>
                 </tr>
               ))}
@@ -291,34 +341,38 @@ function ShopListView({ data, onReload }) {
       </div>
 
       {editing && (
-        <div className="card">
-          <div className="card-head"><h3>Đổi phân loại — shop {editing}</h3></div>
-          <div className="card-body" style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
-            <div>
-              <label className="flabel">Phân loại</label>
-              <select className="finput" value={classForm.phan_loai} onChange={(e) => setClassForm({ ...classForm, phan_loai: e.target.value })}>
-                {CLASS_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+        <Modal
+          title={`Cập nhật shop ${editing.ma_shop}`}
+          subtitle={editing.ten_shop}
+          onClose={() => setEditing(null)}
+        >
+          <div className="field">
+            <label className="flabel">Phân loại</label>
+            <select className="finput" style={{ width: "100%" }} value={classForm.phan_loai} onChange={(e) => setClassForm({ ...classForm, phan_loai: e.target.value })}>
+              {CLASS_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          {classForm.phan_loai === "Xin kiểm kê" && (
+            <div className="field">
+              <label className="flabel">Nội dung xin kiểm kê</label>
+              <select className="finput" style={{ width: "100%" }} value={classForm.ly_do_xin_kiem_ke} onChange={(e) => setClassForm({ ...classForm, ly_do_xin_kiem_ke: e.target.value })}>
+                <option value="">— chọn —</option>
+                {REQUEST_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
             </div>
-            {classForm.phan_loai === "Xin kiểm kê" && (
-              <div>
-                <label className="flabel">Nội dung xin kiểm kê</label>
-                <select className="finput" value={classForm.ly_do_xin_kiem_ke} onChange={(e) => setClassForm({ ...classForm, ly_do_xin_kiem_ke: e.target.value })}>
-                  <option value="">— chọn —</option>
-                  {REQUEST_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
-                </select>
-              </div>
-            )}
-            {classForm.phan_loai !== "Định kỳ" && (
-              <div>
-                <label className="flabel">Ngày cần kiểm</label>
-                <input type="date" className="finput" value={classForm.ngay_can_kiem} onChange={(e) => setClassForm({ ...classForm, ngay_can_kiem: e.target.value })} />
-              </div>
-            )}
-            <button className="login-btn" style={{ width: "auto", padding: "9px 20px" }} disabled={busy} onClick={() => submitClass(editing)}>{busy ? "Đang lưu..." : "Lưu"}</button>
+          )}
+          {classForm.phan_loai !== "Định kỳ" && (
+            <div className="field">
+              <label className="flabel">Ngày cần kiểm</label>
+              <input type="date" className="finput" style={{ width: "100%" }} value={classForm.ngay_can_kiem} onChange={(e) => setClassForm({ ...classForm, ngay_can_kiem: e.target.value })} />
+            </div>
+          )}
+          {msg && <div style={{ fontSize: 12.5, marginBottom: 12, color: msg.startsWith("✅") ? "#3E7A2A" : "var(--danger)" }}>{msg}</div>}
+          <div className="llv-modal-actions">
+            <button className="login-btn" style={{ width: "auto", padding: "9px 20px" }} disabled={busy} onClick={submitClass}>{busy ? "Đang lưu..." : "Xác nhận"}</button>
             <button className="fbtn" onClick={() => setEditing(null)}>Hủy</button>
           </div>
-        </div>
+        </Modal>
       )}
     </>
   );
@@ -472,7 +526,7 @@ function ScheduleView({ data, group, onDone }) {
 
 function TodayScheduledView({ data, onDone }) {
   const { filters, setFilter, applyFilters, hasActive, clearFilters } = useColumnFilters();
-  const [editing, setEditing] = useState(null);
+  const [editing, setEditing] = useState(null); // row đang dời lịch
   const [form, setForm] = useState({ ngay_can_kiem: "", ly_do: "" });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -481,10 +535,16 @@ function TodayScheduledView({ data, onDone }) {
     trang_thai: (r) => statusLabel(r.display_status),
   });
 
-  async function submit(id) {
+  function openEdit(row) {
+    setEditing(row);
+    setForm({ ngay_can_kiem: "", ly_do: "" });
+    setMsg("");
+  }
+
+  async function submit() {
     setBusy(true);
     try {
-      await llv2Reschedule({ id, ...form });
+      await llv2Reschedule({ id: editing.id, ...form });
       setMsg("✅ Đã dời lịch");
       setEditing(null);
       onDone();
@@ -523,7 +583,7 @@ function TodayScheduledView({ data, onDone }) {
                 <td>{r.hinh_thuc}</td>
                 <td style={{ fontSize: 11.5 }}>{statusLabel(r.display_status)}</td>
                 <td>
-                  <button className="fbtn" onClick={() => { setEditing(r.id); setForm({ ngay_can_kiem: "", ly_do: "" }); setMsg(""); }}>Dời lịch</button>
+                  <button className="fbtn" onClick={() => openEdit(r)}>Dời lịch</button>
                 </td>
               </tr>
             ))}
@@ -532,15 +592,29 @@ function TodayScheduledView({ data, onDone }) {
             )}
           </tbody>
         </table>
-        {editing && (
-          <div style={{ padding: 16, borderTop: "1px solid var(--border)", display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
-            <div><label className="flabel">Ngày cần kiểm mới</label><input type="date" className="finput" value={form.ngay_can_kiem} onChange={(e) => setForm({ ...form, ngay_can_kiem: e.target.value })} /></div>
-            <div><label className="flabel">Lý do</label><input className="finput" style={{ width: 260 }} value={form.ly_do} onChange={(e) => setForm({ ...form, ly_do: e.target.value })} /></div>
-            <button className="login-btn" style={{ width: "auto", padding: "9px 20px" }} disabled={busy} onClick={() => submit(editing)}>{busy ? "Đang lưu..." : "Xác nhận dời"}</button>
+      </div>
+
+      {editing && (
+        <Modal
+          title={`Dời lịch — shop ${editing.ma_shop}`}
+          subtitle={`${editing.ten_shop || ""}${editing.ngay_kiem ? ` · Ngày kiểm hiện tại: ${editing.ngay_kiem}` : ""}`}
+          onClose={() => setEditing(null)}
+        >
+          <div className="field">
+            <label className="flabel">Ngày cần kiểm mới</label>
+            <input type="date" className="finput" style={{ width: "100%" }} value={form.ngay_can_kiem} onChange={(e) => setForm({ ...form, ngay_can_kiem: e.target.value })} />
+          </div>
+          <div className="field">
+            <label className="flabel">Lý do</label>
+            <input className="finput" style={{ width: "100%" }} value={form.ly_do} onChange={(e) => setForm({ ...form, ly_do: e.target.value })} />
+          </div>
+          {msg && <div style={{ fontSize: 12.5, marginBottom: 12, color: msg.startsWith("✅") ? "#3E7A2A" : "var(--danger)" }}>{msg}</div>}
+          <div className="llv-modal-actions">
+            <button className="login-btn" style={{ width: "auto", padding: "9px 20px" }} disabled={busy} onClick={submit}>{busy ? "Đang lưu..." : "Xác nhận dời"}</button>
             <button className="fbtn" onClick={() => setEditing(null)}>Hủy</button>
           </div>
-        )}
-      </div>
+        </Modal>
+      )}
     </div>
   );
 }
