@@ -42,16 +42,34 @@ const STATUS_LABELS = {
 };
 const statusLabel = (code) => STATUS_LABELS[code] || code || "—";
 
+// Số ngày kiểm = Hôm nay - Ngày kiểm (ngày dương lịch, không phụ thuộc giờ).
+function daysBetween(todayStr, dateStr) {
+  if (!todayStr || !dateStr) return null;
+  const a = new Date(`${todayStr}T00:00:00`);
+  const b = new Date(`${dateStr}T00:00:00`);
+  if (isNaN(a) || isNaN(b)) return null;
+  return Math.round((a - b) / 86400000);
+}
+
 // Bảng dùng chung cho 2 tab lấy dữ liệu từ Phân công KSNB kiểm kê (LLV v2):
-// "Shop được chia hôm nay" (có nút Dời lịch) và "Đang kiểm" (chỉ xem).
-function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canReschedule, onOpenReschedule, emptyText }) {
-  const rows = (data?.rows || []).filter((r) => {
+// "Shop được chia - Chuẩn bị kiểm kê" (có nút Dời lịch) và "Đang kiểm" (chỉ
+// xem, có thêm cột Số ngày kiểm + cảnh báo trễ hạn, sắp theo số ngày giảm dần).
+function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canReschedule, onOpenReschedule, emptyText, showSoNgayKiem }) {
+  let rows = (data?.rows || []).filter((r) => {
     if (!searchQuery) return true;
     return (
       (r.ma_shop || "").toLowerCase().includes(searchQuery) ||
       (r.ten_shop || "").toLowerCase().includes(searchQuery)
     );
   });
+
+  if (showSoNgayKiem) {
+    rows = rows
+      .map((r) => ({ ...r, _soNgayKiem: daysBetween(data.date, r.ngay_kiem) }))
+      .sort((a, b) => (b._soNgayKiem ?? -Infinity) - (a._soNgayKiem ?? -Infinity));
+  }
+
+  const colCount = 7 + (showSoNgayKiem ? 1 : 0) + (showDoiLich ? 1 : 0);
 
   return (
     <div className="card">
@@ -67,7 +85,8 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
           <thead>
             <tr>
               <th>Vùng</th><th>Mã shop</th><th>Tên shop</th><th>KSNB phụ trách</th>
-              <th>Ngày kiểm</th><th>Hình thức</th><th>Trạng thái</th>{showDoiLich && <th></th>}
+              <th>Ngày kiểm</th>{showSoNgayKiem && <th>Số ngày kiểm</th>}
+              <th>Hình thức</th><th>Trạng thái</th>{showDoiLich && <th></th>}
             </tr>
           </thead>
           <tbody>
@@ -80,15 +99,29 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
                 : r.ky_goc_id
                   ? "var(--blue-accent)"
                   : undefined;
+              const soNgayKiem = showSoNgayKiem ? r._soNgayKiem : null;
+              const urgency = soNgayKiem == null ? null
+                : soNgayKiem > 5 ? "da_tre_han"
+                  : (soNgayKiem === 4 || soNgayKiem === 5) ? "sap_tre_han"
+                    : null;
+              const statusText = urgency === "da_tre_han" ? "Đã trễ hạn"
+                : urgency === "sap_tre_han" ? "Sắp trễ hạn"
+                  : statusLabel(r.display_status);
+              // Trễ hạn/sắp trễ hạn -> đổi màu đỏ cho toàn bộ dòng (chỉ màu
+              // chữ, không đổi nền); "Đã trễ hạn" thêm in đậm cả dòng.
+              const rowStyle = urgency
+                ? { color: "var(--danger)", fontWeight: urgency === "da_tre_han" ? 700 : undefined }
+                : undefined;
               return (
-                <tr key={r.id}>
+                <tr key={r.id} style={rowStyle}>
                   <td style={{ textAlign: "left" }}>{r.vung || "-"}</td>
                   <td>{r.ma_shop}</td>
-                  <td style={{ textAlign: "left", color: tenColor }}>{r.ten_shop || "-"}</td>
+                  <td style={{ textAlign: "left", color: urgency ? undefined : tenColor }}>{r.ten_shop || "-"}</td>
                   <td>{r.ksnb || "-"}</td>
                   <td>{r.ngay_kiem || "-"}</td>
+                  {showSoNgayKiem && <td>{soNgayKiem ?? "-"}</td>}
                   <td>{r.hinh_thuc || "-"}</td>
-                  <td style={{ fontSize: 12 }}>{statusLabel(r.display_status)}</td>
+                  <td style={{ fontSize: 12 }}>{statusText}</td>
                   {showDoiLich && (
                     <td>
                       {canReschedule(r) && r.display_status !== "da_doi_lich" && (
@@ -100,7 +133,7 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
               );
             })}
             {rows.length === 0 && (
-              <tr><td colSpan={showDoiLich ? 8 : 7} style={{ textAlign: "center", color: "var(--text-400)" }}>
+              <tr><td colSpan={colCount} style={{ textAlign: "center", color: "var(--text-400)" }}>
                 {searchQuery ? "Không tìm thấy shop nào khớp" : emptyText}
               </td></tr>
             )}
@@ -346,6 +379,7 @@ export default function TheoDoiKiemKePage() {
           isAdmin={isAdmin}
           searchQuery={searchQuery}
           showDoiLich={false}
+          showSoNgayKiem
           emptyText="Không có shop nào đang trong kỳ kiểm."
         />
       )}
