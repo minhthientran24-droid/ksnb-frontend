@@ -275,22 +275,32 @@ export default function TheoDoiKiemKePage() {
                 </tr>
               </thead>
               <tbody>
-                {homNayRows.map((r) => (
-                  <tr key={r.id}>
-                    <td style={{ textAlign: "left" }}>{r.vung || "-"}</td>
-                    <td>{r.ma_shop}</td>
-                    <td style={{ textAlign: "left" }}>{r.ten_shop || "-"}</td>
-                    <td>{r.ksnb || "-"}</td>
-                    <td>{r.ngay_kiem || "-"}</td>
-                    <td>{r.hinh_thuc || "-"}</td>
-                    <td style={{ fontSize: 12 }}>{statusLabel(r.display_status)}</td>
-                    <td>
-                      {canReschedule(r) && r.display_status !== "da_doi_lich" && (
-                        <button className="fbtn" onClick={() => openReschedule(r)}>Dời lịch</button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {homNayRows.map((r) => {
+                  // Shop đã dời lịch -> tên đỏ; shop được chia thay thế (có
+                  // ky_goc_id, tức đứng vào chỗ 1 kỳ đã dời) -> tên xanh dương.
+                  // Chỉ đổi màu chữ, không đổi màu nền.
+                  const tenColor = r.display_status === "da_doi_lich"
+                    ? "var(--danger)"
+                    : r.ky_goc_id
+                      ? "var(--blue-accent)"
+                      : undefined;
+                  return (
+                    <tr key={r.id}>
+                      <td style={{ textAlign: "left" }}>{r.vung || "-"}</td>
+                      <td>{r.ma_shop}</td>
+                      <td style={{ textAlign: "left", color: tenColor }}>{r.ten_shop || "-"}</td>
+                      <td>{r.ksnb || "-"}</td>
+                      <td>{r.ngay_kiem || "-"}</td>
+                      <td>{r.hinh_thuc || "-"}</td>
+                      <td style={{ fontSize: 12 }}>{statusLabel(r.display_status)}</td>
+                      <td>
+                        {canReschedule(r) && r.display_status !== "da_doi_lich" && (
+                          <button className="fbtn" onClick={() => openReschedule(r)}>Dời lịch</button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
                 {homNayRows.length === 0 && (
                   <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-400)" }}>
                     {searchQuery ? "Không tìm thấy shop nào khớp" : "Chưa có shop nào được chia lịch hôm nay"}
