@@ -579,10 +579,26 @@ function TodayScheduledView({ data, onDone }) {
   const [msg, setMsg] = useState("");
   const [bulkBusy, setBulkBusy] = useState(""); // "" | "ticket" | "eho"
   const [bulkMsg, setBulkMsg] = useState("");
+  const [proc, setProc] = useState(null); // {kind:"ticket"|"eho", ids:Set<number>} — popup đang xử lý
 
   const rows = applyFilters(data.rows || [], {
     trang_thai: (r) => statusLabel(r.display_status),
   });
+
+  // Khi popup "Đang xử lý" đang mở, tự làm mới danh sách mỗi 3s để cập nhật
+  // trạng thái ticket/phiếu ngay khi chương trình automation (chạy riêng
+  // ngoài trình duyệt) xử lý xong từng shop — không có gì tự tạo ticket ở
+  // đây, chỉ đang theo dõi kết quả automation ghi về.
+  useEffect(() => {
+    if (!proc) return;
+    const timer = setInterval(() => onDone(), 3000);
+    return () => clearInterval(timer);
+  }, [proc]);
+
+  const procRows = proc ? (data.rows || []).filter((r) => proc.ids.has(r.id)) : [];
+  const procDoneCount = procRows.filter((r) =>
+    ["da_tao", "loi", "can_xac_minh"].includes(proc?.kind === "ticket" ? r.ticket_status : r.eho_status)
+  ).length;
 
   function openEdit(row) {
     setEditing(row);
@@ -620,6 +636,7 @@ function TodayScheduledView({ data, onDone }) {
       if (r.already_done_count) parts.push(`${r.already_done_count} shop đã có từ trước`);
       if (r.skipped_count) parts.push(`${r.skipped_count} shop bỏ qua (Thanh lý)`);
       setBulkMsg(parts.join(" — "));
+      setProc({ kind, ids: new Set(ids) });
       onDone();
     } catch (e) {
       setBulkMsg("❌ " + e.message);
@@ -698,6 +715,38 @@ function TodayScheduledView({ data, onDone }) {
           <div className="llv-modal-actions">
             <button className="login-btn" style={{ width: "auto", padding: "9px 20px" }} disabled={busy} onClick={submit}>{busy ? "Đang lưu..." : "Xác nhận dời"}</button>
             <button className="fbtn" onClick={() => setEditing(null)}>Hủy</button>
+          </div>
+        </Modal>
+      )}
+
+      {proc && (
+        <Modal
+          title={proc.kind === "ticket" ? "Đang xử lý — Tạo ticket thông báo" : "Đang xử lý — Tạo phiếu kiểm kê"}
+          subtitle={`${procDoneCount}/${procRows.length} shop đã có kết quả — tự làm mới mỗi 3 giây`}
+          onClose={() => setProc(null)}
+        >
+          <div style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 10 }}>
+            Việc tạo {proc.kind === "ticket" ? "ticket" : "phiếu kiểm kê"} thật do chương trình automation chạy
+            riêng (ngoài trình duyệt) xử lý — màn hình này chỉ theo dõi kết quả, có thể đóng lại và mở
+            "Shop được chia - Chuẩn bị kiểm kê" xem sau, không cần chờ ở đây.
+          </div>
+          <div className="llv-scroll" style={{ maxHeight: 320, overflowY: "auto" }}>
+            <table>
+              <thead>
+                <tr><th style={{ textAlign: "left" }}>Mã shop</th><th>Trạng thái</th></tr>
+              </thead>
+              <tbody>
+                {procRows.map((r) => (
+                  <tr key={r.id}>
+                    <td style={{ textAlign: "left" }}>{r.ma_shop} — {r.ten_shop}</td>
+                    <td><JobStatusBadge status={proc.kind === "ticket" ? r.ticket_status : r.eho_status} url={proc.kind === "ticket" ? r.ticket_url : r.eho_url} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="llv-modal-actions">
+            <button className="fbtn" onClick={() => setProc(null)}>Đóng</button>
           </div>
         </Modal>
       )}
