@@ -43,20 +43,26 @@ export default function HoTroKiemKePage() {
   const [ketQuaError, setKetQuaError] = useState("");
   const ketQuaFileInputRef = useRef(null);
 
-  // Hỗ trợ xử lý báo cáo kiểm kê hàng thường - hàng cắt liều — UI dựng
-  // trước, chưa nối backend (chưa có nghiệp vụ xử lý), bấm chọn file sẽ
+  // Tổng hợp Báo cáo Kiểm Soát Sau Kiểm Kê — gộp file "Xuất Khác - Nhập
+  // Khác" + "Kết quả kiểm kê thanh lý" thành 1 file. UI dựng trước, công
+  // thức gộp anh sẽ cung cấp sau — bấm "Bắt đầu xử lý Báo Cáo" hiện tại
   // báo "đang hoàn thiện" giống các nút khác đang chờ hoàn thiện trên trang.
-  const [hangThuongProcessing, setHangThuongProcessing] = useState(false);
-  const hangThuongFileInputRef = useRef(null);
+  const [xknkFile, setXknkFile] = useState(null); // File | null
+  const [tlKetQuaFile, setTlKetQuaFile] = useState(null); // File | null
+  const [tongHopProcessing, setTongHopProcessing] = useState(false);
+  const [tongHopResult, setTongHopResult] = useState(null); // { filename, blob } | null
+  const xknkFileInputRef = useRef(null);
+  const tlKetQuaFileInputRef = useRef(null);
 
   function handleComingSoon() {
     alert("Tính năng đang được hoàn thiện, sẽ sớm ra mắt.");
   }
 
-  function handleHangThuongUpload(e) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
+  function handleTongHopProcess() {
+    if (!xknkFile || !tlKetQuaFile) {
+      alert("Vui lòng chọn đủ 2 file trước khi xử lý.");
+      return;
+    }
     handleComingSoon();
   }
 
@@ -110,7 +116,7 @@ export default function HoTroKiemKePage() {
           Kiểm kê Thanh Lý
         </div>
         <div className={`month-tab ${tab === "khac" ? "active" : ""}`} onClick={() => setTab("khac")}>
-          Kiểm kê hàng thường - hàng cắt liều
+          Tổng hợp Báo cáo Kiểm Soát Sau Kiểm Kê
         </div>
       </div>
 
@@ -242,36 +248,79 @@ export default function HoTroKiemKePage() {
       )}
 
       {tab === "khac" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, alignItems: "start" }}>
-          <div className="card">
-            <div className="card-head"><h3>🛠️ Hỗ trợ xử lý báo cáo kiểm kê</h3></div>
-            <div className="card-body">
-              <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 12, lineHeight: 1.6 }}>
-                Chọn file báo cáo kiểm kê hàng thường - hàng cắt liều từ máy tính — hệ thống kiểm tra và xử lý,
-                rồi trả file kết quả để tải về ngay.
-              </p>
-              <input
-                ref={hangThuongFileInputRef}
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                style={{ display: "none" }}
-                onChange={handleHangThuongUpload}
-              />
-              <button
-                onClick={() => hangThuongFileInputRef.current?.click()}
-                disabled={hangThuongProcessing}
-                style={uploadBtnStyle}
-              >
-                📤 Tải lên báo cáo Xuất Khác - Nhập Khác
-              </button>
+        <div className="card">
+          <div className="card-head"><h3>🛠️ Tổng hợp Báo cáo Kiểm Soát Sau Kiểm Kê</h3></div>
+          <div className="card-body">
+            <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 16, lineHeight: 1.6 }}>
+              Tải lên 2 file bên dưới — hệ thống gộp báo cáo Xuất Khác - Nhập Khác với kết quả kiểm kê thanh lý
+              thành 1 file Báo Cáo Kiểm Soát Sau Kiểm Kê duy nhất.
+            </p>
 
-              {hangThuongProcessing && (
-                <div style={{ marginTop: 14, fontSize: 12.5, color: "var(--text-600)", display: "flex", alignItems: "center", gap: 8 }}>
-                  <span className="tiny-spinner" />
-                  Đang xử lý file, vui lòng đợi...
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+              <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "12px 14px" }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--navy-900)", marginBottom: 8 }}>
+                  1. Báo cáo Xuất Khác - Nhập Khác
                 </div>
-              )}
+                <input
+                  ref={xknkFileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  style={{ display: "none" }}
+                  onChange={(e) => setXknkFile(e.target.files?.[0] || null)}
+                />
+                <button className="fbtn" onClick={() => xknkFileInputRef.current?.click()}>
+                  {xknkFile ? "Đổi file khác" : "📤 Tải lên báo cáo Xuất Khác - Nhập Khác"}
+                </button>
+                <div style={{ fontSize: 11, color: xknkFile ? "#4C9A2A" : "var(--text-400)", marginTop: 8 }}>
+                  {xknkFile ? `✅ ${xknkFile.name}` : "Chưa chọn file"}
+                </div>
+              </div>
+
+              <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "12px 14px" }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--navy-900)", marginBottom: 8 }}>
+                  2. Kết quả kiểm kê thanh lý
+                </div>
+                <input
+                  ref={tlKetQuaFileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  style={{ display: "none" }}
+                  onChange={(e) => setTlKetQuaFile(e.target.files?.[0] || null)}
+                />
+                <button className="fbtn" onClick={() => tlKetQuaFileInputRef.current?.click()}>
+                  {tlKetQuaFile ? "Đổi file khác" : "📤 Tải lên kết quả kiểm kê thanh lý"}
+                </button>
+                <div style={{ fontSize: 11, color: tlKetQuaFile ? "#4C9A2A" : "var(--text-400)", marginTop: 8 }}>
+                  {tlKetQuaFile ? `✅ ${tlKetQuaFile.name}` : "Chưa chọn file"}
+                </div>
+              </div>
             </div>
+
+            <button
+              onClick={handleTongHopProcess}
+              disabled={tongHopProcessing}
+              style={uploadBtnStyle}
+            >
+              🚀 Bắt đầu xử lý Báo Cáo
+            </button>
+
+            {tongHopProcessing && (
+              <div style={{ marginTop: 14, fontSize: 12.5, color: "var(--text-600)", display: "flex", alignItems: "center", gap: 8 }}>
+                <span className="tiny-spinner" />
+                Đang xử lý file, vui lòng đợi...
+              </div>
+            )}
+
+            {tongHopResult && !tongHopProcessing && (
+              <div style={resultBoxStyle}>
+                <span style={{ fontSize: 12.5, color: "#3E7A2A", fontWeight: 600 }}>
+                  ✅ Đã xử lý xong
+                </span>
+                <button style={downloadBtnStyle} onClick={() => downloadBlob(tongHopResult.blob, tongHopResult.filename)}>
+                  📥 Tải file kết quả về
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
