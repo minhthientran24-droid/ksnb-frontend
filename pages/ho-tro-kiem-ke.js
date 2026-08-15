@@ -43,8 +43,21 @@ export default function HoTroKiemKePage() {
   const [ketQuaError, setKetQuaError] = useState("");
   const ketQuaFileInputRef = useRef(null);
 
+  // Hỗ trợ xử lý báo cáo kiểm kê hàng thường - hàng cắt liều — UI dựng
+  // trước, chưa nối backend (chưa có nghiệp vụ xử lý), bấm chọn file sẽ
+  // báo "đang hoàn thiện" giống các nút khác đang chờ hoàn thiện trên trang.
+  const [hangThuongProcessing, setHangThuongProcessing] = useState(false);
+  const hangThuongFileInputRef = useRef(null);
+
   function handleComingSoon() {
     alert("Tính năng đang được hoàn thiện, sẽ sớm ra mắt.");
+  }
+
+  function handleHangThuongUpload(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    handleComingSoon();
   }
 
   async function handleTonKhoUpload(e) {
@@ -97,7 +110,7 @@ export default function HoTroKiemKePage() {
           Kiểm kê Thanh Lý
         </div>
         <div className={`month-tab ${tab === "khac" ? "active" : ""}`} onClick={() => setTab("khac")}>
-          Kiểm kê khác
+          Kiểm kê hàng thường - hàng cắt liều
         </div>
       </div>
 
@@ -229,8 +242,37 @@ export default function HoTroKiemKePage() {
       )}
 
       {tab === "khac" && (
-        <div className="placeholder-box">
-          Tab &quot;Kiểm kê khác&quot; — chưa xác định nội dung/cấu trúc dữ liệu.
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, alignItems: "start" }}>
+          <div className="card">
+            <div className="card-head"><h3>🛠️ Hỗ trợ xử lý báo cáo kiểm kê</h3></div>
+            <div className="card-body">
+              <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 12, lineHeight: 1.6 }}>
+                Chọn file báo cáo kiểm kê hàng thường - hàng cắt liều từ máy tính — hệ thống kiểm tra và xử lý,
+                rồi trả file kết quả để tải về ngay.
+              </p>
+              <input
+                ref={hangThuongFileInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                style={{ display: "none" }}
+                onChange={handleHangThuongUpload}
+              />
+              <button
+                onClick={() => hangThuongFileInputRef.current?.click()}
+                disabled={hangThuongProcessing}
+                style={uploadBtnStyle}
+              >
+                📤 Tải lên file báo cáo kiểm kê
+              </button>
+
+              {hangThuongProcessing && (
+                <div style={{ marginTop: 14, fontSize: 12.5, color: "var(--text-600)", display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className="tiny-spinner" />
+                  Đang xử lý file, vui lòng đợi...
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </Layout>
