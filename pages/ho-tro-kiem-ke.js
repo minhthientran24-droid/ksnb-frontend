@@ -262,7 +262,7 @@ export default function HoTroKiemKePage() {
                 disabled={hangThuongProcessing}
                 style={uploadBtnStyle}
               >
-                📤 Tải lên file báo cáo kiểm kê
+                📤 Tải lên báo cáo Xuất Khác - Nhập Khác
               </button>
 
               {hangThuongProcessing && (
