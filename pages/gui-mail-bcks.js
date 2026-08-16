@@ -2,17 +2,16 @@ import { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
 import {
   getUser, getKiemKeThanhLyReferenceFiles, uploadKiemKeThanhLyReferenceFile,
+  previewGuiMailBcks, sendGuiMailBcks,
 } from "../lib/api";
 
-// 6 file tham chiếu riêng cho "Gửi mail BCKS" — 2 mục đầu dùng chung ổ lưu
-// với "Hỗ Trợ Kiểm Kê" (cùng key backend), 4 mục sau là mới.
+// Chỉ còn 2 file tham chiếu cho "Gửi mail BCKS" — Giá bán/Danh sách nhân
+// viên/DM cắt liều đã bỏ khỏi màn hình này (Giá bán không cần nữa; Danh
+// sách nhân viên dùng chung với Hỗ Trợ Kiểm Kê nên không cần upload lại;
+// DM cắt liều đã xử lý sẵn trong chính file báo cáo bên đó rồi).
 const REFERENCE_ITEMS = [
-  { key: "danh_sach_nhan_vien", label: "Danh sách nhân viên" },
-  { key: "gia_ban", label: "Giá bán" },
-  { key: "dmsp_cat_lieu", label: "DM sản phẩm cắt liều" },
   { key: "shopinfo", label: "ShopInfo (email ASM + Vùng)" },
   { key: "cc_by_vung", label: "CC theo vùng" },
-  { key: "kiemke_allshop", label: "Xử lý kiểm kê AllShop (đợt hiện tại)" },
 ];
 
 function ReferenceFilesPanel() {
@@ -91,62 +90,182 @@ function MailLogPanel() {
       </div>
       <div className="card-body">
         <div className="placeholder-box">
-          Chức năng xử lý &amp; gửi mail đang được hoàn thiện — nhật ký sẽ hiện ở đây sau khi có shop đầu tiên được gửi.
+          Chức năng ghi nhật ký đang được hoàn thiện — nhật ký sẽ hiện ở đây sau khi có mail đầu tiên được gửi.
         </div>
       </div>
     </div>
   );
 }
 
-function comingSoon() {
-  alert("Tính năng đang được hoàn thiện, sẽ sớm ra mắt.");
-}
+const fieldBoxStyle = {
+  border: "1px solid var(--border)", borderRadius: 8, padding: "12px 14px", marginBottom: 12,
+};
+const fieldLabelStyle = { fontSize: 11.5, fontWeight: 700, color: "var(--text-600)", display: "block", marginBottom: 6 };
+const textInputStyle = {
+  width: "100%", border: "1px solid var(--border)", borderRadius: 6, padding: "7px 10px",
+  fontSize: 12.5, fontFamily: "inherit", boxSizing: "border-box",
+};
 
 function SelfServicePanel() {
+  const fileInputRef = useRef(null);
+  const [file, setFile] = useState(null);
+  const [previewing, setPreviewing] = useState(false);
+  const [previewError, setPreviewError] = useState("");
+  const [preview, setPreview] = useState(null); // { ma_shop, ten_shop, warnings, attachment_name } từ API
+  const [toText, setToText] = useState("");
+  const [ccText, setCcText] = useState("");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState("");
+  const [sent, setSent] = useState(false);
+
+  async function handlePickFile(e) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setFile(f);
+    setPreview(null);
+    setPreviewError("");
+    setSendError("");
+    setSent(false);
+    setPreviewing(true);
+    try {
+      const p = await previewGuiMailBcks(f);
+      setPreview(p);
+      setToText(p.to.join(", "));
+      setCcText(p.cc.join(", "));
+      setSubject(p.subject);
+      setBody(p.body);
+    } catch (err) {
+      setPreviewError(err.message || "Không đọc được file");
+    } finally {
+      setPreviewing(false);
+    }
+  }
+
+  async function handleSend() {
+    if (!file) return;
+    setSending(true);
+    setSendError("");
+    try {
+      await sendGuiMailBcks(file, { to: toText, cc: ccText, subject, body });
+      setSent(true);
+    } catch (err) {
+      setSendError(err.message || "Gửi mail thất bại");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function resetAll() {
+    setFile(null);
+    setPreview(null);
+    setPreviewError("");
+    setSendError("");
+    setSent(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
   return (
     <div className="card">
       <div className="card-head">
-        <h3>📧 Gửi báo cáo BCKS — shop của tôi</h3>
-        <span className="note">Tự phục vụ — chỉ hiện shop bạn phụ trách kiểm kê</span>
+        <h3>📧 Gửi báo cáo BCKS</h3>
+        <span className="note">Tự phục vụ — đính kèm file báo cáo đã hoàn chỉnh, xem trước rồi gửi</span>
       </div>
       <div className="card-body">
-        <div style={{
-          display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
-          background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 8,
-          padding: "10px 14px", marginBottom: 16, fontSize: 12.5,
-        }}>
-          <label style={{ fontWeight: 700, color: "var(--text-600)" }}>Shop</label>
-          <select className="finput" disabled style={{ minWidth: 280, opacity: 0.6 }}>
-            <option>Đang hoàn thiện — chưa lấy được danh sách shop bạn phụ trách</option>
-          </select>
-        </div>
+        <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 16, lineHeight: 1.6 }}>
+          Đính kèm file báo cáo kiểm soát <strong>đã hoàn chỉnh</strong> (xuất ra từ mục Hỗ Trợ Kiểm Kê &gt; Tổng hợp
+          Báo cáo Kiểm Soát Sau Kiểm Kê — đủ 3 sheet: Tổng hợp BCKS, Kiểm Kê Hàng Hóa, Kiểm kê Thanh Lý). Hệ thống
+          không xử lý lại file này — chỉ đọc tên shop để tra người nhận, anh/chị xem trước nội dung mail rồi gửi.
+        </p>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 }}>
-          <div>
-            <label className="flabel" style={{ display: "block", marginBottom: 6 }}>File template TTTC của shop</label>
-            <button className="fbtn" onClick={comingSoon} style={{ width: "100%" }}>📤 Chọn file TTTC</button>
-          </div>
-          <div>
-            <label className="flabel" style={{ display: "block", marginBottom: 6 }}>File DSTL Nhà thuốc của shop</label>
-            <button className="fbtn" onClick={comingSoon} style={{ width: "100%" }}>📤 Chọn file DSTL</button>
-          </div>
-        </div>
-
-        <div style={{ fontSize: 11, color: "var(--text-400)", marginBottom: 14, lineHeight: 1.6 }}>
-          Sau khi chọn đủ 2 file, hệ thống sẽ điền báo cáo, hiện trước người nhận (ASM vùng + quản lý shop),
-          rồi gửi mail — mỗi lần 1 shop, không cần chờ Admin xử lý giúp.
-        </div>
-
-        <button
-          className="login-btn"
-          style={{ width: "auto", padding: "10px 24px" }}
-          onClick={comingSoon}
-        >
-          Xử lý &amp; gửi mail
+        <input ref={fileInputRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }} onChange={handlePickFile} />
+        <button className="fbtn" onClick={() => fileInputRef.current?.click()} disabled={previewing}>
+          {file ? "Đổi file khác" : "📤 Chọn file báo cáo kiểm soát"}
         </button>
+        <div style={{ fontSize: 11, color: file ? "#4C9A2A" : "var(--text-400)", marginTop: 8, marginBottom: 16 }}>
+          {file ? `✅ ${file.name}` : "Chưa chọn file"}
+        </div>
+
+        {previewing && (
+          <div style={{ fontSize: 12.5, color: "var(--text-600)", display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+            <span className="tiny-spinner" />
+            Đang đọc file để xác định shop...
+          </div>
+        )}
+
+        {previewError && !previewing && (
+          <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14 }}>{previewError}</div>
+        )}
+
+        {preview && !previewing && !sent && (
+          <>
+            <div style={{
+              background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 8,
+              padding: "10px 14px", marginBottom: 14, fontSize: 12.5,
+            }}>
+              <strong>Shop:</strong> {preview.ma_shop} - {preview.ten_shop}
+            </div>
+
+            {preview.warnings?.length > 0 && (
+              <div style={{
+                background: "#FFF7E6", border: "1px solid #F5C542", borderRadius: 8,
+                padding: "10px 14px", marginBottom: 14, fontSize: 12, color: "#8A6200", lineHeight: 1.6,
+              }}>
+                {preview.warnings.map((w, i) => <div key={i}>⚠️ {w}</div>)}
+                <div style={{ marginTop: 4 }}>Anh/chị có thể tự điền/sửa người nhận bên dưới trước khi gửi.</div>
+              </div>
+            )}
+
+            <div style={fieldBoxStyle}>
+              <label style={fieldLabelStyle}>Người nhận (To) — cách nhau bởi dấu phẩy</label>
+              <input style={textInputStyle} value={toText} onChange={(e) => setToText(e.target.value)} placeholder="asm.vung1@fptlongchau.vn" />
+            </div>
+            <div style={fieldBoxStyle}>
+              <label style={fieldLabelStyle}>CC — cách nhau bởi dấu phẩy</label>
+              <input style={textInputStyle} value={ccText} onChange={(e) => setCcText(e.target.value)} placeholder="(tuỳ chọn)" />
+            </div>
+            <div style={fieldBoxStyle}>
+              <label style={fieldLabelStyle}>Tiêu đề mail</label>
+              <input style={textInputStyle} value={subject} onChange={(e) => setSubject(e.target.value)} />
+            </div>
+            <div style={fieldBoxStyle}>
+              <label style={fieldLabelStyle}>Nội dung mail</label>
+              <textarea
+                style={{ ...textInputStyle, minHeight: 140, resize: "vertical" }}
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+              />
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-400)", marginBottom: 16 }}>
+              📎 Đính kèm: {preview.attachment_name}
+            </div>
+
+            {sendError && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14 }}>{sendError}</div>}
+
+            <button
+              className="login-btn"
+              style={{ width: "auto", padding: "10px 24px" }}
+              onClick={handleSend}
+              disabled={sending || !toText.trim()}
+            >
+              {sending ? "Đang gửi..." : "Gửi mail"}
+            </button>
+          </>
+        )}
+
+        {sent && (
+          <div style={{
+            background: "#F0FFF4", border: "1px solid #4C9A2A", borderRadius: 8,
+            padding: "12px 14px", fontSize: 12.5, color: "#3E7A2A", display: "flex",
+            alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap",
+          }}>
+            <span>✅ Đã gửi mail báo cáo shop {preview?.ma_shop} - {preview?.ten_shop}.</span>
+            <button className="fbtn" onClick={resetAll}>Gửi báo cáo khác</button>
+          </div>
+        )}
 
         <div style={{ borderTop: "1px solid var(--border)", margin: "20px 0 14px" }} />
-
         <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-900)", marginBottom: 10 }}>
           Lịch sử gửi mail của tôi
         </div>
@@ -165,8 +284,8 @@ export default function GuiMailBcksPage() {
       <div className="page-head">
         <h1>Gửi mail BCKS</h1>
         <p>
-          Điền dữ liệu kiểm kê vào file Báo Cáo Kiểm Soát TTTC theo từng shop, tính lại công thức, rồi gửi mail
-          thẳng cho quản lý vùng (ASM) và quản lý shop — không cần thao tác tay qua Excel + Outlook.
+          Đính kèm file báo cáo kiểm soát đã hoàn chỉnh, xem trước nội dung mail rồi gửi thẳng cho quản lý vùng
+          (ASM) và CC theo vùng — không cần thao tác tay qua Outlook.
         </p>
       </div>
 
