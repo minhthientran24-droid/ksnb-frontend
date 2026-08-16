@@ -111,11 +111,12 @@ function SelfServicePanel() {
   const [file, setFile] = useState(null);
   const [previewing, setPreviewing] = useState(false);
   const [previewError, setPreviewError] = useState("");
-  const [preview, setPreview] = useState(null); // { ma_shop, ten_shop, warnings, attachment_name } từ API
+  const [preview, setPreview] = useState(null); // { ma_shop, ten_shop, warnings, attachment_name, summary_image_base64 } từ API
   const [toText, setToText] = useState("");
   const [ccText, setCcText] = useState("");
   const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
+  const [greeting, setGreeting] = useState("");
+  const [signature, setSignature] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState("");
   const [sent, setSent] = useState(false);
@@ -135,7 +136,8 @@ function SelfServicePanel() {
       setToText(p.to.join(", "));
       setCcText(p.cc.join(", "));
       setSubject(p.subject);
-      setBody(p.body);
+      setGreeting(p.greeting);
+      setSignature(p.signature);
     } catch (err) {
       setPreviewError(err.message || "Không đọc được file");
     } finally {
@@ -148,7 +150,7 @@ function SelfServicePanel() {
     setSending(true);
     setSendError("");
     try {
-      await sendGuiMailBcks(file, { to: toText, cc: ccText, subject, body });
+      await sendGuiMailBcks(file, { to: toText, cc: ccText, subject, greeting, signature });
       setSent(true);
     } catch (err) {
       setSendError(err.message || "Gửi mail thất bại");
@@ -232,9 +234,31 @@ function SelfServicePanel() {
             <div style={fieldBoxStyle}>
               <label style={fieldLabelStyle}>Nội dung mail</label>
               <textarea
-                style={{ ...textInputStyle, minHeight: 140, resize: "vertical" }}
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
+                style={{ ...textInputStyle, minHeight: 110, resize: "vertical" }}
+                value={greeting}
+                onChange={(e) => setGreeting(e.target.value)}
+              />
+            </div>
+
+            <div style={{ ...fieldBoxStyle, background: "var(--bg)" }}>
+              <label style={fieldLabelStyle}>Ảnh tóm tắt Tổng hợp BCKS (tự động chèn vào mail, trước chữ ký)</label>
+              {preview.summary_image_base64 ? (
+                <img
+                  src={`data:image/png;base64,${preview.summary_image_base64}`}
+                  alt="Tổng hợp BCKS"
+                  style={{ maxWidth: "100%", border: "1px solid var(--border)", borderRadius: 4 }}
+                />
+              ) : (
+                <div style={{ fontSize: 11.5, color: "var(--text-400)" }}>Không cắt được ảnh từ file này.</div>
+              )}
+            </div>
+
+            <div style={fieldBoxStyle}>
+              <label style={fieldLabelStyle}>Chữ ký</label>
+              <textarea
+                style={{ ...textInputStyle, minHeight: 60, resize: "vertical" }}
+                value={signature}
+                onChange={(e) => setSignature(e.target.value)}
               />
             </div>
             <div style={{ fontSize: 11, color: "var(--text-400)", marginBottom: 16 }}>
