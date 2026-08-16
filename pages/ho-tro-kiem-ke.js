@@ -14,6 +14,10 @@ const REFERENCE_ITEMS = [
   { key: "quydoi_dvt", label: "Quy đổi đơn vị tính (QuyDoiDVT)" },
 ];
 
+const CAT_LIEU_REFERENCE_ITEMS = [
+  { key: "dmsp_cat_lieu", label: "DM sản phẩm cắt liều (DMSP_CatLieu)" },
+];
+
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -69,13 +73,14 @@ export default function HoTroKiemKePage() {
     setTongHopResult(null);
     setTongHopError("");
     try {
-      const { blob, soDong, soDongThieuGia, soDongGoc, soDongThanhLy, tenFile } = await tongHopBcksFromXknk(xknkFile, tlKetQuaFile);
+      const { blob, soDong, soDongThieuGia, soDongGoc, soDongCatLieu, soDongThanhLy, tenFile } = await tongHopBcksFromXknk(xknkFile, tlKetQuaFile);
       setTongHopResult({
         filename: `${tenFile || `BaoCaoKiemSoatSauKiemKe_${xknkFile.name.replace(/\.[^.]+$/, "")}`}.xlsx`,
         blob,
         soDong,
         soDongThieuGia,
         soDongGoc,
+        soDongCatLieu,
         soDongThanhLy,
       });
     } catch (err) {
@@ -267,7 +272,15 @@ export default function HoTroKiemKePage() {
       )}
 
       {tab === "khac" && (
-        <div className="card">
+        <>
+          {isAdmin && (
+            <ReferenceFilesPanel
+              items={CAT_LIEU_REFERENCE_ITEMS}
+              title="⚙️ Danh mục SP cắt liều (Admin)"
+              subtitle='Dùng để điền cột "Thuộc tính SP" ở sheet KIEM KE — cập nhật khi danh mục thay đổi'
+            />
+          )}
+          <div className="card">
           <div className="card-head"><h3>🛠️ Tổng hợp Báo cáo Kiểm Soát Sau Kiểm Kê</h3></div>
           <div className="card-body">
             <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 16, lineHeight: 1.6 }}>
@@ -342,6 +355,7 @@ export default function HoTroKiemKePage() {
                   {tongHopResult.soDongGoc > tongHopResult.soDong &&
                     ` (đã lọc từ ${tongHopResult.soDongGoc} dòng gốc — chỉ lấy "Xử lý kiểm kê allshop", bỏ kho thanh lý)`}
                   {tongHopResult.soDongThieuGia > 0 && ` — ${tongHopResult.soDongThieuGia} dòng thiếu giá bán (Đơn giá = 0)`}
+                  {tongHopResult.soDongCatLieu > 0 && ` — ${tongHopResult.soDongCatLieu} dòng thuộc hàng cắt liều`}
                   {tongHopResult.soDongThanhLy > 0 && (
                     <>
                       <br />
@@ -355,13 +369,18 @@ export default function HoTroKiemKePage() {
               </div>
             )}
           </div>
-        </div>
+          </div>
+        </>
       )}
     </Layout>
   );
 }
 
-function ReferenceFilesPanel() {
+function ReferenceFilesPanel({
+  items = REFERENCE_ITEMS,
+  title = "⚙️ Dữ liệu tham chiếu (Admin)",
+  subtitle = "Cập nhật khi có quy định/giá bán/lịch sử kiểm kê mới",
+}) {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState("");
   const [uploadingKey, setUploadingKey] = useState(null);
@@ -391,13 +410,13 @@ function ReferenceFilesPanel() {
   return (
     <div className="card">
       <div className="card-head">
-        <h3>⚙️ Dữ liệu tham chiếu (Admin)</h3>
-        <span className="note">Cập nhật khi có quy định/giá bán/lịch sử kiểm kê mới</span>
+        <h3>{title}</h3>
+        <span className="note">{subtitle}</span>
       </div>
       <div className="card-body">
         {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 10 }}>{error}</div>}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 12 }}>
-          {REFERENCE_ITEMS.map((item) => {
+          {items.map((item) => {
             const info = status?.[item.key];
             const uploading = uploadingKey === item.key;
             return (
