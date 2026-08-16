@@ -69,14 +69,13 @@ export default function HoTroKiemKePage() {
     setTongHopResult(null);
     setTongHopError("");
     try {
-      const { blob, soDong, soDongThieuGia, soDongThanhLy, soDongThanhLyThieuGia } = await tongHopBcksFromXknk(xknkFile, tlKetQuaFile);
+      const { blob, soDong, soDongThieuGia, soDongThanhLy } = await tongHopBcksFromXknk(xknkFile, tlKetQuaFile);
       setTongHopResult({
         filename: `BaoCaoKiemSoatSauKiemKe_${xknkFile.name.replace(/\.[^.]+$/, "")}.xlsx`,
         blob,
         soDong,
         soDongThieuGia,
         soDongThanhLy,
-        soDongThanhLyThieuGia,
       });
     } catch (err) {
       setTongHopError(err.message || "Xử lý thất bại");
@@ -272,8 +271,8 @@ export default function HoTroKiemKePage() {
           <div className="card-body">
             <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 16, lineHeight: 1.6 }}>
               Tải lên báo cáo Xuất Khác - Nhập Khác (bắt buộc) để điền sheet KIEM KE. Có thêm file kết quả
-              kiểm kê thanh lý (tuỳ chọn) thì hệ thống gộp luôn vào sheet THANH LY của cùng file kết quả —
-              mỗi nguồn 1 sheet riêng.
+              kiểm kê thanh lý (tuỳ chọn) thì hệ thống ghép nguyên dữ liệu file đó vào 1 sheet mới
+              "Kiểm kê Thanh Lý" trong cùng file kết quả — không chỉnh sửa gì.
             </p>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
@@ -343,8 +342,7 @@ export default function HoTroKiemKePage() {
                   {tongHopResult.soDongThanhLy > 0 && (
                     <>
                       <br />
-                      + Đã điền {tongHopResult.soDongThanhLy} dòng vào sheet THANH LY
-                      {tongHopResult.soDongThanhLyThieuGia > 0 && ` — ${tongHopResult.soDongThanhLyThieuGia} dòng thiếu giá bán (Đơn giá = 0)`}
+                      + Đã ghép {tongHopResult.soDongThanhLy} dòng vào sheet mới "Kiểm kê Thanh Lý" (giữ nguyên dữ liệu gốc)
                     </>
                   )}
                 </span>
