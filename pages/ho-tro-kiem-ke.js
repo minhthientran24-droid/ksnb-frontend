@@ -69,12 +69,14 @@ export default function HoTroKiemKePage() {
     setTongHopResult(null);
     setTongHopError("");
     try {
-      const { blob, soDong, soDongThieuGia } = await tongHopBcksFromXknk(xknkFile);
+      const { blob, soDong, soDongThieuGia, soDongThanhLy, soDongThanhLyThieuGia } = await tongHopBcksFromXknk(xknkFile, tlKetQuaFile);
       setTongHopResult({
         filename: `BaoCaoKiemSoatSauKiemKe_${xknkFile.name.replace(/\.[^.]+$/, "")}.xlsx`,
         blob,
         soDong,
         soDongThieuGia,
+        soDongThanhLy,
+        soDongThanhLyThieuGia,
       });
     } catch (err) {
       setTongHopError(err.message || "Xử lý thất bại");
@@ -269,8 +271,9 @@ export default function HoTroKiemKePage() {
           <div className="card-head"><h3>🛠️ Tổng hợp Báo cáo Kiểm Soát Sau Kiểm Kê</h3></div>
           <div className="card-body">
             <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 16, lineHeight: 1.6 }}>
-              Tải lên báo cáo Xuất Khác - Nhập Khác để điền sheet KIEM KE của Báo Cáo Kiểm Soát Sau Kiểm Kê.
-              Phần gộp thêm kết quả kiểm kê thanh lý (sheet THANH LY) đang chờ bổ sung quy tắc, chưa xử lý được.
+              Tải lên báo cáo Xuất Khác - Nhập Khác (bắt buộc) để điền sheet KIEM KE. Có thêm file kết quả
+              kiểm kê thanh lý (tuỳ chọn) thì hệ thống gộp luôn vào sheet THANH LY của cùng file kết quả —
+              mỗi nguồn 1 sheet riêng.
             </p>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
@@ -293,9 +296,9 @@ export default function HoTroKiemKePage() {
                 </div>
               </div>
 
-              <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "12px 14px", opacity: 0.75 }}>
+              <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "12px 14px" }}>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--navy-900)", marginBottom: 8 }}>
-                  2. Kết quả kiểm kê thanh lý <span style={{ fontWeight: 400, color: "var(--text-400)" }}>(chưa xử lý)</span>
+                  2. Kết quả kiểm kê thanh lý <span style={{ fontWeight: 400, color: "var(--text-400)" }}>(tuỳ chọn)</span>
                 </div>
                 <input
                   ref={tlKetQuaFileInputRef}
@@ -308,7 +311,7 @@ export default function HoTroKiemKePage() {
                   {tlKetQuaFile ? "Đổi file khác" : "📤 Tải lên kết quả kiểm kê thanh lý"}
                 </button>
                 <div style={{ fontSize: 11, color: tlKetQuaFile ? "#4C9A2A" : "var(--text-400)", marginTop: 8 }}>
-                  {tlKetQuaFile ? `✅ ${tlKetQuaFile.name} — chờ quy tắc xử lý` : "Chưa chọn file"}
+                  {tlKetQuaFile ? `✅ ${tlKetQuaFile.name}` : "Chưa chọn file — có thể bỏ qua, chỉ điền sheet KIEM KE"}
                 </div>
               </div>
             </div>
@@ -337,6 +340,13 @@ export default function HoTroKiemKePage() {
                 <span style={{ fontSize: 12.5, color: "#3E7A2A", fontWeight: 600 }}>
                   ✅ Đã điền {tongHopResult.soDong} dòng vào sheet KIEM KE
                   {tongHopResult.soDongThieuGia > 0 && ` — ${tongHopResult.soDongThieuGia} dòng thiếu giá bán (Đơn giá = 0)`}
+                  {tongHopResult.soDongThanhLy > 0 && (
+                    <>
+                      <br />
+                      + Đã điền {tongHopResult.soDongThanhLy} dòng vào sheet THANH LY
+                      {tongHopResult.soDongThanhLyThieuGia > 0 && ` — ${tongHopResult.soDongThanhLyThieuGia} dòng thiếu giá bán (Đơn giá = 0)`}
+                    </>
+                  )}
                 </span>
                 <button style={downloadBtnStyle} onClick={() => downloadBlob(tongHopResult.blob, tongHopResult.filename)}>
                   📥 Tải file kết quả về
