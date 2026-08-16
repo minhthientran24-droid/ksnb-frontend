@@ -69,12 +69,13 @@ export default function HoTroKiemKePage() {
     setTongHopResult(null);
     setTongHopError("");
     try {
-      const { blob, soDong, soDongThieuGia, soDongThanhLy } = await tongHopBcksFromXknk(xknkFile, tlKetQuaFile);
+      const { blob, soDong, soDongThieuGia, soDongGoc, soDongThanhLy } = await tongHopBcksFromXknk(xknkFile, tlKetQuaFile);
       setTongHopResult({
         filename: `BaoCaoKiemSoatSauKiemKe_${xknkFile.name.replace(/\.[^.]+$/, "")}.xlsx`,
         blob,
         soDong,
         soDongThieuGia,
+        soDongGoc,
         soDongThanhLy,
       });
     } catch (err) {
@@ -338,6 +339,8 @@ export default function HoTroKiemKePage() {
               <div style={resultBoxStyle}>
                 <span style={{ fontSize: 12.5, color: "#3E7A2A", fontWeight: 600 }}>
                   ✅ Đã điền {tongHopResult.soDong} dòng vào sheet KIEM KE
+                  {tongHopResult.soDongGoc > tongHopResult.soDong &&
+                    ` (đã lọc từ ${tongHopResult.soDongGoc} dòng gốc — chỉ lấy "Xử lý kiểm kê allshop", bỏ kho thanh lý)`}
                   {tongHopResult.soDongThieuGia > 0 && ` — ${tongHopResult.soDongThieuGia} dòng thiếu giá bán (Đơn giá = 0)`}
                   {tongHopResult.soDongThanhLy > 0 && (
                     <>
