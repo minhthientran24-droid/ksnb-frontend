@@ -69,9 +69,9 @@ export default function HoTroKiemKePage() {
     setTongHopResult(null);
     setTongHopError("");
     try {
-      const { blob, soDong, soDongThieuGia, soDongGoc, soDongThanhLy } = await tongHopBcksFromXknk(xknkFile, tlKetQuaFile);
+      const { blob, soDong, soDongThieuGia, soDongGoc, soDongThanhLy, tenFile } = await tongHopBcksFromXknk(xknkFile, tlKetQuaFile);
       setTongHopResult({
-        filename: `BaoCaoKiemSoatSauKiemKe_${xknkFile.name.replace(/\.[^.]+$/, "")}.xlsx`,
+        filename: `${tenFile || `BaoCaoKiemSoatSauKiemKe_${xknkFile.name.replace(/\.[^.]+$/, "")}`}.xlsx`,
         blob,
         soDong,
         soDongThieuGia,
