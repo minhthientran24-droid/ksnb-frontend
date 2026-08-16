@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
 import {
-  checkKiemKeCanDate, capNhatKetQuaKiemKe, getKiemKeThanhLyReferenceFiles, uploadKiemKeThanhLyReferenceFile, getUser,
+  checkKiemKeCanDate, capNhatKetQuaKiemKe, tongHopBcksFromXknk,
+  getKiemKeThanhLyReferenceFiles, uploadKiemKeThanhLyReferenceFile, getUser,
 } from "../lib/api";
 
 const REFERENCE_ITEMS = [
@@ -43,14 +44,15 @@ export default function HoTroKiemKePage() {
   const [ketQuaError, setKetQuaError] = useState("");
   const ketQuaFileInputRef = useRef(null);
 
-  // Tổng hợp Báo cáo Kiểm Soát Sau Kiểm Kê — gộp file "Xuất Khác - Nhập
-  // Khác" + "Kết quả kiểm kê thanh lý" thành 1 file. UI dựng trước, công
-  // thức gộp anh sẽ cung cấp sau — bấm "Bắt đầu xử lý Báo Cáo" hiện tại
-  // báo "đang hoàn thiện" giống các nút khác đang chờ hoàn thiện trên trang.
+  // Tổng hợp Báo cáo Kiểm Soát Sau Kiểm Kê — bước 1 (đã có rule + code
+  // thật): điền sheet KIEM KE từ file "Xuất Khác - Nhập Khác". Sheet
+  // THANH LY (từ file kết quả kiểm kê thanh lý) chờ rule bổ sung sau —
+  // ô chọn file đó vẫn để sẵn nhưng chưa được xử lý.
   const [xknkFile, setXknkFile] = useState(null); // File | null
   const [tlKetQuaFile, setTlKetQuaFile] = useState(null); // File | null
   const [tongHopProcessing, setTongHopProcessing] = useState(false);
-  const [tongHopResult, setTongHopResult] = useState(null); // { filename, blob } | null
+  const [tongHopResult, setTongHopResult] = useState(null); // { filename, blob, soDong, soDongThieuGia } | null
+  const [tongHopError, setTongHopError] = useState("");
   const xknkFileInputRef = useRef(null);
   const tlKetQuaFileInputRef = useRef(null);
 
@@ -58,12 +60,27 @@ export default function HoTroKiemKePage() {
     alert("Tính năng đang được hoàn thiện, sẽ sớm ra mắt.");
   }
 
-  function handleTongHopProcess() {
-    if (!xknkFile || !tlKetQuaFile) {
-      alert("Vui lòng chọn đủ 2 file trước khi xử lý.");
+  async function handleTongHopProcess() {
+    if (!xknkFile) {
+      alert("Vui lòng chọn file Báo cáo Xuất Khác - Nhập Khác trước khi xử lý.");
       return;
     }
-    handleComingSoon();
+    setTongHopProcessing(true);
+    setTongHopResult(null);
+    setTongHopError("");
+    try {
+      const { blob, soDong, soDongThieuGia } = await tongHopBcksFromXknk(xknkFile);
+      setTongHopResult({
+        filename: `BaoCaoKiemSoatSauKiemKe_${xknkFile.name.replace(/\.[^.]+$/, "")}.xlsx`,
+        blob,
+        soDong,
+        soDongThieuGia,
+      });
+    } catch (err) {
+      setTongHopError(err.message || "Xử lý thất bại");
+    } finally {
+      setTongHopProcessing(false);
+    }
   }
 
   async function handleTonKhoUpload(e) {
@@ -252,8 +269,8 @@ export default function HoTroKiemKePage() {
           <div className="card-head"><h3>🛠️ Tổng hợp Báo cáo Kiểm Soát Sau Kiểm Kê</h3></div>
           <div className="card-body">
             <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 16, lineHeight: 1.6 }}>
-              Tải lên 2 file bên dưới — hệ thống gộp báo cáo Xuất Khác - Nhập Khác với kết quả kiểm kê thanh lý
-              thành 1 file Báo Cáo Kiểm Soát Sau Kiểm Kê duy nhất.
+              Tải lên báo cáo Xuất Khác - Nhập Khác để điền sheet KIEM KE của Báo Cáo Kiểm Soát Sau Kiểm Kê.
+              Phần gộp thêm kết quả kiểm kê thanh lý (sheet THANH LY) đang chờ bổ sung quy tắc, chưa xử lý được.
             </p>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
@@ -276,9 +293,9 @@ export default function HoTroKiemKePage() {
                 </div>
               </div>
 
-              <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "12px 14px" }}>
+              <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "12px 14px", opacity: 0.75 }}>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--navy-900)", marginBottom: 8 }}>
-                  2. Kết quả kiểm kê thanh lý
+                  2. Kết quả kiểm kê thanh lý <span style={{ fontWeight: 400, color: "var(--text-400)" }}>(chưa xử lý)</span>
                 </div>
                 <input
                   ref={tlKetQuaFileInputRef}
@@ -291,17 +308,17 @@ export default function HoTroKiemKePage() {
                   {tlKetQuaFile ? "Đổi file khác" : "📤 Tải lên kết quả kiểm kê thanh lý"}
                 </button>
                 <div style={{ fontSize: 11, color: tlKetQuaFile ? "#4C9A2A" : "var(--text-400)", marginTop: 8 }}>
-                  {tlKetQuaFile ? `✅ ${tlKetQuaFile.name}` : "Chưa chọn file"}
+                  {tlKetQuaFile ? `✅ ${tlKetQuaFile.name} — chờ quy tắc xử lý` : "Chưa chọn file"}
                 </div>
               </div>
             </div>
 
             <button
               onClick={handleTongHopProcess}
-              disabled={tongHopProcessing}
+              disabled={tongHopProcessing || !xknkFile}
               style={uploadBtnStyle}
             >
-              🚀 Bắt đầu xử lý Báo Cáo
+              {tongHopProcessing ? "Đang xử lý..." : "🚀 Bắt đầu xử lý Báo Cáo"}
             </button>
 
             {tongHopProcessing && (
@@ -311,10 +328,15 @@ export default function HoTroKiemKePage() {
               </div>
             )}
 
+            {tongHopError && !tongHopProcessing && (
+              <div style={{ marginTop: 14, fontSize: 12.5, color: "var(--danger)" }}>{tongHopError}</div>
+            )}
+
             {tongHopResult && !tongHopProcessing && (
               <div style={resultBoxStyle}>
                 <span style={{ fontSize: 12.5, color: "#3E7A2A", fontWeight: 600 }}>
-                  ✅ Đã xử lý xong
+                  ✅ Đã điền {tongHopResult.soDong} dòng vào sheet KIEM KE
+                  {tongHopResult.soDongThieuGia > 0 && ` — ${tongHopResult.soDongThieuGia} dòng thiếu giá bán (Đơn giá = 0)`}
                 </span>
                 <button style={downloadBtnStyle} onClick={() => downloadBlob(tongHopResult.blob, tongHopResult.filename)}>
                   📥 Tải file kết quả về
