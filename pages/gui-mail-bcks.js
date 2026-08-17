@@ -177,34 +177,35 @@ function SmtpCredentialPanel({ onConfigured }) {
 
         {!loading && editing && (
           <>
-            <div style={fieldBoxStyle}>
-              <label style={fieldLabelStyle}>Email gửi đi</label>
-              <input
-                style={textInputStyle} type="email" value={senderEmail}
-                onChange={(e) => setSenderEmail(e.target.value)} placeholder="ten.nv@fpt.com"
-              />
-            </div>
-            <div style={fieldBoxStyle}>
-              <label style={fieldLabelStyle}>Mật khẩu ứng dụng (App Password)</label>
-              <input
-                style={textInputStyle} type="password" value={appPassword}
-                onChange={(e) => setAppPassword(e.target.value)} placeholder="•••• •••• •••• ••••"
-              />
-            </div>
-
-            {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 12 }}>{error}</div>}
-
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap", marginBottom: 12 }}>
+              <div style={{ flex: "1 1 220px", minWidth: 200 }}>
+                <label style={fieldLabelStyle}>Email gửi đi</label>
+                <input
+                  style={textInputStyle} type="email" value={senderEmail}
+                  onChange={(e) => setSenderEmail(e.target.value)} placeholder="ten.nv@fpt.com"
+                />
+              </div>
+              <div style={{ flex: "1 1 220px", minWidth: 200 }}>
+                <label style={fieldLabelStyle}>Mật khẩu ứng dụng (App Password)</label>
+                <input
+                  style={textInputStyle} type="password" value={appPassword}
+                  onChange={(e) => setAppPassword(e.target.value)} placeholder="•••• •••• •••• ••••"
+                />
+              </div>
               <button
-                className="login-btn" style={{ width: "auto", padding: "9px 22px" }}
+                className="login-btn" style={{ width: "auto", padding: "9px 22px", flex: "0 0 auto" }}
                 onClick={handleSave} disabled={saving || !senderEmail.trim() || !appPassword.trim()}
               >
                 {saving ? "Đang lưu..." : "Lưu"}
               </button>
               {status?.configured && (
-                <button className="fbtn" onClick={() => { setEditing(false); setError(""); }}>Hủy</button>
+                <button className="fbtn" style={{ flex: "0 0 auto" }} onClick={() => { setEditing(false); setError(""); }}>
+                  Hủy
+                </button>
               )}
             </div>
+
+            {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 12 }}>{error}</div>}
           </>
         )}
 
