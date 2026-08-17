@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
+import SignatureEditor from "../components/SignatureEditor";
 import {
   getUser, getKiemKeThanhLyReferenceFiles, uploadKiemKeThanhLyReferenceFile,
   previewGuiMailBcks, sendGuiMailBcks, getMySmtpCredential, saveMySmtpCredential,
@@ -366,11 +367,7 @@ function SelfServicePanel({ smtpConfigured }) {
 
             <div style={fieldBoxStyle}>
               <label style={fieldLabelStyle}>Chữ ký</label>
-              <textarea
-                style={{ ...textInputStyle, minHeight: 60, resize: "vertical" }}
-                value={signature}
-                onChange={(e) => setSignature(e.target.value)}
-              />
+              <SignatureEditor value={signature} onChange={setSignature} minHeight={70} />
             </div>
             <div style={{ fontSize: 11, color: "var(--text-400)", marginBottom: 16 }}>
               📎 Đính kèm: {preview.attachment_name}

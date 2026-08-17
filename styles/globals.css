@@ -198,6 +198,10 @@ td.neg{color:var(--danger); font-weight:600;}
 .upload-btn:hover{background:#F0F4FC;}
 .upload-btn:disabled{opacity:.55; cursor:not-allowed;}
 
+/* Vùng soạn chữ ký mail rich-text (components/SignatureEditor.js) */
+.signature-editable:empty:before{content:attr(data-placeholder); color:var(--text-400); pointer-events:none;}
+.signature-editable:focus{border-color:var(--navy-700); background:#fff;}
+
 .placeholder-box{
   background:var(--card); border:1.5px dashed var(--border); border-radius:var(--radius);
   padding:50px 20px; text-align:center; color:var(--text-400); font-size:13px;

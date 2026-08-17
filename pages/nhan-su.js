@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
+import SignatureEditor from "../components/SignatureEditor";
 import {
   listPersonnel, saveOwnPersonnel, updatePersonnel, deletePersonnel, getUser, uploadAvatar,
   getMySignature, saveMySignature, listAllSignatures, adminSaveSignature,
@@ -11,12 +12,6 @@ const emptyForm = {
 };
 
 const ADMIN_ROLES = ["admin", "super_admin"];
-
-const signatureTextareaStyle = {
-  width: "100%", minHeight: 110, padding: "9px 12px", border: "1.5px solid var(--border)",
-  borderRadius: 8, fontSize: 13, fontFamily: "inherit", background: "#FAFBFD",
-  resize: "vertical", boxSizing: "border-box",
-};
 
 // Tự thiết lập chữ ký mail của CHÍNH MÌNH — riêng tư, người khác không xem
 // được (server tự chặn), khác hẳn hồ sơ "giới thiệu" công khai ở trên.
@@ -64,11 +59,10 @@ function MySignatureCard() {
           <div style={{ fontSize: 12.5, color: "var(--text-600)" }}>Đang tải...</div>
         ) : (
           <>
-            <textarea
-              style={signatureTextareaStyle}
+            <SignatureEditor
               value={signature}
-              onChange={(e) => setSignature(e.target.value)}
-              placeholder={"Trân trọng,\nNguyễn Văn A\nChuyên viên KSNB\nĐT: 09xx xxx xxx"}
+              onChange={setSignature}
+              placeholder="Trân trọng, Nguyễn Văn A — Chuyên viên KSNB — ĐT: 09xx xxx xxx"
             />
             {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginTop: 10 }}>{error}</div>}
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10 }}>
@@ -151,11 +145,7 @@ function AdminSignaturesPanel() {
                 </div>
                 {openId === item.personnel_id && (
                   <div style={{ marginTop: 10 }}>
-                    <textarea
-                      style={signatureTextareaStyle}
-                      value={draft}
-                      onChange={(e) => setDraft(e.target.value)}
-                    />
+                    <SignatureEditor value={draft} onChange={setDraft} />
                     <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
                       <button
                         className="login-btn" style={{ width: "auto", padding: "8px 18px" }}
