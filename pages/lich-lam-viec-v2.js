@@ -268,7 +268,7 @@ function UploadDanhSachBar({ onDone }) {
   return (
     <div className="card" style={{ marginBottom: 16 }}>
       <div className="card-body" style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
-        <label className="fbtn" style={{ cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
+        <label className="upload-btn" style={{ cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
           {busy ? "Đang xử lý..." : "⬆️ Upload danh sách shop (Excel)"}
           <input type="file" accept=".xlsx" onChange={onPickFile} disabled={busy} style={{ display: "none" }} />
         </label>
@@ -540,7 +540,7 @@ function ScheduleView({ data, group, onDone }) {
               <button className="fbtn" onClick={onLoadKsnbList} disabled={quotaBusy} style={{ fontSize: 11.5 }}>
                 {quotaBusy ? "Đang tải..." : "📥 Load danh sách KSNB"}
               </button>
-              <label className="fbtn" style={{ cursor: quotaBusy ? "default" : "pointer", fontSize: 11.5, opacity: quotaBusy ? 0.6 : 1 }}>
+              <label className="upload-btn" style={{ cursor: quotaBusy ? "default" : "pointer", fontSize: 11.5, opacity: quotaBusy ? 0.6 : 1 }}>
                 {quotaBusy ? "Đang đọc..." : "⬆️ Upload danh sách KSNB"}
                 <input type="file" accept=".xlsx" onChange={onUploadQuota} disabled={quotaBusy} style={{ display: "none" }} />
               </label>

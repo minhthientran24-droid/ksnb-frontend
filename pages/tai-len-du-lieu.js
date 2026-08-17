@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
@@ -18,6 +18,8 @@ export default function TaiLenDuLieuPage() {
   const [rows, setRows] = useState([]);
   const [error, setError] = useState("");
   const [uploadingType, setUploadingType] = useState(null);
+  const kiemKeFileInputRef = useRef(null);
+  const chuDeFileInputRef = useRef(null);
 
   // Báo cáo kiểm kê (tháng) — xử lý NGAY, không qua hàng chờ PC
   const [kiemKePeriod, setKiemKePeriod] = useState({ month: CURRENT_MONTH, year: CURRENT_YEAR });
@@ -130,12 +132,21 @@ export default function TaiLenDuLieuPage() {
             <div>
               <label style={labelStyle}>Chọn file Excel</label>
               <input
+                ref={kiemKeFileInputRef}
                 type="file"
                 accept=".xlsx,.xls"
                 disabled={uploadingType === "kiem_ke_thang"}
                 onChange={handleKiemKeFileChange}
-                style={{ fontSize: 12.5 }}
+                style={{ display: "none" }}
               />
+              <button
+                type="button"
+                className="upload-btn"
+                onClick={() => kiemKeFileInputRef.current?.click()}
+                disabled={uploadingType === "kiem_ke_thang"}
+              >
+                📤 Tải lên file Excel
+              </button>
             </div>
             {uploadingType === "kiem_ke_thang" && <span style={{ fontSize: 12.5, color: "var(--text-400)" }}>Đang xử lý...</span>}
           </div>
@@ -191,12 +202,21 @@ export default function TaiLenDuLieuPage() {
             <div>
               <label style={labelStyle}>Chọn file Excel</label>
               <input
+                ref={chuDeFileInputRef}
                 type="file"
                 accept=".xlsx,.xls,.csv"
                 disabled={uploadingType === "chu_de_thang"}
                 onChange={handleChuDeFileChange}
-                style={{ fontSize: 12.5 }}
+                style={{ display: "none" }}
               />
+              <button
+                type="button"
+                className="upload-btn"
+                onClick={() => chuDeFileInputRef.current?.click()}
+                disabled={uploadingType === "chu_de_thang"}
+              >
+                📤 Tải lên file Excel
+              </button>
             </div>
             {uploadingType === "chu_de_thang" && <span style={{ fontSize: 12.5, color: "var(--text-400)" }}>Đang tải lên...</span>}
           </div>

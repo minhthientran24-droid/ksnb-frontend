@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
 import { listPersonnel, saveOwnPersonnel, updatePersonnel, deletePersonnel, getUser, uploadAvatar } from "../lib/api";
 
@@ -18,6 +18,7 @@ export default function NhanSuPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const avatarInputRef = useRef(null);
 
   async function handleAvatarChange(e) {
     const file = e.target.files?.[0];
@@ -31,6 +32,7 @@ export default function NhanSuPage() {
       setSaveError(err.message || "Upload ảnh thất bại");
     } finally {
       setUploading(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
     }
   }
 
@@ -144,7 +146,22 @@ export default function NhanSuPage() {
                     background: `url(${form.avatar_url}) center/cover`,
                   }} />
                 )}
-                <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ fontSize: 12.5 }} />
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                  disabled={uploading}
+                  style={{ display: "none" }}
+                />
+                <button
+                  type="button"
+                  className="upload-btn"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={uploading}
+                >
+                  📤 {form.avatar_url ? "Đổi ảnh khác" : "Chọn ảnh đại diện"}
+                </button>
               </div>
               {uploading && <div style={{ fontSize: 12, color: "var(--text-400)", marginTop: 4 }}>Đang tải ảnh lên...</div>}
             </div>

@@ -157,7 +157,7 @@ export default function HoTroKiemKePage() {
                   date cho toàn bộ hàng trong kho thanh lý (060), rồi trả file kết quả để tải về ngay.
                 </p>
                 <input ref={fileInputRef} type="file" accept=".csv" style={{ display: "none" }} onChange={handleTonKhoUpload} />
-                <button onClick={() => fileInputRef.current?.click()} disabled={processing} style={uploadBtnStyle}>
+                <button className="upload-btn" onClick={() => fileInputRef.current?.click()} disabled={processing}>
                   📤 Tải lên file tồn kho
                 </button>
 
@@ -203,9 +203,9 @@ export default function HoTroKiemKePage() {
                       onChange={handleKetQuaUpload}
                     />
                     <button
+                      className="upload-btn"
                       onClick={() => ketQuaFileInputRef.current?.click()}
                       disabled={ketQuaProcessing}
-                      style={uploadBtnStyle}
                     >
                       📤 Tải lên file kết quả kiểm kê
                     </button>
@@ -301,7 +301,7 @@ export default function HoTroKiemKePage() {
                   style={{ display: "none" }}
                   onChange={(e) => setXknkFile(e.target.files?.[0] || null)}
                 />
-                <button className="fbtn" onClick={() => xknkFileInputRef.current?.click()}>
+                <button className="upload-btn" onClick={() => xknkFileInputRef.current?.click()}>
                   {xknkFile ? "Đổi file khác" : "📤 Tải lên báo cáo Xuất Khác - Nhập Khác"}
                 </button>
                 <div style={{ fontSize: 11, color: xknkFile ? "#4C9A2A" : "var(--text-400)", marginTop: 8 }}>
@@ -320,7 +320,7 @@ export default function HoTroKiemKePage() {
                   style={{ display: "none" }}
                   onChange={(e) => setTlKetQuaFile(e.target.files?.[0] || null)}
                 />
-                <button className="fbtn" onClick={() => tlKetQuaFileInputRef.current?.click()}>
+                <button className="upload-btn" onClick={() => tlKetQuaFileInputRef.current?.click()}>
                   {tlKetQuaFile ? "Đổi file khác" : "📤 Tải lên kết quả kiểm kê thanh lý"}
                 </button>
                 <div style={{ fontSize: 11, color: tlKetQuaFile ? "#4C9A2A" : "var(--text-400)", marginTop: 8 }}>
@@ -332,7 +332,7 @@ export default function HoTroKiemKePage() {
             <button
               onClick={handleTongHopProcess}
               disabled={tongHopProcessing || !xknkFile}
-              style={uploadBtnStyle}
+              style={actionBtnStyle}
             >
               {tongHopProcessing ? "Đang xử lý..." : "🚀 Bắt đầu xử lý Báo Cáo"}
             </button>
@@ -436,7 +436,7 @@ function ReferenceFilesPanel({
                   onChange={(e) => handleUpload(item.key, e)}
                 />
                 <button
-                  className="fbtn"
+                  className="upload-btn"
                   disabled={uploading}
                   onClick={() => fileInputRefs.current[item.key]?.click()}
                 >
@@ -451,7 +451,9 @@ function ReferenceFilesPanel({
   );
 }
 
-const uploadBtnStyle = {
+// Chỉ còn dùng cho nút hành động chính (submit/xử lý) — nút "chọn/tải file
+// lên" đã đổi qua class dùng chung ".upload-btn" (nền trắng, chữ xanh đậm).
+const actionBtnStyle = {
   background: "var(--navy-800)", color: "#fff", border: "none", borderRadius: 8,
   padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer",
   display: "inline-flex", alignItems: "center", gap: 8,

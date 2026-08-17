@@ -183,7 +183,11 @@ export default function GhiNhanCasePage() {
               accept=".xlsx,.xls,.xlsm,.pdf,image/png,image/jpeg,image/webp"
               onChange={handleImportFiles}
               disabled={importing}
+              style={{ display: "none" }}
             />
+            <button className="upload-btn" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+              📤 Chọn file để tải lên
+            </button>
             {importing && <div style={{ fontSize: 12.5, color: "var(--text-600)", marginTop: 8 }}>Đang xử lý file, vui lòng đợi...</div>}
             {importMsg && <div style={{ fontSize: 12.5, color: "#4C9A2A", marginTop: 8 }}>{importMsg}</div>}
             {importError && <div style={{ fontSize: 12.5, color: "var(--danger)", marginTop: 8 }}>{importError}</div>}

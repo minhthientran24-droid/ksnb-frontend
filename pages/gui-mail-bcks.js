@@ -69,7 +69,7 @@ function ReferenceFilesPanel() {
                   style={{ display: "none" }}
                   onChange={(e) => handleUpload(item.key, e)}
                 />
-                <button className="fbtn" disabled={uploading} onClick={() => fileInputRefs.current[item.key]?.click()}>
+                <button className="upload-btn" disabled={uploading} onClick={() => fileInputRefs.current[item.key]?.click()}>
                   {uploading ? "Đang tải lên..." : info?.uploaded ? "Thay file mới" : "Tải file lên"}
                 </button>
               </div>
@@ -182,7 +182,7 @@ function SelfServicePanel() {
         </p>
 
         <input ref={fileInputRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }} onChange={handlePickFile} />
-        <button className="fbtn" onClick={() => fileInputRef.current?.click()} disabled={previewing}>
+        <button className="upload-btn" onClick={() => fileInputRef.current?.click()} disabled={previewing}>
           {file ? "Đổi file khác" : "📤 Chọn file báo cáo kiểm soát"}
         </button>
         <div style={{ fontSize: 11, color: file ? "#4C9A2A" : "var(--text-400)", marginTop: 8, marginBottom: 16 }}>
