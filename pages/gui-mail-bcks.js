@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
 import {
   getUser, getKiemKeThanhLyReferenceFiles, uploadKiemKeThanhLyReferenceFile,
-  previewGuiMailBcks, sendGuiMailBcks,
+  previewGuiMailBcks, sendGuiMailBcks, getMySmtpCredential, saveMySmtpCredential,
 } from "../lib/api";
 
 // Chỉ còn 2 file tham chiếu cho "Gửi mail BCKS" — Giá bán/Danh sách nhân
@@ -106,7 +106,117 @@ const textInputStyle = {
   fontSize: 12.5, fontFamily: "inherit", boxSizing: "border-box",
 };
 
-function SelfServicePanel() {
+function SmtpCredentialPanel({ onConfigured }) {
+  const [status, setStatus] = useState(null); // { configured, sender_email }
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [senderEmail, setSenderEmail] = useState("");
+  const [appPassword, setAppPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [savedMsg, setSavedMsg] = useState("");
+
+  function load() {
+    setLoading(true);
+    getMySmtpCredential()
+      .then((s) => {
+        setStatus(s);
+        setEditing(!s.configured); // chưa cấu hình -> mở sẵn form để nhập lần đầu
+        setSenderEmail(s.sender_email || "");
+        onConfigured && onConfigured(s);
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }
+  useEffect(load, []);
+
+  async function handleSave() {
+    setSaving(true);
+    setError("");
+    setSavedMsg("");
+    try {
+      const s = await saveMySmtpCredential(senderEmail, appPassword);
+      setStatus(s);
+      setEditing(false);
+      setAppPassword("");
+      setSavedMsg("✅ Đã lưu.");
+      onConfigured && onConfigured(s);
+    } catch (err) {
+      setError(err.message || "Lưu thất bại");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="card">
+      <div className="card-head">
+        <h3>🔐 Cấu hình email gửi (cá nhân)</h3>
+        <span className="note">Email + mật khẩu ứng dụng là bảo mật riêng của anh/chị — chỉ dùng cho mail do chính anh/chị gửi</span>
+      </div>
+      <div className="card-body">
+        <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 14, lineHeight: 1.6 }}>
+          Nhập email dùng để gửi báo cáo và <strong>mật khẩu ứng dụng</strong> (App Password) của email đó — nhập 1
+          lần rồi dùng cho các lần gửi sau, không phải mật khẩu đăng nhập email thường. Có thay đổi thì bấm "Cập
+          nhật lại" để nhập lại từ đầu.
+        </p>
+
+        {loading && <div style={{ fontSize: 12.5, color: "var(--text-600)" }}>Đang tải...</div>}
+
+        {!loading && !editing && status?.configured && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10,
+            background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px",
+          }}>
+            <span style={{ fontSize: 12.5 }}>✅ Đang dùng email gửi: <strong>{status.sender_email}</strong></span>
+            <button className="fbtn" onClick={() => { setEditing(true); setAppPassword(""); setSavedMsg(""); }}>
+              Cập nhật lại
+            </button>
+          </div>
+        )}
+
+        {!loading && editing && (
+          <>
+            <div style={fieldBoxStyle}>
+              <label style={fieldLabelStyle}>Email gửi đi</label>
+              <input
+                style={textInputStyle} type="email" value={senderEmail}
+                onChange={(e) => setSenderEmail(e.target.value)} placeholder="ten.nv@fpt.com"
+              />
+            </div>
+            <div style={fieldBoxStyle}>
+              <label style={fieldLabelStyle}>Mật khẩu ứng dụng (App Password)</label>
+              <input
+                style={textInputStyle} type="password" value={appPassword}
+                onChange={(e) => setAppPassword(e.target.value)} placeholder="•••• •••• •••• ••••"
+              />
+            </div>
+
+            {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 12 }}>{error}</div>}
+
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <button
+                className="login-btn" style={{ width: "auto", padding: "9px 22px" }}
+                onClick={handleSave} disabled={saving || !senderEmail.trim() || !appPassword.trim()}
+              >
+                {saving ? "Đang lưu..." : "Lưu"}
+              </button>
+              {status?.configured && (
+                <button className="fbtn" onClick={() => { setEditing(false); setError(""); }}>Hủy</button>
+              )}
+            </div>
+          </>
+        )}
+
+        {!loading && !editing && savedMsg && (
+          <div style={{ fontSize: 12, color: "#4C9A2A", marginTop: 10 }}>{savedMsg}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SelfServicePanel({ smtpConfigured }) {
   const fileInputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [previewing, setPreviewing] = useState(false);
@@ -265,13 +375,18 @@ function SelfServicePanel() {
               📎 Đính kèm: {preview.attachment_name}
             </div>
 
+            {!smtpConfigured && (
+              <div style={{ fontSize: 12.5, color: "#8A6200", marginBottom: 14 }}>
+                ⚠️ Anh/chị chưa cấu hình email gửi cá nhân ở mục phía trên — cấu hình xong mới gửi được.
+              </div>
+            )}
             {sendError && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14 }}>{sendError}</div>}
 
             <button
               className="login-btn"
               style={{ width: "auto", padding: "10px 24px" }}
               onClick={handleSend}
-              disabled={sending || !toText.trim()}
+              disabled={sending || !toText.trim() || !smtpConfigured}
             >
               {sending ? "Đang gửi..." : "Gửi mail"}
             </button>
@@ -302,6 +417,7 @@ function SelfServicePanel() {
 export default function GuiMailBcksPage() {
   const me = getUser();
   const isAdmin = ["admin", "super_admin"].includes(me?.role);
+  const [smtpConfigured, setSmtpConfigured] = useState(false);
 
   return (
     <Layout crumb="Gửi mail BCKS">
@@ -320,7 +436,11 @@ export default function GuiMailBcksPage() {
         </div>
       )}
 
-      <SelfServicePanel />
+      <div style={{ marginBottom: 14 }}>
+        <SmtpCredentialPanel onConfigured={(s) => setSmtpConfigured(s.configured)} />
+      </div>
+
+      <SelfServicePanel smtpConfigured={smtpConfigured} />
     </Layout>
   );
 }
