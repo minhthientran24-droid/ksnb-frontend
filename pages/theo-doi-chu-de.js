@@ -137,7 +137,7 @@ function JobFormCard({ editingJob, onDone, onCancel }) {
   return (
     <div className="card">
       <div className="card-head">
-        <h3>{editingJob ? `✏️ Sửa job: ${editingJob.ten_chu_de}` : "+ Đăng job chủ đề mới"}</h3>
+        <h3>{editingJob ? `✏️ Sửa job: ${editingJob.ten_chu_de}` : "Thêm chủ đề mới"}</h3>
       </div>
       <form onSubmit={handleSubmit} style={{ padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         <div>
@@ -188,9 +188,10 @@ function JobFormCard({ editingJob, onDone, onCancel }) {
   );
 }
 
-// ---------- Admin: đăng NHIỀU job cùng lúc bằng Excel — KHÔNG đính kèm
-// được file data cho từng dòng (khác đăng 1 job qua form ở trên). ----------
-function BulkUploadCard({ onDone }) {
+// ---------- Admin: thêm chủ đề mới — nhập tay 1 job (mở form bên dưới)
+// hoặc đăng NHIỀU job cùng lúc bằng Excel (KHÔNG đính kèm được file data
+// cho từng dòng, khác đăng 1 job qua form). 2 nút nằm chung 1 hàng. ----------
+function BulkUploadCard({ onDone, onOpenForm }) {
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -217,22 +218,28 @@ function BulkUploadCard({ onDone }) {
   return (
     <div className="card">
       <div className="card-head">
-        <h3>📤 Đăng nhiều job bằng Excel</h3>
+        <h3>Cập nhập chủ đề mới</h3>
       </div>
       <div className="card-body">
         <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 12, lineHeight: 1.6 }}>
-          File Excel đúng mẫu cột (dòng 1): <strong>Tên Chủ Đề | Vùng | Tên Shop | Nội Dung Vi Phạm</strong> — chỉ
-          bắt buộc cột Tên Chủ Đề, các cột khác để trống cũng được. Lưu ý: đăng hàng loạt kiểu này{" "}
+          Thêm từng chủ đề bằng tay, hoặc đăng nhiều cùng lúc bằng Excel đúng mẫu cột (dòng 1):{" "}
+          <strong>Tên Chủ Đề | Vùng | Tên Shop | Nội Dung Vi Phạm</strong> — chỉ bắt buộc cột Tên Chủ Đề, các cột
+          khác để trống cũng được. Lưu ý: đăng hàng loạt bằng Excel{" "}
           <strong>không đính kèm được file data check</strong> cho từng dòng — cần bấm "Sửa" từng job sau khi đăng
           nếu muốn thêm file.
         </p>
-        <input
-          ref={fileInputRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }}
-          onChange={handleFile} disabled={uploading}
-        />
-        <button className="upload-btn" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-          📤 {uploading ? "Đang xử lý..." : "Chọn file Excel"}
-        </button>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <button className="login-btn" style={{ width: "auto", padding: "10px 24px" }} onClick={onOpenForm}>
+            Thêm chủ đề mới
+          </button>
+          <input
+            ref={fileInputRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }}
+            onChange={handleFile} disabled={uploading}
+          />
+          <button className="upload-btn" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+            📤 {uploading ? "Đang xử lý..." : "Chọn file Excel"}
+          </button>
+        </div>
         {resultMsg && <div style={{ fontSize: 12, color: "#4C9A2A", marginTop: 10 }}>{resultMsg}</div>}
         {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginTop: 10 }}>{error}</div>}
       </div>
@@ -329,17 +336,7 @@ export default function TheoDoiChuDePage() {
         </p>
       </div>
 
-      {isAdmin && !showForm && (
-        <div className="card">
-          <div className="card-body" style={{ padding: "16px 20px" }}>
-            <button className="login-btn" style={{ width: "auto", padding: "10px 24px" }} onClick={() => setShowForm(true)}>
-              + Đăng job chủ đề mới
-            </button>
-          </div>
-        </div>
-      )}
-
-      {isAdmin && !showForm && <BulkUploadCard onDone={load} />}
+      {isAdmin && !showForm && <BulkUploadCard onDone={load} onOpenForm={() => setShowForm(true)} />}
 
       {isAdmin && showForm && (
         <JobFormCard editingJob={editingJob} onDone={afterSave} onCancel={closeForm} />
