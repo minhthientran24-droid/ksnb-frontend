@@ -33,7 +33,6 @@ export default function LoginPage() {
     <div className="login-screen">
       <div className="login-card">
         <div className="login-logo">
-          <img src="/logo-fpt-ksnb.jpg" alt="FPT | KSNB" style={{ height: 40, width: "auto", display: "block", borderRadius: 6 }} />
           <div className="logo-text">
             FPT Retail
             <br />

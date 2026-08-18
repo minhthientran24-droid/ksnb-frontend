@@ -65,7 +65,6 @@ export default function Sidebar() {
   return (
     <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
       <div className="sb-logo">
-        <img src="/logo-fpt-ksnb.jpg" alt="FPT | KSNB" style={{ height: 26, width: "auto", display: "block", borderRadius: 4, flexShrink: 0 }} />
         {!collapsed && <div className="logo-text">Phòng Kiểm Soát Nội Bộ</div>}
       </div>
 
