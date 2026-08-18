@@ -229,7 +229,7 @@ function BulkUploadCard({ onDone, onOpenForm }) {
           nếu muốn thêm file.
         </p>
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-          <button className="login-btn" style={{ width: "auto", padding: "10px 24px" }} onClick={onOpenForm}>
+          <button className="login-btn" style={{ width: "auto", padding: "10px 24px", margin: 0, fontSize: 13 }} onClick={onOpenForm}>
             Thêm chủ đề mới
           </button>
           <input
