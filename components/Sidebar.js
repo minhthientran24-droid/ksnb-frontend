@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { getUser } from "../lib/api";
-import FptLogo from "./FptLogo";
 
 const NAV_ITEMS_TOP = [
   { href: "/", icon: "⌂", label: "Trang chủ" },
@@ -66,7 +65,7 @@ export default function Sidebar() {
   return (
     <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
       <div className="sb-logo">
-        <FptLogo height={26} />
+        <img src="/logo-fpt-ksnb.jpg" alt="FPT | KSNB" style={{ height: 26, width: "auto", display: "block", borderRadius: 4, flexShrink: 0 }} />
         {!collapsed && <div className="logo-text">Phòng Kiểm Soát Nội Bộ</div>}
       </div>
 
