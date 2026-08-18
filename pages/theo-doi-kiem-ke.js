@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import {
-  getKiemKePeriods, listKiemKe, updateKiemKeGhiChu, syncKiemKeNow,
+  getKiemKePeriods, listKiemKe, updateKiemKeGhiChu,
   getShopChiaHomNay, getDangKiem, doiLichShopChiaHomNay, getUser,
 } from "../lib/api";
 
@@ -171,8 +171,6 @@ export default function TheoDoiKiemKePage() {
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [noteDraft, setNoteDraft] = useState("");
-  const [syncing, setSyncing] = useState(false);
-  const [syncMsg, setSyncMsg] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const me = getUser();
@@ -283,48 +281,17 @@ export default function TheoDoiKiemKePage() {
     })
     .sort((a, b) => Math.abs(b.gia_tri_that_thoat || 0) - Math.abs(a.gia_tri_that_thoat || 0));
 
-  async function handleSyncNow() {
-    setSyncing(true);
-    setSyncMsg("");
-    try {
-      const result = await syncKiemKeNow();
-      const added = (result.results?.da_kiem?.added || 0) + (result.results?.dang_kiem?.added || 0);
-      setSyncMsg(`Đã đồng bộ xong — thêm ${added} dòng mới.`);
-      // Nạp lại danh sách kỳ + dữ liệu đang xem cho đúng số mới nhất
-      const list = await getKiemKePeriods(loai);
-      setPeriods(list);
-      if (list.length > 0) {
-        const keepPeriod = list.includes(period) ? period : list[0];
-        setPeriod(keepPeriod);
-        const newRows = await listKiemKe(keepPeriod, loai);
-        setRows(newRows);
-      }
-    } catch (err) {
-      setSyncMsg(`Đồng bộ thất bại: ${err.message || "lỗi không xác định"}`);
-    } finally {
-      setSyncing(false);
-    }
-  }
-
   return (
     <Layout crumb="Theo dõi kiểm kê">
       <div className="page-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1>Theo dõi kiểm kê</h1>
-          <p>Đồng bộ tự động từ Excel local trên PC lúc 23h mỗi ngày. Cột Ghi chú do NV KSNB tự cập nhật.</p>
+          <p>
+            {loai === "da_kiem"
+              ? "Tự động cập nhật khi gửi mail BCKS (shop rời \"Đang kiểm\" chuyển sang đây). Cột Ghi chú do NV KSNB tự cập nhật."
+              : "Cột Ghi chú do NV KSNB tự cập nhật."}
+          </p>
         </div>
-        {isAdmin && loai === "da_kiem" && (
-          <div style={{ textAlign: "right" }}>
-            <button onClick={handleSyncNow} disabled={syncing} style={syncBtnStyle}>
-              {syncing ? "Đang đồng bộ..." : "🔄 Đồng bộ ngay"}
-            </button>
-            {syncMsg && (
-              <div style={{ fontSize: 12.5, marginTop: 6, color: syncMsg.startsWith("Đồng bộ thất bại") ? "#c00" : "var(--text-600)" }}>
-                {syncMsg}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Tab chọn Đã kiểm / Đang kiểm / Shop được chia hôm nay */}
@@ -352,7 +319,7 @@ export default function TheoDoiKiemKePage() {
 
       {error && <div className="placeholder-box">Không tải được dữ liệu: {error}</div>}
       {loai === "da_kiem" && !error && periods.length === 0 && (
-        <div className="placeholder-box">Chưa có dữ liệu "Đã kiểm" nào được đồng bộ.</div>
+        <div className="placeholder-box">Chưa có shop nào được chuyển sang "Đã kiểm".</div>
       )}
 
       {(isLlvTab || periods.length > 0) && (
