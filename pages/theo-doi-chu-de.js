@@ -301,15 +301,15 @@ export default function TheoDoiChuDePage() {
             <table>
               <thead>
                 <tr>
-                  <th>Ngày Upload chủ đề</th>
-                  <th>Tên chủ đề</th>
+                  <th>Ngày Upload</th>
+                  <th>Tên Chủ Đề</th>
                   <th>Vùng</th>
                   <th>Tên Shop</th>
-                  <th>Nội dung vi phạm</th>
-                  <th>Nhân viên phụ trách</th>
-                  <th>Ngày bắt đầu check</th>
+                  <th>Nội Dung Vi Phạm</th>
+                  <th>NV Check</th>
+                  <th>Ngày Check</th>
                   <th>Số ngày xử lý</th>
-                  <th>Tình trạng xử lý</th>
+                  <th>Tình trạng</th>
                   <th>Kết quả</th>
                   <th></th>
                 </tr>
