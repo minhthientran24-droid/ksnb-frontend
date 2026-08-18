@@ -3,6 +3,7 @@ import Layout from "../components/Layout";
 import {
   getUser, listChuDeJobs, createChuDeJob, updateChuDeJob, deleteChuDeJob,
   claimChuDeJob, completeChuDeJob, downloadChuDeJobFile, downloadChuDeJobResultFile,
+  bulkUploadChuDeJobs,
 } from "../lib/api";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
@@ -187,6 +188,58 @@ function JobFormCard({ editingJob, onDone, onCancel }) {
   );
 }
 
+// ---------- Admin: đăng NHIỀU job cùng lúc bằng Excel — KHÔNG đính kèm
+// được file data cho từng dòng (khác đăng 1 job qua form ở trên). ----------
+function BulkUploadCard({ onDone }) {
+  const fileInputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+  const [resultMsg, setResultMsg] = useState("");
+
+  async function handleFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setError("");
+    setResultMsg("");
+    try {
+      const r = await bulkUploadChuDeJobs(file);
+      setResultMsg(`✅ Đã thêm ${r.count} job.`);
+      onDone();
+    } catch (err) {
+      setError(err.message || "Upload thất bại");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  return (
+    <div className="card">
+      <div className="card-head">
+        <h3>📤 Đăng nhiều job bằng Excel</h3>
+      </div>
+      <div className="card-body">
+        <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 12, lineHeight: 1.6 }}>
+          File Excel đúng mẫu cột (dòng 1): <strong>Tên Chủ Đề | Vùng | Tên Shop | Nội Dung Vi Phạm</strong> — chỉ
+          bắt buộc cột Tên Chủ Đề, các cột khác để trống cũng được. Lưu ý: đăng hàng loạt kiểu này{" "}
+          <strong>không đính kèm được file data check</strong> cho từng dòng — cần bấm "Sửa" từng job sau khi đăng
+          nếu muốn thêm file.
+        </p>
+        <input
+          ref={fileInputRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }}
+          onChange={handleFile} disabled={uploading}
+        />
+        <button className="upload-btn" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+          📤 {uploading ? "Đang xử lý..." : "Chọn file Excel"}
+        </button>
+        {resultMsg && <div style={{ fontSize: 12, color: "#4C9A2A", marginTop: 10 }}>{resultMsg}</div>}
+        {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginTop: 10 }}>{error}</div>}
+      </div>
+    </div>
+  );
+}
+
 export default function TheoDoiChuDePage() {
   const [me, setMe] = useState(null);
   const [jobs, setJobs] = useState([]);
@@ -285,6 +338,8 @@ export default function TheoDoiChuDePage() {
           </div>
         </div>
       )}
+
+      {isAdmin && !showForm && <BulkUploadCard onDone={load} />}
 
       {isAdmin && showForm && (
         <JobFormCard editingJob={editingJob} onDone={afterSave} onCancel={closeForm} />
