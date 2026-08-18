@@ -341,7 +341,18 @@ function SelfServicePanel({ smtpConfigured }) {
             </div>
             <div style={fieldBoxStyle}>
               <label style={fieldLabelStyle}>Tiêu đề mail</label>
-              <input style={textInputStyle} value={subject} onChange={(e) => setSubject(e.target.value)} />
+              <input
+                style={{ ...textInputStyle, ...(preview?.dang_kiem_not_found ? { borderColor: "var(--danger)" } : {}) }}
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+              />
+              {preview?.dang_kiem_not_found && (
+                <div style={{ fontSize: 11.5, color: "var(--danger)", marginTop: 6, fontWeight: 600 }}>
+                  ⚠️ Không tìm thấy Mã Shop {preview.ma_shop} trong danh sách "Đang kiểm" (Theo dõi kiểm kê) — Hình
+                  thức + Ngày Kiểm đang để trống trong tiêu đề, anh/chị tự điền hoặc kiểm tra lại danh sách trước
+                  khi gửi.
+                </div>
+              )}
             </div>
             <div style={fieldBoxStyle}>
               <label style={fieldLabelStyle}>Nội dung mail</label>
