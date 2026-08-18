@@ -3,18 +3,15 @@ import { useRouter } from "next/router";
 import Link from "next/link";
 import { getUser } from "../lib/api";
 
-const NAV_ITEMS_TOP = [
+const NAV_ITEMS = [
   { href: "/", icon: "⌂", label: "Trang chủ" },
   { href: "/bao-cao", icon: "▤", label: "Báo cáo tháng", hideForRoles: ["editor_base"] },
-  { href: "/nhan-su", icon: "◈", label: "Giới thiệu nhân sự KSNB" },
-  { href: "/theo-doi-kiem-ke", icon: "▦", label: "Theo dõi kiểm kê" },
-];
-
-const NAV_ITEMS_BOTTOM = [
-  { href: "/ghi-nhan-case", icon: "📝", label: "Ghi nhận case vi phạm" },
-  { href: "/theo-doi-chu-de", icon: "☰", label: "Theo dõi chủ đề" },
   { href: "/ho-tro-kiem-ke", icon: "🧰", label: "Hỗ Trợ Kiểm Kê" },
   { href: "/gui-mail-bcks", icon: "📧", label: "Gửi mail BCKS" },
+  { href: "/theo-doi-kiem-ke", icon: "▦", label: "Theo dõi kiểm kê" },
+  { href: "/theo-doi-chu-de", icon: "☰", label: "Theo dõi chủ đề" },
+  { href: "/ghi-nhan-case", icon: "📝", label: "Ghi nhận case vi phạm" },
+  { href: "/nhan-su", icon: "◈", label: "Giới thiệu nhân sự KSNB" },
   { href: "/hoat-dong", icon: "☺", label: "Hoạt động phòng ban" },
 ];
 
@@ -69,8 +66,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="sb-nav">
-        {NAV_ITEMS_TOP.filter((item) => !item.hideForRoles?.includes(myRole)).map(renderItem)}
-        {NAV_ITEMS_BOTTOM.filter((item) => !item.hideForRoles?.includes(myRole)).map(renderItem)}
+        {NAV_ITEMS.filter((item) => !item.hideForRoles?.includes(myRole)).map(renderItem)}
 
         {isAdmin && (
           <>
