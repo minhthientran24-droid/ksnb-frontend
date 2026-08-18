@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import { login, getToken } from "../lib/api";
+import FptLogo from "../components/FptLogo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,6 +34,7 @@ export default function LoginPage() {
     <div className="login-screen">
       <div className="login-card">
         <div className="login-logo">
+          <FptLogo height={34} />
           <div className="logo-text">
             FPT Retail
             <br />
