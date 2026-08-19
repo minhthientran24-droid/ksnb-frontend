@@ -19,12 +19,14 @@ const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 
 function summarizeReactions(reactions, myId) {
   const counts = {};
+  const names = {};
   let mine = null;
   (reactions || []).forEach((r) => {
     counts[r.emoji] = (counts[r.emoji] || 0) + 1;
+    (names[r.emoji] = names[r.emoji] || []).push(r.user_name || "Ẩn danh");
     if (r.user_id === myId) mine = r.emoji;
   });
-  return { counts, mine };
+  return { counts, names, mine };
 }
 
 // Bộ icon mặt cười thường dùng — tự chọn tay, không lấy thư viện ngoài để
@@ -199,6 +201,7 @@ export default function ChatNhomPage() {
   const [mentionActiveIndex, setMentionActiveIndex] = useState(0);
 
   const [reactPickerFor, setReactPickerFor] = useState(null); // id tin nhắn đang mở bảng chọn cảm xúc
+  const [replyTarget, setReplyTarget] = useState(null); // tin nhắn đang được trả lời (null = không reply)
 
   const wsRef = useRef(null);
   const listEndRef = useRef(null);
@@ -206,6 +209,15 @@ export default function ChatNhomPage() {
   const textareaRef = useRef(null);
   const activeGroupIdRef = useRef(null);
   activeGroupIdRef.current = activeGroupId;
+  const messageRefs = useRef({}); // messageId -> DOM node, để cuộn tới khi bấm vào khối trích dẫn reply
+
+  function scrollToMessage(id) {
+    const el = messageRefs.current[id];
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("chat-msg-highlight");
+    setTimeout(() => el.classList.remove("chat-msg-highlight"), 1200);
+  }
 
   function loadGroups() {
     listChatGroups().then((data) => {
@@ -271,6 +283,7 @@ export default function ChatNhomPage() {
     setMessages([]);
     setHasMore(false);
     setMentionQuery(null);
+    setReplyTarget(null);
     listChatMessages(activeGroupId).then((rows) => {
       setMessages(rows);
       setHasMore(rows.length >= 50);
@@ -327,9 +340,10 @@ export default function ChatNhomPage() {
     setSending(true);
     setError("");
     try {
-      await sendChatMessage(activeGroupId, { content: text, file });
+      await sendChatMessage(activeGroupId, { content: text, file, replyToId: replyTarget?.id });
       setText("");
       clearFileSelection();
+      setReplyTarget(null);
     } catch (err) {
       setError(err.message || "Gửi tin nhắn thất bại");
     } finally {
@@ -524,21 +538,37 @@ export default function ChatNhomPage() {
                 )}
                 {messages.map((m) => {
                   const isMe = m.sender_id === me?.id;
-                  const { counts: reactionCounts, mine: myReaction } = summarizeReactions(m.reactions, me?.id);
+                  const { counts: reactionCounts, names: reactionNames, mine: myReaction } = summarizeReactions(m.reactions, me?.id);
                   const hasReactions = Object.keys(reactionCounts).length > 0;
                   const stickerMatch = m.content ? m.content.match(STICKER_RE) : null;
                   const sticker = stickerMatch ? STICKER_MAP[stickerMatch[1]] : null;
                   return (
-                    <div key={m.id} className={`chat-msg-row ${isMe ? "me" : ""}`}>
+                    <div
+                      key={m.id}
+                      ref={(el) => { messageRefs.current[m.id] = el; }}
+                      className={`chat-msg-row ${isMe ? "me" : ""}`}
+                    >
                       {!isMe && <div className="chat-msg-sender">{m.sender_name}</div>}
                       <div className="chat-bubble-wrap">
                         {sticker ? (
                           <div className="chat-sticker-block">
+                            {m.reply_to && (
+                              <div className="chat-reply-quote" onClick={() => scrollToMessage(m.reply_to.id)}>
+                                <div className="chat-reply-quote-sender">{m.reply_to.sender_name}</div>
+                                <div className="chat-reply-quote-text">{friendlyPreview(m.reply_to.content) || "Tệp đính kèm"}</div>
+                              </div>
+                            )}
                             <div className={`chat-sticker anim-${sticker.anim}`} title={sticker.label}>{sticker.emoji}</div>
                             <div className="chat-sticker-label">{sticker.label} · {fmtTime(m.created_at)}</div>
                           </div>
                         ) : (
                           <div className={`chat-bubble ${isMe ? "me" : ""}`}>
+                            {m.reply_to && (
+                              <div className={`chat-reply-quote ${isMe ? "me" : ""}`} onClick={() => scrollToMessage(m.reply_to.id)}>
+                                <div className="chat-reply-quote-sender">{m.reply_to.sender_name}</div>
+                                <div className="chat-reply-quote-text">{friendlyPreview(m.reply_to.content) || "Tệp đính kèm"}</div>
+                              </div>
+                            )}
                             {m.content && <div className="chat-bubble-text">{renderMessageContent(m.content, groupMembers)}</div>}
                             {m.has_file && isImageFile(m.file_name) ? (
                               imageUrls[m.id] ? (
@@ -560,31 +590,36 @@ export default function ChatNhomPage() {
                           </div>
                         )}
 
-                        <div className="chat-react-wrap">
-                          <button className="chat-react-trigger" title="Thả cảm xúc" onClick={() => setReactPickerFor(reactPickerFor === m.id ? null : m.id)}>😊</button>
-                          {reactPickerFor === m.id && (
-                            <>
-                              <div className="chat-emoji-backdrop" onClick={() => setReactPickerFor(null)} />
-                              <div className={`chat-react-picker ${isMe ? "align-right" : ""}`}>
-                                {REACTION_EMOJIS.map((e) => (
-                                  <button key={e} className="chat-react-emoji-btn" onClick={() => handleReact(m.id, e)}>{e}</button>
-                                ))}
-                              </div>
-                            </>
-                          )}
+                        <div className="chat-msg-actions">
+                          <button className="chat-react-trigger" title="Trả lời" onClick={() => setReplyTarget(m)}>↩</button>
+                          <div className="chat-react-wrap">
+                            <button className="chat-react-trigger" title="Thả cảm xúc" onClick={() => setReactPickerFor(reactPickerFor === m.id ? null : m.id)}>😊</button>
+                            {reactPickerFor === m.id && (
+                              <>
+                                <div className="chat-emoji-backdrop" onClick={() => setReactPickerFor(null)} />
+                                <div className={`chat-react-picker ${isMe ? "align-right" : ""}`}>
+                                  {REACTION_EMOJIS.map((e) => (
+                                    <button key={e} className="chat-react-emoji-btn" onClick={() => handleReact(m.id, e)}>{e}</button>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
 
                       {hasReactions && (
                         <div className={`chat-reactions-row ${isMe ? "me" : ""}`}>
                           {Object.entries(reactionCounts).map(([emoji, count]) => (
-                            <button
-                              key={emoji}
-                              className={`chat-reaction-pill ${myReaction === emoji ? "mine" : ""}`}
-                              onClick={() => handleReact(m.id, emoji)}
-                            >
-                              {emoji} {count}
-                            </button>
+                            <div key={emoji} className="chat-reaction-pill-wrap">
+                              <button
+                                className={`chat-reaction-pill ${myReaction === emoji ? "mine" : ""}`}
+                                onClick={() => handleReact(m.id, emoji)}
+                              >
+                                {emoji} {count}
+                              </button>
+                              <div className="chat-reaction-tooltip">{(reactionNames[emoji] || []).join(", ")}</div>
+                            </div>
                           ))}
                         </div>
                       )}
@@ -593,6 +628,17 @@ export default function ChatNhomPage() {
                 })}
                 <div ref={listEndRef} />
               </div>
+
+              {replyTarget && (
+                <div className="chat-reply-preview-bar">
+                  <span className="chat-reply-preview-icon">↩</span>
+                  <div className="chat-reply-preview-text">
+                    <div className="chat-reply-preview-sender">Trả lời {replyTarget.sender_name}</div>
+                    <div className="chat-reply-preview-content">{friendlyPreview(replyTarget.content) || (replyTarget.file_name ? `📎 ${replyTarget.file_name}` : "Tệp đính kèm")}</div>
+                  </div>
+                  <button className="chat-icon-btn" title="Hủy trả lời" onClick={() => setReplyTarget(null)}>✕</button>
+                </div>
+              )}
 
               {file && (
                 <div className="chat-file-preview-bar">
@@ -728,7 +774,8 @@ export default function ChatNhomPage() {
         .chat-image { display: block; max-width: 240px; max-height: 240px; border-radius: 10px; margin-top: 4px; cursor: pointer; object-fit: cover; }
         .chat-image-loading { font-size: 12px; color: var(--text-400); margin-top: 4px; }
 
-        .chat-react-wrap { position: relative; align-self: center; }
+        .chat-msg-actions { display: flex; align-items: center; gap: 2px; align-self: center; }
+        .chat-react-wrap { position: relative; }
         .chat-react-trigger {
           background: none; border: none; cursor: pointer; font-size: 13px; padding: 4px 6px; border-radius: 50%;
           opacity: 0.35; transition: opacity 0.15s;
@@ -753,6 +800,32 @@ export default function ChatNhomPage() {
         }
         .chat-reaction-pill:hover { background: var(--bg); }
         .chat-reaction-pill.mine { border-color: var(--blue-accent); background: rgba(85,128,214,0.1); color: var(--blue-accent); font-weight: 700; }
+        .chat-reaction-pill-wrap { position: relative; }
+        .chat-reaction-tooltip {
+          position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 5px;
+          background: #1f2937; color: #fff; font-size: 11px; padding: 4px 9px; border-radius: 6px;
+          white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.15s; z-index: 60;
+        }
+        .chat-reaction-pill-wrap:hover .chat-reaction-tooltip { opacity: 1; }
+
+        .chat-reply-quote {
+          border-left: 3px solid var(--blue-accent); background: rgba(0,0,0,0.04); border-radius: 6px;
+          padding: 4px 8px; margin-bottom: 6px; cursor: pointer; max-width: 220px;
+        }
+        .chat-reply-quote.me { border-left-color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.15); }
+        .chat-reply-quote-sender { font-size: 11px; font-weight: 700; color: var(--blue-accent); }
+        .chat-reply-quote.me .chat-reply-quote-sender { color: #fff; }
+        .chat-reply-quote-text { font-size: 12px; color: var(--text-600); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .chat-reply-quote.me .chat-reply-quote-text { color: rgba(255,255,255,0.85); }
+
+        .chat-reply-preview-bar { display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-top: 1px solid var(--border); background: var(--bg); }
+        .chat-reply-preview-icon { font-size: 16px; color: var(--blue-accent); }
+        .chat-reply-preview-text { flex: 1; min-width: 0; }
+        .chat-reply-preview-sender { font-size: 11.5px; font-weight: 700; color: var(--blue-accent); }
+        .chat-reply-preview-content { font-size: 12px; color: var(--text-600); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        @keyframes chat-msg-flash { 0%,100% { background: transparent; } 30% { background: rgba(85,128,214,0.18); } }
+        .chat-msg-highlight { animation: chat-msg-flash 1.2s ease; border-radius: 10px; }
 
         .chat-sticker-block { display: flex; flex-direction: column; align-items: center; padding: 4px 2px; }
         .chat-sticker { font-size: 56px; line-height: 1; }
