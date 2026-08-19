@@ -19,10 +19,10 @@ export default function TheoDoiXknkPage() {
   }
 
   return (
-    <Layout crumb="Theo dõi Xuất Khác - Nhập Khác">
+    <Layout crumb="Theo dõi XK-NK">
       <div className="page-head">
-        <h1>Theo dõi Xuất Khác - Nhập Khác</h1>
-        <p>Theo dõi cân tồn và tình hình xuất sử dụng — dữ liệu cập nhật qua file Excel do admin upload.</p>
+        <h1>Theo dõi XK-NK</h1>
+        <p>Theo dõi cân tồn và tình hình xuất sử dụng (Xuất Khác - Nhập Khác) — dữ liệu cập nhật qua file Excel do admin upload.</p>
       </div>
 
       <div className="month-tabs">

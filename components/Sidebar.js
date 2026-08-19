@@ -11,7 +11,7 @@ const NAV_ITEMS = [
   { href: "/gui-mail-bcks", icon: "📧", label: "Gửi mail BCKS" },
   { href: "/theo-doi-kiem-ke", icon: "▦", label: "Theo dõi kiểm kê" },
   { href: "/theo-doi-chu-de", icon: "☰", label: "Theo dõi chủ đề" },
-  { href: "/theo-doi-xknk", icon: "📦", label: "Theo dõi Xuất Khác - Nhập Khác" },
+  { href: "/theo-doi-xknk", icon: "📦", label: "Theo dõi XK-NK" },
   { href: "/ghi-nhan-case", icon: "📝", label: "Ghi nhận case vi phạm" },
   { href: "/nhan-su", icon: "◈", label: "Giới thiệu nhân sự KSNB" },
   { href: "/hoat-dong", icon: "☺", label: "Hoạt động phòng ban" },
