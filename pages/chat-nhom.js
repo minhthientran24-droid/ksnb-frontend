@@ -24,6 +24,37 @@ const EMOJI_LIST = [
   "👍", "👎", "👏", "🙏", "💪", "🤝", "👋", "❤️", "🔥", "🎉",
 ];
 
+function normName(s) {
+  return String(s == null ? "" : s).toLowerCase().trim()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/đ/g, "d").replace(/\s+/g, " ");
+}
+
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Tô đậm các đoạn "@Tên thành viên" khớp đúng tên trong danh sách thành
+// viên nhóm hiện tại — so khớp NGUYÊN VĂN (không chuẩn hoá dấu) vì tin
+// nhắn được chèn sẵn đúng "@" + full_name lúc chọn từ danh sách gợi ý.
+function renderMessageContent(content, members) {
+  if (!content) return null;
+  const names = (members || []).map((m) => m.full_name).filter(Boolean).sort((a, b) => b.length - a.length);
+  if (names.length === 0) return content;
+  const re = new RegExp(`@(${names.map(escapeRegExp).join("|")})`, "g");
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+  while ((match = re.exec(content)) !== null) {
+    if (match.index > lastIndex) parts.push(content.slice(lastIndex, match.index));
+    parts.push(<span key={key++} className="chat-mention">{match[0]}</span>);
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < content.length) parts.push(content.slice(lastIndex));
+  return parts;
+}
+
 function fmtTime(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -115,6 +146,11 @@ export default function ChatNhomPage() {
   const [filePreviewUrl, setFilePreviewUrl] = useState(null); // preview ảnh TRƯỚC khi gửi
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
+  const [groupMembers, setGroupMembers] = useState([]); // thành viên nhóm đang xem — dùng cho gợi ý @tag
+  const [mentionQuery, setMentionQuery] = useState(null); // null = không đang gõ @tag
+  const [mentionStart, setMentionStart] = useState(0); // vị trí ký tự "@" trong text
+  const [mentionActiveIndex, setMentionActiveIndex] = useState(0);
+
   const wsRef = useRef(null);
   const listEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -172,15 +208,17 @@ export default function ChatNhomPage() {
     };
   }, []);
 
-  // ---------- Nạp lịch sử khi đổi nhóm ----------
+  // ---------- Nạp lịch sử + danh sách thành viên (để gợi ý @tag) khi đổi nhóm ----------
   useEffect(() => {
     if (!activeGroupId) return;
     setMessages([]);
     setHasMore(false);
+    setMentionQuery(null);
     listChatMessages(activeGroupId).then((rows) => {
       setMessages(rows);
       setHasMore(rows.length >= 50);
     }).catch((err) => setError(err.message));
+    getChatGroupMembers(activeGroupId).then(setGroupMembers).catch(() => setGroupMembers([]));
   }, [activeGroupId]);
 
   useEffect(() => {
@@ -230,7 +268,49 @@ export default function ChatNhomPage() {
     }
   }
 
+  // ---------- Gõ "@" -> gợi ý tag tên thành viên nhóm (kiểu Messenger/Slack) ----------
+  const mentionMatches = mentionQuery === null
+    ? []
+    : groupMembers.filter((m) => normName(m.full_name).includes(normName(mentionQuery))).slice(0, 8);
+
+  useEffect(() => { setMentionActiveIndex(0); }, [mentionQuery]);
+
+  function handleTextChange(e) {
+    const val = e.target.value;
+    const cursor = e.target.selectionStart;
+    setText(val);
+
+    const uptoCursor = val.slice(0, cursor);
+    const atIdx = uptoCursor.lastIndexOf("@");
+    if (atIdx === -1 || /\s/.test(uptoCursor.slice(atIdx + 1))) {
+      setMentionQuery(null);
+      return;
+    }
+    setMentionStart(atIdx);
+    setMentionQuery(uptoCursor.slice(atIdx + 1));
+  }
+
+  function selectMention(member) {
+    const before = text.slice(0, mentionStart);
+    const after = text.slice(mentionStart + 1 + (mentionQuery?.length || 0));
+    const inserted = `@${member.full_name} `;
+    const next = before + inserted + after;
+    setText(next);
+    setMentionQuery(null);
+    requestAnimationFrame(() => {
+      const pos = before.length + inserted.length;
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(pos, pos);
+    });
+  }
+
   function handleKeyDown(e) {
+    if (mentionQuery !== null && mentionMatches.length > 0) {
+      if (e.key === "ArrowDown") { e.preventDefault(); setMentionActiveIndex((i) => (i + 1) % mentionMatches.length); return; }
+      if (e.key === "ArrowUp") { e.preventDefault(); setMentionActiveIndex((i) => (i - 1 + mentionMatches.length) % mentionMatches.length); return; }
+      if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); selectMention(mentionMatches[mentionActiveIndex] || mentionMatches[0]); return; }
+      if (e.key === "Escape") { setMentionQuery(null); return; }
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -369,7 +449,7 @@ export default function ChatNhomPage() {
                     <div key={m.id} className={`chat-msg-row ${isMe ? "me" : ""}`}>
                       {!isMe && <div className="chat-msg-sender">{m.sender_name}</div>}
                       <div className={`chat-bubble ${isMe ? "me" : ""}`}>
-                        {m.content && <div className="chat-bubble-text">{m.content}</div>}
+                        {m.content && <div className="chat-bubble-text">{renderMessageContent(m.content, groupMembers)}</div>}
                         {m.has_file && isImageFile(m.file_name) ? (
                           imageUrls[m.id] ? (
                             <img
@@ -424,15 +504,31 @@ export default function ChatNhomPage() {
                   )}
                 </div>
 
-                <textarea
-                  ref={textareaRef}
-                  className="chat-textarea"
-                  rows={1}
-                  placeholder="Nhập tin nhắn..."
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                />
+                <div className="chat-mention-wrap">
+                  {mentionQuery !== null && mentionMatches.length > 0 && (
+                    <div className="chat-mention-picker" onMouseDown={(e) => e.preventDefault()}>
+                      {mentionMatches.map((m, i) => (
+                        <button
+                          key={m.id}
+                          className={`chat-mention-item ${i === mentionActiveIndex ? "active" : ""}`}
+                          onClick={() => selectMention(m)}
+                        >
+                          <span className="chat-mention-avatar">{((m.full_name || "?").trim().split(" ").pop() || "?")[0].toUpperCase()}</span>
+                          {m.full_name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <textarea
+                    ref={textareaRef}
+                    className="chat-textarea"
+                    rows={1}
+                    placeholder="Nhập tin nhắn... (gõ @ để tag thành viên)"
+                    value={text}
+                    onChange={handleTextChange}
+                    onKeyDown={handleKeyDown}
+                  />
+                </div>
                 <button className="login-btn" style={{ width: "auto", padding: "9px 20px", margin: 0 }} disabled={sending} onClick={handleSend}>
                   Gửi
                 </button>
@@ -485,6 +581,8 @@ export default function ChatNhomPage() {
         .chat-bubble { background: var(--bg); border-radius: 14px; padding: 9px 13px; }
         .chat-bubble.me { background: var(--blue-accent); color: #fff; }
         .chat-bubble-text { font-size: 13.5px; white-space: pre-wrap; word-break: break-word; }
+        .chat-mention { font-weight: 700; color: var(--blue-accent); background: rgba(85,128,214,0.12); border-radius: 4px; padding: 0 3px; }
+        .chat-bubble.me .chat-mention { color: #fff; background: rgba(255,255,255,0.22); }
         .chat-bubble-time { font-size: 10px; opacity: 0.7; margin-top: 4px; text-align: right; }
         .chat-file-chip { display: block; margin-top: 6px; background: rgba(255,255,255,0.5); border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; cursor: pointer; text-align: left; }
         .chat-bubble.me .chat-file-chip { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.3); color: #fff; }
@@ -509,6 +607,22 @@ export default function ChatNhomPage() {
         }
         .chat-emoji-btn { background: none; border: none; font-size: 19px; padding: 5px; border-radius: 6px; cursor: pointer; line-height: 1; }
         .chat-emoji-btn:hover { background: var(--bg); }
+
+        .chat-mention-wrap { position: relative; flex: 1; }
+        .chat-mention-picker {
+          position: absolute; bottom: 100%; left: 0; margin-bottom: 6px; z-index: 200;
+          background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+          box-shadow: 0 12px 30px rgba(10,25,55,0.18); padding: 6px; width: 240px; max-height: 220px; overflow-y: auto;
+        }
+        .chat-mention-item {
+          display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+          background: none; border: none; padding: 7px 8px; border-radius: 7px; cursor: pointer; font-size: 13px; color: var(--text-900);
+        }
+        .chat-mention-item:hover, .chat-mention-item.active { background: var(--bg); }
+        .chat-mention-avatar {
+          width: 22px; height: 22px; border-radius: 50%; background: var(--navy-800); color: #fff;
+          display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0;
+        }
 
         .chat-lightbox-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: flex; align-items: center; justify-content: center; z-index: 300; padding: 30px; }
         .chat-lightbox-img { max-width: 90vw; max-height: 90vh; border-radius: 6px; }
