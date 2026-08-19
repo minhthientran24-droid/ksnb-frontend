@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
-import { listUsers, createUserAccount, updateUserAccount, deleteUserAccount, getUser } from "../lib/api";
+import { listUsers, createUserAccount, updateUserAccount, deleteUserAccount, exportUsersExcel, getUser } from "../lib/api";
 
 const emptyForm = { email: "", full_name: "", position: "", password: "", role: "viewer", xlkk_app_access: false, kiem_ke_permission: false, khu_vuc: "" };
 const ADMIN_ROLES = ["admin", "super_admin"];
@@ -39,6 +39,7 @@ export default function QuanLyTaiKhoanPage() {
   const [editForm, setEditForm] = useState({ full_name: "", password: "" });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     const user = getUser();
@@ -164,6 +165,17 @@ export default function QuanLyTaiKhoanPage() {
     }
   }
 
+  async function handleExportExcel() {
+    setExporting(true);
+    try {
+      await exportUsersExcel();
+    } catch (err) {
+      alert(err.message || "Xuất file thất bại");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   async function handleDelete(id) {
     if (!confirm("Xóa tài khoản này? Người dùng sẽ không đăng nhập được nữa.")) return;
     try {
@@ -187,9 +199,12 @@ export default function QuanLyTaiKhoanPage() {
       </div>
 
       <div className="card">
-        <div className="card-body" style={{ padding: "16px 20px" }}>
+        <div className="card-body" style={{ padding: "16px 20px", display: "flex", gap: 10 }}>
           <button className="login-btn" style={{ width: "auto", padding: "10px 24px" }} onClick={() => setShowForm(!showForm)}>
             + Tạo tài khoản mới
+          </button>
+          <button className="upload-btn" style={{ width: "auto", padding: "10px 24px" }} onClick={handleExportExcel} disabled={exporting}>
+            {exporting ? "Đang xuất..." : "📥 Xuất file Excel"}
           </button>
         </div>
       </div>
