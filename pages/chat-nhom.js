@@ -725,11 +725,11 @@ export default function ChatNhomPage() {
               )}
 
               <div className="chat-input-bar">
-                <button className="chat-icon-btn" title="Đính kèm file/ảnh" onClick={() => fileInputRef.current?.click()}>📎</button>
+                <button className="chat-toolbar-btn" title="Đính kèm file/ảnh" onClick={() => fileInputRef.current?.click()}>📎</button>
                 <input ref={fileInputRef} type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar" style={{ display: "none" }} onChange={handlePickFile} />
 
                 <div className="chat-emoji-wrap">
-                  <button className="chat-icon-btn" title="Gửi emoji" onClick={() => setShowEmojiPicker((v) => !v)}>😊</button>
+                  <button className="chat-toolbar-btn" title="Gửi emoji" onClick={() => setShowEmojiPicker((v) => !v)}>😊</button>
                   {showEmojiPicker && (
                     <>
                       <div className="chat-emoji-backdrop" onClick={() => setShowEmojiPicker(false)} />
@@ -743,7 +743,7 @@ export default function ChatNhomPage() {
                 </div>
 
                 <div className="chat-emoji-wrap">
-                  <button className="chat-icon-btn" title="Gửi sticker meme" disabled={sendingSticker} onClick={() => setShowStickerPicker((v) => !v)}>🎭</button>
+                  <button className="chat-toolbar-btn" title="Gửi sticker meme" disabled={sendingSticker} onClick={() => setShowStickerPicker((v) => !v)}>🎭</button>
                   {showStickerPicker && (
                     <>
                       <div className="chat-emoji-backdrop" onClick={() => setShowStickerPicker(false)} />
@@ -923,7 +923,7 @@ export default function ChatNhomPage() {
         .anim-tada { display: inline-block; animation: chat-anim-tada 1.4s ease-in-out infinite; }
 
         .chat-sticker-picker {
-          position: absolute; bottom: 44px; left: 0; z-index: 200;
+          position: absolute; bottom: 48px; left: 0; z-index: 200;
           background: var(--card); border: 1px solid var(--border); border-radius: 10px;
           box-shadow: 0 12px 30px rgba(10,25,55,0.18); padding: 8px;
           display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; width: 260px; max-height: 280px; overflow-y: auto;
@@ -939,6 +939,15 @@ export default function ChatNhomPage() {
         .chat-input-bar { display: flex; align-items: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); }
         .chat-textarea { flex: 1; resize: none; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: 13.5px; font-family: inherit; max-height: 100px; }
 
+        .chat-toolbar-btn {
+          width: 40px; height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+          font-size: 21px; line-height: 1; background: var(--card); border: 1.5px solid var(--border); border-radius: 10px;
+          cursor: pointer; transition: border-color 0.15s, background 0.15s, transform 0.1s;
+        }
+        .chat-toolbar-btn:hover { border-color: var(--blue-accent); background: var(--bg); }
+        .chat-toolbar-btn:active { transform: scale(0.94); }
+        .chat-toolbar-btn:disabled { opacity: 0.5; cursor: default; }
+
         .chat-file-preview-bar { display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-top: 1px solid var(--border); background: var(--bg); }
         .chat-file-preview-thumb { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; }
         .chat-file-preview-icon { font-size: 20px; }
@@ -947,7 +956,7 @@ export default function ChatNhomPage() {
         .chat-emoji-wrap { position: relative; }
         .chat-emoji-backdrop { position: fixed; inset: 0; z-index: 199; }
         .chat-emoji-picker {
-          position: absolute; bottom: 44px; left: 0; z-index: 200;
+          position: absolute; bottom: 48px; left: 0; z-index: 200;
           background: var(--card); border: 1px solid var(--border); border-radius: 10px;
           box-shadow: 0 12px 30px rgba(10,25,55,0.18); padding: 8px;
           display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; width: 232px;
