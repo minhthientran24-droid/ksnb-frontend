@@ -3,10 +3,26 @@ import Layout from "../components/Layout";
 import {
   listChatGroups, listChatMessages, sendChatMessage, getChatWsUrl,
   createChatGroup, updateChatGroup, deleteChatGroup, getChatGroupMembers,
-  downloadChatMessageFile, listUsers, getUser,
+  downloadChatMessageFile, fetchChatMessageImageUrl, listUsers, getUser,
 } from "../lib/api";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
+
+const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|bmp|svg)$/i;
+function isImageFile(filename) {
+  return !!filename && IMAGE_EXT_RE.test(filename);
+}
+
+// Bộ icon mặt cười thường dùng — tự chọn tay, không lấy thư viện ngoài để
+// không thêm dependency mới cho 1 tính năng nhỏ.
+const EMOJI_LIST = [
+  "😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂", "🙂", "🙃",
+  "😉", "😊", "😇", "🥰", "😍", "😘", "😋", "😛", "😜", "🤪",
+  "🤨", "🧐", "😎", "🥳", "😏", "😒", "😞", "😔", "😢", "😭",
+  "😤", "😠", "😡", "🤯", "😳", "🥵", "🥶", "😱", "😨", "🥺",
+  "🤔", "🤭", "🤫", "😴", "🤤", "😷", "🤒", "🤕", "🤗", "🙄",
+  "👍", "👎", "👏", "🙏", "💪", "🤝", "👋", "❤️", "🔥", "🎉",
+];
 
 function fmtTime(iso) {
   if (!iso) return "";
@@ -94,9 +110,15 @@ export default function ChatNhomPage() {
   const [editingGroup, setEditingGroup] = useState(null); // group đang sửa (null = tạo mới)
   const [allUsers, setAllUsers] = useState([]);
 
+  const [imageUrls, setImageUrls] = useState({}); // messageId -> blob URL (ảnh đã tải để xem trực tiếp)
+  const [lightboxUrl, setLightboxUrl] = useState(null);
+  const [filePreviewUrl, setFilePreviewUrl] = useState(null); // preview ảnh TRƯỚC khi gửi
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
   const wsRef = useRef(null);
   const listEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const textareaRef = useRef(null);
   const activeGroupIdRef = useRef(null);
   activeGroupIdRef.current = activeGroupId;
 
@@ -165,6 +187,27 @@ export default function ChatNhomPage() {
     listEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
 
+  // ---------- Tự tải ảnh (kèm token) cho các tin nhắn có file ảnh để hiện
+  // trực tiếp trong khung chat, thay vì chỉ hiện link tải về ----------
+  useEffect(() => {
+    messages.forEach((m) => {
+      if (m.has_file && isImageFile(m.file_name) && !imageUrls[m.id]) {
+        fetchChatMessageImageUrl(m.id)
+          .then((url) => setImageUrls((prev) => (prev[m.id] ? prev : { ...prev, [m.id]: url })))
+          .catch(() => {});
+      }
+    });
+  }, [messages]);
+
+  // Giải phóng bộ nhớ blob URL khi rời trang
+  useEffect(() => {
+    return () => {
+      Object.values(imageUrls).forEach((url) => URL.revokeObjectURL(url));
+      if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function loadOlder() {
     if (!messages.length) return;
     const rows = await listChatMessages(activeGroupId, messages[0].id);
@@ -179,8 +222,7 @@ export default function ChatNhomPage() {
     try {
       await sendChatMessage(activeGroupId, { content: text, file });
       setText("");
-      setFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      clearFileSelection();
     } catch (err) {
       setError(err.message || "Gửi tin nhắn thất bại");
     } finally {
@@ -193,6 +235,37 @@ export default function ChatNhomPage() {
       e.preventDefault();
       handleSend();
     }
+  }
+
+  function handlePickFile(e) {
+    const f = e.target.files?.[0] || null;
+    if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
+    setFile(f);
+    setFilePreviewUrl(f && isImageFile(f.name) ? URL.createObjectURL(f) : null);
+  }
+
+  function clearFileSelection() {
+    if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
+    setFile(null);
+    setFilePreviewUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  // Chèn emoji vào đúng vị trí con trỏ trong khung nhập, không phải luôn
+  // luôn nối vào cuối — trải nghiệm giống ứng dụng chat thật.
+  function insertEmoji(emoji) {
+    const ta = textareaRef.current;
+    if (!ta) { setText((t) => t + emoji); return; }
+    const start = ta.selectionStart ?? text.length;
+    const end = ta.selectionEnd ?? text.length;
+    const next = text.slice(0, start) + emoji + text.slice(end);
+    setText(next);
+    setShowEmojiPicker(false);
+    requestAnimationFrame(() => {
+      ta.focus();
+      const pos = start + emoji.length;
+      ta.setSelectionRange(pos, pos);
+    });
   }
 
   function openCreateGroup() {
@@ -297,11 +370,22 @@ export default function ChatNhomPage() {
                       {!isMe && <div className="chat-msg-sender">{m.sender_name}</div>}
                       <div className={`chat-bubble ${isMe ? "me" : ""}`}>
                         {m.content && <div className="chat-bubble-text">{m.content}</div>}
-                        {m.has_file && (
+                        {m.has_file && isImageFile(m.file_name) ? (
+                          imageUrls[m.id] ? (
+                            <img
+                              src={imageUrls[m.id]}
+                              alt={m.file_name || "Ảnh"}
+                              className="chat-image"
+                              onClick={() => setLightboxUrl(imageUrls[m.id])}
+                            />
+                          ) : (
+                            <div className="chat-image-loading">Đang tải ảnh...</div>
+                          )
+                        ) : m.has_file ? (
                           <button className="chat-file-chip" onClick={() => downloadChatMessageFile(m.id, m.file_name)}>
                             📎 {m.file_name || "Tệp đính kèm"}
                           </button>
-                        )}
+                        ) : null}
                         <div className="chat-bubble-time">{fmtTime(m.created_at)}</div>
                       </div>
                     </div>
@@ -310,13 +394,41 @@ export default function ChatNhomPage() {
                 <div ref={listEndRef} />
               </div>
 
+              {file && (
+                <div className="chat-file-preview-bar">
+                  {filePreviewUrl ? (
+                    <img src={filePreviewUrl} alt={file.name} className="chat-file-preview-thumb" />
+                  ) : (
+                    <span className="chat-file-preview-icon">📎</span>
+                  )}
+                  <span className="chat-file-preview-name">{file.name}</span>
+                  <button className="chat-icon-btn" title="Bỏ đính kèm" onClick={clearFileSelection}>✕</button>
+                </div>
+              )}
+
               <div className="chat-input-bar">
-                <button className="chat-icon-btn" title="Đính kèm file" onClick={() => fileInputRef.current?.click()}>📎</button>
-                <input ref={fileInputRef} type="file" style={{ display: "none" }} onChange={(e) => setFile(e.target.files?.[0] || null)} />
+                <button className="chat-icon-btn" title="Đính kèm file/ảnh" onClick={() => fileInputRef.current?.click()}>📎</button>
+                <input ref={fileInputRef} type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar" style={{ display: "none" }} onChange={handlePickFile} />
+
+                <div className="chat-emoji-wrap">
+                  <button className="chat-icon-btn" title="Gửi emoji" onClick={() => setShowEmojiPicker((v) => !v)}>😊</button>
+                  {showEmojiPicker && (
+                    <>
+                      <div className="chat-emoji-backdrop" onClick={() => setShowEmojiPicker(false)} />
+                      <div className="chat-emoji-picker">
+                        {EMOJI_LIST.map((e) => (
+                          <button key={e} className="chat-emoji-btn" onClick={() => insertEmoji(e)}>{e}</button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
                 <textarea
+                  ref={textareaRef}
                   className="chat-textarea"
                   rows={1}
-                  placeholder={file ? `Đính kèm: ${file.name}` : "Nhập tin nhắn..."}
+                  placeholder="Nhập tin nhắn..."
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   onKeyDown={handleKeyDown}
@@ -339,6 +451,13 @@ export default function ChatNhomPage() {
           onClose={() => setShowGroupForm(false)}
           onSave={handleSaveGroup}
         />
+      )}
+
+      {lightboxUrl && (
+        <div className="chat-lightbox-overlay" onClick={() => setLightboxUrl(null)}>
+          <img src={lightboxUrl} alt="Xem ảnh" className="chat-lightbox-img" />
+          <button className="chat-lightbox-close" onClick={() => setLightboxUrl(null)}>✕</button>
+        </div>
       )}
 
       <style jsx global>{`
@@ -369,9 +488,31 @@ export default function ChatNhomPage() {
         .chat-bubble-time { font-size: 10px; opacity: 0.7; margin-top: 4px; text-align: right; }
         .chat-file-chip { display: block; margin-top: 6px; background: rgba(255,255,255,0.5); border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; cursor: pointer; text-align: left; }
         .chat-bubble.me .chat-file-chip { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.3); color: #fff; }
+        .chat-image { display: block; max-width: 240px; max-height: 240px; border-radius: 10px; margin-top: 4px; cursor: pointer; object-fit: cover; }
+        .chat-image-loading { font-size: 12px; color: var(--text-400); margin-top: 4px; }
 
         .chat-input-bar { display: flex; align-items: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); }
         .chat-textarea { flex: 1; resize: none; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: 13.5px; font-family: inherit; max-height: 100px; }
+
+        .chat-file-preview-bar { display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-top: 1px solid var(--border); background: var(--bg); }
+        .chat-file-preview-thumb { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; }
+        .chat-file-preview-icon { font-size: 20px; }
+        .chat-file-preview-name { flex: 1; font-size: 12.5px; color: var(--text-600); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .chat-emoji-wrap { position: relative; }
+        .chat-emoji-backdrop { position: fixed; inset: 0; z-index: 199; }
+        .chat-emoji-picker {
+          position: absolute; bottom: 44px; left: 0; z-index: 200;
+          background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+          box-shadow: 0 12px 30px rgba(10,25,55,0.18); padding: 8px;
+          display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; width: 232px;
+        }
+        .chat-emoji-btn { background: none; border: none; font-size: 19px; padding: 5px; border-radius: 6px; cursor: pointer; line-height: 1; }
+        .chat-emoji-btn:hover { background: var(--bg); }
+
+        .chat-lightbox-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: flex; align-items: center; justify-content: center; z-index: 300; padding: 30px; }
+        .chat-lightbox-img { max-width: 90vw; max-height: 90vh; border-radius: 6px; }
+        .chat-lightbox-close { position: absolute; top: 20px; right: 28px; background: rgba(255,255,255,0.15); border: none; color: #fff; font-size: 18px; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; }
 
         .chat-modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
         .chat-modal-card { background: var(--card); border-radius: var(--radius); width: 100%; max-width: 460px; max-height: 85vh; overflow-y: auto; }
