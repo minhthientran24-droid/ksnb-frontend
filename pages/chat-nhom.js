@@ -38,6 +38,37 @@ const EMOJI_LIST = [
   "👍", "👎", "👏", "🙏", "💪", "🤝", "👋", "❤️", "🔥", "🎉",
 ];
 
+// Sticker "meme" hoạt hình — tự dựng bằng emoji Unicode + CSS animation
+// (KHÔNG dùng ảnh/GIF meme thật lấy từ phim/gameshow vì dính bản quyền),
+// đặt tên/caption theo trend mạng xã hội VN cho vui. Gửi là 1 tin nhắn
+// riêng (content = "[[sticker:id]]"), không trộn với chữ thường.
+const STICKERS = [
+  { id: "fire", emoji: "🔥", label: "Cháy quá", anim: "pulse" },
+  { id: "lol", emoji: "😂", label: "Cười lăn", anim: "wiggle" },
+  { id: "auto-dung", emoji: "👍", label: "Auto đúng", anim: "bounce" },
+  { id: "chuan100", emoji: "💯", label: "Chuẩn 100", anim: "tada" },
+  { id: "vo-tay", emoji: "🙌", label: "Vỗ tay", anim: "shake" },
+  { id: "het-hon", emoji: "😱", label: "Hết hồn", anim: "shake" },
+  { id: "xin-xo", emoji: "🎉", label: "Xịn xò", anim: "tada" },
+  { id: "hong", emoji: "👀", label: "Hóng", anim: "wiggle" },
+  { id: "no-nao", emoji: "🤯", label: "Nổ não", anim: "pulse" },
+  { id: "chet-cuoi", emoji: "💀", label: "Chết cười", anim: "shake" },
+  { id: "bay-len", emoji: "🚀", label: "Bay lên", anim: "bounce" },
+  { id: "cam-ket", emoji: "🫡", label: "Cam kết", anim: "bounce" },
+];
+const STICKER_MAP = Object.fromEntries(STICKERS.map((s) => [s.id, s]));
+const STICKER_RE = /^\[\[sticker:([\w-]+)\]\]$/;
+
+// Preview ở sidebar không được hiện chuỗi thô "[[sticker:...]]" — đổi
+// thành "emoji + tên" cho dễ hiểu.
+function friendlyPreview(content) {
+  if (!content) return content;
+  const m = content.match(STICKER_RE);
+  if (!m) return content;
+  const s = STICKER_MAP[m[1]];
+  return s ? `${s.emoji} ${s.label}` : content;
+}
+
 function normName(s) {
   return String(s == null ? "" : s).toLowerCase().trim()
     .normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -159,6 +190,8 @@ export default function ChatNhomPage() {
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [filePreviewUrl, setFilePreviewUrl] = useState(null); // preview ảnh TRƯỚC khi gửi
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showStickerPicker, setShowStickerPicker] = useState(false);
+  const [sendingSticker, setSendingSticker] = useState(false);
 
   const [groupMembers, setGroupMembers] = useState([]); // thành viên nhóm đang xem — dùng cho gợi ý @tag
   const [mentionQuery, setMentionQuery] = useState(null); // null = không đang gõ @tag
@@ -217,7 +250,7 @@ export default function ChatNhomPage() {
         setGroups((prev) => {
           const idx = prev.findIndex((g) => g.id === payload.group_id);
           if (idx === -1) return prev;
-          const updated = { ...prev[idx], last_message_preview: payload.message.content || (payload.message.file_name ? `📎 ${payload.message.file_name}` : "Tệp đính kèm"), last_message_at: payload.message.created_at };
+          const updated = { ...prev[idx], last_message_preview: friendlyPreview(payload.message.content) || (payload.message.file_name ? `📎 ${payload.message.file_name}` : "Tệp đính kèm"), last_message_at: payload.message.created_at };
           const rest = prev.filter((g) => g.id !== payload.group_id);
           return [updated, ...rest];
         });
@@ -275,6 +308,18 @@ export default function ChatNhomPage() {
     const rows = await listChatMessages(activeGroupId, messages[0].id);
     setMessages((prev) => [...rows, ...prev]);
     setHasMore(rows.length >= 50);
+  }
+
+  async function handleSendSticker(sticker) {
+    setShowStickerPicker(false);
+    setSendingSticker(true);
+    try {
+      await sendChatMessage(activeGroupId, { content: `[[sticker:${sticker.id}]]`, file: null });
+    } catch (err) {
+      setError(err.message || "Gửi sticker thất bại");
+    } finally {
+      setSendingSticker(false);
+    }
   }
 
   async function handleSend() {
@@ -446,7 +491,7 @@ export default function ChatNhomPage() {
                 <div className="chat-group-avatar">{g.is_default ? "🌐" : "#"}</div>
                 <div className="chat-group-info">
                   <div className="chat-group-name">{g.name}</div>
-                  <div className="chat-group-preview">{g.last_message_preview || "Chưa có tin nhắn"}</div>
+                  <div className="chat-group-preview">{friendlyPreview(g.last_message_preview) || "Chưa có tin nhắn"}</div>
                 </div>
                 {isAdmin && !g.is_default && (
                   <div className="chat-group-actions">
@@ -481,30 +526,39 @@ export default function ChatNhomPage() {
                   const isMe = m.sender_id === me?.id;
                   const { counts: reactionCounts, mine: myReaction } = summarizeReactions(m.reactions, me?.id);
                   const hasReactions = Object.keys(reactionCounts).length > 0;
+                  const stickerMatch = m.content ? m.content.match(STICKER_RE) : null;
+                  const sticker = stickerMatch ? STICKER_MAP[stickerMatch[1]] : null;
                   return (
                     <div key={m.id} className={`chat-msg-row ${isMe ? "me" : ""}`}>
                       {!isMe && <div className="chat-msg-sender">{m.sender_name}</div>}
                       <div className="chat-bubble-wrap">
-                        <div className={`chat-bubble ${isMe ? "me" : ""}`}>
-                          {m.content && <div className="chat-bubble-text">{renderMessageContent(m.content, groupMembers)}</div>}
-                          {m.has_file && isImageFile(m.file_name) ? (
-                            imageUrls[m.id] ? (
-                              <img
-                                src={imageUrls[m.id]}
-                                alt={m.file_name || "Ảnh"}
-                                className="chat-image"
-                                onClick={() => setLightboxUrl(imageUrls[m.id])}
-                              />
-                            ) : (
-                              <div className="chat-image-loading">Đang tải ảnh...</div>
-                            )
-                          ) : m.has_file ? (
-                            <button className="chat-file-chip" onClick={() => downloadChatMessageFile(m.id, m.file_name)}>
-                              📎 {m.file_name || "Tệp đính kèm"}
-                            </button>
-                          ) : null}
-                          <div className="chat-bubble-time">{fmtTime(m.created_at)}</div>
-                        </div>
+                        {sticker ? (
+                          <div className="chat-sticker-block">
+                            <div className={`chat-sticker anim-${sticker.anim}`} title={sticker.label}>{sticker.emoji}</div>
+                            <div className="chat-sticker-label">{sticker.label} · {fmtTime(m.created_at)}</div>
+                          </div>
+                        ) : (
+                          <div className={`chat-bubble ${isMe ? "me" : ""}`}>
+                            {m.content && <div className="chat-bubble-text">{renderMessageContent(m.content, groupMembers)}</div>}
+                            {m.has_file && isImageFile(m.file_name) ? (
+                              imageUrls[m.id] ? (
+                                <img
+                                  src={imageUrls[m.id]}
+                                  alt={m.file_name || "Ảnh"}
+                                  className="chat-image"
+                                  onClick={() => setLightboxUrl(imageUrls[m.id])}
+                                />
+                              ) : (
+                                <div className="chat-image-loading">Đang tải ảnh...</div>
+                              )
+                            ) : m.has_file ? (
+                              <button className="chat-file-chip" onClick={() => downloadChatMessageFile(m.id, m.file_name)}>
+                                📎 {m.file_name || "Tệp đính kèm"}
+                              </button>
+                            ) : null}
+                            <div className="chat-bubble-time">{fmtTime(m.created_at)}</div>
+                          </div>
+                        )}
 
                         <div className="chat-react-wrap">
                           <button className="chat-react-trigger" title="Thả cảm xúc" onClick={() => setReactPickerFor(reactPickerFor === m.id ? null : m.id)}>😊</button>
@@ -564,6 +618,23 @@ export default function ChatNhomPage() {
                       <div className="chat-emoji-picker">
                         {EMOJI_LIST.map((e) => (
                           <button key={e} className="chat-emoji-btn" onClick={() => insertEmoji(e)}>{e}</button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div className="chat-emoji-wrap">
+                  <button className="chat-icon-btn" title="Gửi sticker meme" disabled={sendingSticker} onClick={() => setShowStickerPicker((v) => !v)}>🎭</button>
+                  {showStickerPicker && (
+                    <>
+                      <div className="chat-emoji-backdrop" onClick={() => setShowStickerPicker(false)} />
+                      <div className="chat-sticker-picker">
+                        {STICKERS.map((s) => (
+                          <button key={s.id} className="chat-sticker-picker-item" onClick={() => handleSendSticker(s)}>
+                            <span className={`chat-sticker-preview anim-${s.anim}`}>{s.emoji}</span>
+                            <span className="chat-sticker-picker-label">{s.label}</span>
+                          </button>
                         ))}
                       </div>
                     </>
@@ -682,6 +753,35 @@ export default function ChatNhomPage() {
         }
         .chat-reaction-pill:hover { background: var(--bg); }
         .chat-reaction-pill.mine { border-color: var(--blue-accent); background: rgba(85,128,214,0.1); color: var(--blue-accent); font-weight: 700; }
+
+        .chat-sticker-block { display: flex; flex-direction: column; align-items: center; padding: 4px 2px; }
+        .chat-sticker { font-size: 56px; line-height: 1; }
+        .chat-sticker-label { font-size: 10.5px; color: var(--text-400); margin-top: 2px; }
+
+        @keyframes chat-anim-bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        @keyframes chat-anim-wiggle { 0%,100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
+        @keyframes chat-anim-shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        @keyframes chat-anim-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+        @keyframes chat-anim-tada { 0%,100% { transform: scale(1) rotate(0); } 20% { transform: scale(1.08) rotate(-4deg); } 40% { transform: scale(1.08) rotate(4deg); } 60% { transform: scale(1.12) rotate(-3deg); } 80% { transform: scale(1.12) rotate(3deg); } }
+        .anim-bounce { display: inline-block; animation: chat-anim-bounce 0.9s ease-in-out infinite; }
+        .anim-wiggle { display: inline-block; animation: chat-anim-wiggle 0.7s ease-in-out infinite; }
+        .anim-shake { display: inline-block; animation: chat-anim-shake 0.5s ease-in-out infinite; }
+        .anim-pulse { display: inline-block; animation: chat-anim-pulse 1s ease-in-out infinite; }
+        .anim-tada { display: inline-block; animation: chat-anim-tada 1.4s ease-in-out infinite; }
+
+        .chat-sticker-picker {
+          position: absolute; bottom: 44px; left: 0; z-index: 200;
+          background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+          box-shadow: 0 12px 30px rgba(10,25,55,0.18); padding: 8px;
+          display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; width: 260px; max-height: 280px; overflow-y: auto;
+        }
+        .chat-sticker-picker-item {
+          display: flex; flex-direction: column; align-items: center; gap: 2px;
+          background: none; border: none; padding: 8px 4px; border-radius: 8px; cursor: pointer;
+        }
+        .chat-sticker-picker-item:hover { background: var(--bg); }
+        .chat-sticker-preview { font-size: 28px; line-height: 1; }
+        .chat-sticker-picker-label { font-size: 10px; color: var(--text-600); text-align: center; }
 
         .chat-input-bar { display: flex; align-items: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); }
         .chat-textarea { flex: 1; resize: none; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: 13.5px; font-family: inherit; max-height: 100px; }
