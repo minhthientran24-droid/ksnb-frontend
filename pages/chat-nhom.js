@@ -3,7 +3,7 @@ import Layout from "../components/Layout";
 import {
   listChatGroups, listChatMessages, sendChatMessage, getChatWsUrl,
   createChatGroup, updateChatGroup, deleteChatGroup, getChatGroupMembers,
-  downloadChatMessageFile, fetchChatMessageImageUrl, listUsers, getUser,
+  downloadChatMessageFile, fetchChatMessageImageUrl, reactToChatMessage, listUsers, getUser,
 } from "../lib/api";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
@@ -11,6 +11,20 @@ const ADMIN_ROLES = ["admin", "super_admin"];
 const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|bmp|svg)$/i;
 function isImageFile(filename) {
   return !!filename && IMAGE_EXT_RE.test(filename);
+}
+
+// Bộ cảm xúc thả vào tin nhắn — cố định giống Messenger (khác EMOJI_LIST
+// dùng để GÕ vào nội dung tin nhắn, đây là REACT vào 1 tin nhắn có sẵn).
+const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
+
+function summarizeReactions(reactions, myId) {
+  const counts = {};
+  let mine = null;
+  (reactions || []).forEach((r) => {
+    counts[r.emoji] = (counts[r.emoji] || 0) + 1;
+    if (r.user_id === myId) mine = r.emoji;
+  });
+  return { counts, mine };
 }
 
 // Bộ icon mặt cười thường dùng — tự chọn tay, không lấy thư viện ngoài để
@@ -151,6 +165,8 @@ export default function ChatNhomPage() {
   const [mentionStart, setMentionStart] = useState(0); // vị trí ký tự "@" trong text
   const [mentionActiveIndex, setMentionActiveIndex] = useState(0);
 
+  const [reactPickerFor, setReactPickerFor] = useState(null); // id tin nhắn đang mở bảng chọn cảm xúc
+
   const wsRef = useRef(null);
   const listEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -185,6 +201,14 @@ export default function ChatNhomPage() {
       ws.onmessage = (evt) => {
         let payload;
         try { payload = JSON.parse(evt.data); } catch { return; }
+
+        if (payload.type === "reaction") {
+          if (payload.group_id === activeGroupIdRef.current) {
+            setMessages((prev) => prev.map((m) => (m.id === payload.message_id ? { ...m, reactions: payload.reactions } : m)));
+          }
+          return;
+        }
+
         if (payload.type !== "message") return;
         if (payload.group_id === activeGroupIdRef.current) {
           setMessages((prev) => [...prev, payload.message]);
@@ -317,6 +341,16 @@ export default function ChatNhomPage() {
     }
   }
 
+  async function handleReact(messageId, emoji) {
+    setReactPickerFor(null);
+    try {
+      const { reactions } = await reactToChatMessage(messageId, emoji);
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, reactions } : m)));
+    } catch (err) {
+      alert(err.message || "Thả cảm xúc thất bại");
+    }
+  }
+
   function handlePickFile(e) {
     const f = e.target.files?.[0] || null;
     if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
@@ -445,29 +479,61 @@ export default function ChatNhomPage() {
                 )}
                 {messages.map((m) => {
                   const isMe = m.sender_id === me?.id;
+                  const { counts: reactionCounts, mine: myReaction } = summarizeReactions(m.reactions, me?.id);
+                  const hasReactions = Object.keys(reactionCounts).length > 0;
                   return (
                     <div key={m.id} className={`chat-msg-row ${isMe ? "me" : ""}`}>
                       {!isMe && <div className="chat-msg-sender">{m.sender_name}</div>}
-                      <div className={`chat-bubble ${isMe ? "me" : ""}`}>
-                        {m.content && <div className="chat-bubble-text">{renderMessageContent(m.content, groupMembers)}</div>}
-                        {m.has_file && isImageFile(m.file_name) ? (
-                          imageUrls[m.id] ? (
-                            <img
-                              src={imageUrls[m.id]}
-                              alt={m.file_name || "Ảnh"}
-                              className="chat-image"
-                              onClick={() => setLightboxUrl(imageUrls[m.id])}
-                            />
-                          ) : (
-                            <div className="chat-image-loading">Đang tải ảnh...</div>
-                          )
-                        ) : m.has_file ? (
-                          <button className="chat-file-chip" onClick={() => downloadChatMessageFile(m.id, m.file_name)}>
-                            📎 {m.file_name || "Tệp đính kèm"}
-                          </button>
-                        ) : null}
-                        <div className="chat-bubble-time">{fmtTime(m.created_at)}</div>
+                      <div className="chat-bubble-wrap">
+                        <div className={`chat-bubble ${isMe ? "me" : ""}`}>
+                          {m.content && <div className="chat-bubble-text">{renderMessageContent(m.content, groupMembers)}</div>}
+                          {m.has_file && isImageFile(m.file_name) ? (
+                            imageUrls[m.id] ? (
+                              <img
+                                src={imageUrls[m.id]}
+                                alt={m.file_name || "Ảnh"}
+                                className="chat-image"
+                                onClick={() => setLightboxUrl(imageUrls[m.id])}
+                              />
+                            ) : (
+                              <div className="chat-image-loading">Đang tải ảnh...</div>
+                            )
+                          ) : m.has_file ? (
+                            <button className="chat-file-chip" onClick={() => downloadChatMessageFile(m.id, m.file_name)}>
+                              📎 {m.file_name || "Tệp đính kèm"}
+                            </button>
+                          ) : null}
+                          <div className="chat-bubble-time">{fmtTime(m.created_at)}</div>
+                        </div>
+
+                        <div className="chat-react-wrap">
+                          <button className="chat-react-trigger" title="Thả cảm xúc" onClick={() => setReactPickerFor(reactPickerFor === m.id ? null : m.id)}>😊</button>
+                          {reactPickerFor === m.id && (
+                            <>
+                              <div className="chat-emoji-backdrop" onClick={() => setReactPickerFor(null)} />
+                              <div className={`chat-react-picker ${isMe ? "align-right" : ""}`}>
+                                {REACTION_EMOJIS.map((e) => (
+                                  <button key={e} className="chat-react-emoji-btn" onClick={() => handleReact(m.id, e)}>{e}</button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
+
+                      {hasReactions && (
+                        <div className={`chat-reactions-row ${isMe ? "me" : ""}`}>
+                          {Object.entries(reactionCounts).map(([emoji, count]) => (
+                            <button
+                              key={emoji}
+                              className={`chat-reaction-pill ${myReaction === emoji ? "mine" : ""}`}
+                              onClick={() => handleReact(m.id, emoji)}
+                            >
+                              {emoji} {count}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -577,6 +643,8 @@ export default function ChatNhomPage() {
         .chat-messages { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
         .chat-msg-row { display: flex; flex-direction: column; align-items: flex-start; max-width: 70%; }
         .chat-msg-row.me { align-self: flex-end; align-items: flex-end; }
+        .chat-bubble-wrap { display: flex; align-items: flex-end; gap: 4px; }
+        .chat-msg-row.me .chat-bubble-wrap { flex-direction: row-reverse; }
         .chat-msg-sender { font-size: 11.5px; color: var(--text-400); margin-bottom: 2px; margin-left: 4px; }
         .chat-bubble { background: var(--bg); border-radius: 14px; padding: 9px 13px; }
         .chat-bubble.me { background: var(--blue-accent); color: #fff; }
@@ -588,6 +656,32 @@ export default function ChatNhomPage() {
         .chat-bubble.me .chat-file-chip { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.3); color: #fff; }
         .chat-image { display: block; max-width: 240px; max-height: 240px; border-radius: 10px; margin-top: 4px; cursor: pointer; object-fit: cover; }
         .chat-image-loading { font-size: 12px; color: var(--text-400); margin-top: 4px; }
+
+        .chat-react-wrap { position: relative; align-self: center; }
+        .chat-react-trigger {
+          background: none; border: none; cursor: pointer; font-size: 13px; padding: 4px 6px; border-radius: 50%;
+          opacity: 0.35; transition: opacity 0.15s;
+        }
+        .chat-msg-row:hover .chat-react-trigger { opacity: 0.9; }
+        .chat-react-trigger:hover { opacity: 1; background: var(--bg); }
+        .chat-react-picker {
+          position: absolute; bottom: 100%; margin-bottom: 6px; left: 0; z-index: 200;
+          background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+          box-shadow: 0 12px 30px rgba(10,25,55,0.18); padding: 5px 6px;
+          display: flex; gap: 2px; white-space: nowrap;
+        }
+        .chat-react-picker.align-right { left: auto; right: 0; }
+        .chat-react-emoji-btn { background: none; border: none; font-size: 19px; padding: 4px 5px; border-radius: 50%; cursor: pointer; line-height: 1; }
+        .chat-react-emoji-btn:hover { background: var(--bg); transform: scale(1.15); }
+
+        .chat-reactions-row { display: flex; gap: 4px; margin-top: 3px; flex-wrap: wrap; }
+        .chat-reactions-row.me { justify-content: flex-end; }
+        .chat-reaction-pill {
+          background: var(--card); border: 1.5px solid var(--border); border-radius: 12px;
+          padding: 1px 7px; font-size: 11.5px; cursor: pointer; color: var(--text-600);
+        }
+        .chat-reaction-pill:hover { background: var(--bg); }
+        .chat-reaction-pill.mine { border-color: var(--blue-accent); background: rgba(85,128,214,0.1); color: var(--blue-accent); font-weight: 700; }
 
         .chat-input-bar { display: flex; align-items: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); }
         .chat-textarea { flex: 1; resize: none; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: 13.5px; font-family: inherit; max-height: 100px; }
@@ -608,7 +702,7 @@ export default function ChatNhomPage() {
         .chat-emoji-btn { background: none; border: none; font-size: 19px; padding: 5px; border-radius: 6px; cursor: pointer; line-height: 1; }
         .chat-emoji-btn:hover { background: var(--bg); }
 
-        .chat-mention-wrap { position: relative; flex: 1; }
+        .chat-mention-wrap { position: relative; flex: 1; display: flex; }
         .chat-mention-picker {
           position: absolute; bottom: 100%; left: 0; margin-bottom: 6px; z-index: 200;
           background: var(--card); border: 1px solid var(--border); border-radius: 10px;
