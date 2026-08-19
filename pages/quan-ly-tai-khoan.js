@@ -8,6 +8,23 @@ const ADMIN_ROLES = ["admin", "super_admin"];
 const ROLE_LABELS = { super_admin: "Super Admin", admin: "Admin", editor: "Editor", viewer: "Viewer" };
 const KHU_VUC_OPTIONS = ["VP HCM", "VP HNI"];
 
+// Thứ tự hiển thị bảng: Admin (gồm cả Super Admin) - Editor - Editor Base -
+// Viewer, cùng quyền thì sắp tiếp theo Khu vực làm việc (VP HCM trước VP
+// HNI, chưa chọn xuống cuối).
+const ROLE_SORT_ORDER = { super_admin: 0, admin: 1, editor: 2, editor_base: 3, viewer: 4 };
+const KHU_VUC_SORT_ORDER = KHU_VUC_OPTIONS.reduce((acc, k, i) => ({ ...acc, [k]: i }), {});
+
+function sortAccounts(list) {
+  return [...list].sort((a, b) => {
+    const ra = ROLE_SORT_ORDER[a.role] ?? 99;
+    const rb = ROLE_SORT_ORDER[b.role] ?? 99;
+    if (ra !== rb) return ra - rb;
+    const ka = KHU_VUC_SORT_ORDER[a.khu_vuc] ?? 99;
+    const kb = KHU_VUC_SORT_ORDER[b.khu_vuc] ?? 99;
+    return ka - kb;
+  });
+}
+
 export default function QuanLyTaiKhoanPage() {
   const router = useRouter();
   const [me, setMe] = useState(null);
@@ -242,15 +259,16 @@ export default function QuanLyTaiKhoanPage() {
           <table>
             <thead>
               <tr>
-                {["Email", "Họ tên", "Chức danh", "Khu vực", "Quyền", "Trạng thái", "App XLKK", "Quyền Kiểm Kê", ""].map((h) => (
+                {["STT", "Email", "Họ tên", "Chức danh", "Khu vực", "Quyền", "Trạng thái", "App XLKK", "Quyền Kiểm Kê", ""].map((h) => (
                   <th key={h} style={{ position: "sticky", top: 0, zIndex: 2, background: "#eaf1fc" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {list.map((u) => (
+              {sortAccounts(list).map((u, idx) => (
                 <Fragment key={u.id}>
                   <tr>
+                    <td>{idx + 1}</td>
                     <td>{u.email}</td>
                     <td>{u.full_name}</td>
                     <td>
@@ -318,7 +336,7 @@ export default function QuanLyTaiKhoanPage() {
                   </tr>
                   {editingId === u.id && (
                     <tr>
-                      <td colSpan={9} style={{ background: "var(--bg)", padding: "14px 16px" }}>
+                      <td colSpan={10} style={{ background: "var(--bg)", padding: "14px 16px" }}>
                         <div style={{ display: "flex", gap: 14, alignItems: "flex-end", flexWrap: "wrap" }}>
                           <div>
                             <label style={labelStyle}>Họ tên</label>
