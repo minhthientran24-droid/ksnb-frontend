@@ -3,7 +3,8 @@ import Layout from "../components/Layout";
 import {
   listChatGroups, listChatMessages, sendChatMessage, getChatWsUrl,
   createChatGroup, updateChatGroup, deleteChatGroup, getChatGroupMembers,
-  downloadChatMessageFile, fetchChatMessageImageUrl, reactToChatMessage, listUsers, getUser,
+  downloadChatMessageFile, fetchChatMessageImageUrl, reactToChatMessage,
+  getMyChatNickname, updateMyChatNickname, listUsers, getUser,
 } from "../lib/api";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
@@ -170,6 +171,63 @@ function GroupFormModal({ initial, allUsers, onClose, onSave }) {
   );
 }
 
+function NicknameModal({ initial, onClose, onSave }) {
+  const [enabled, setEnabled] = useState(initial.enabled);
+  const [nickname, setNickname] = useState(initial.nickname);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSave() {
+    if (enabled && !nickname.trim()) { setError("Cần nhập Nick name trước khi bật"); return; }
+    setSaving(true);
+    setError("");
+    try {
+      await onSave({ nickname: nickname.trim(), enabled });
+      onClose();
+    } catch (err) {
+      setError(err.message || "Lưu thất bại");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="chat-modal-overlay" onClick={onClose}>
+      <div className="chat-modal-card" onClick={(e) => e.stopPropagation()}>
+        <div className="chat-modal-head">
+          <h3>Nick name khi chat</h3>
+          <button className="chat-modal-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="chat-modal-body">
+          <label className="chat-member-row" style={{ marginBottom: 14 }}>
+            <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+            <span>Dùng Nick name thay cho họ tên thật khi chat</span>
+          </label>
+          <label className="flabel">Nick name</label>
+          <input
+            className="finput"
+            style={{ width: "100%" }}
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            placeholder="VD: Sói Già, Cú Đêm..."
+            maxLength={40}
+          />
+          <div style={{ fontSize: 11.5, color: "var(--text-400)", marginTop: 8 }}>
+            Bật lên thì tin nhắn/cảm xúc bạn gửi sẽ hiện Nick name thay vì họ tên thật. Danh sách thành viên nhóm (admin quản lý) vẫn hiện họ tên thật.
+          </div>
+          {error && <div style={{ color: "var(--danger)", fontSize: 12.5, marginTop: 10 }}>{error}</div>}
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+            <button className="login-btn" style={{ width: "auto", padding: "9px 20px", margin: 0 }} disabled={saving} onClick={handleSave}>
+              {saving ? "Đang lưu..." : "Lưu"}
+            </button>
+            <button className="fbtn" onClick={onClose}>Hủy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ChatNhomPage() {
   const me = getUser();
   const isAdmin = me && ADMIN_ROLES.includes(me.role);
@@ -203,6 +261,9 @@ export default function ChatNhomPage() {
   const [reactPickerFor, setReactPickerFor] = useState(null); // id tin nhắn đang mở bảng chọn cảm xúc
   const [replyTarget, setReplyTarget] = useState(null); // tin nhắn đang được trả lời (null = không reply)
 
+  const [myNickname, setMyNickname] = useState({ nickname: "", enabled: false });
+  const [showNicknameModal, setShowNicknameModal] = useState(false);
+
   const wsRef = useRef(null);
   const listEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -227,6 +288,12 @@ export default function ChatNhomPage() {
   }
 
   useEffect(() => { loadGroups(); }, []);
+  useEffect(() => { getMyChatNickname().then(setMyNickname).catch(() => {}); }, []);
+
+  async function handleSaveNickname({ nickname, enabled }) {
+    const updated = await updateMyChatNickname({ nickname, enabled });
+    setMyNickname(updated);
+  }
 
   // ---------- WebSocket real-time ----------
   useEffect(() => {
@@ -478,16 +545,21 @@ export default function ChatNhomPage() {
 
   return (
     <Layout crumb="Chat nhóm">
-      <div className="page-head">
-        <h1>Chat nhóm</h1>
-        <p>
-          Nhóm "All" gồm toàn bộ tài khoản đang hoạt động.
-          {isAdmin && " Admin tạo thêm được các nhóm riêng và chọn thành viên."}
-          {" "}
-          <span style={{ color: wsStatus === "open" ? "#1a8a4a" : "var(--text-400)" }}>
-            {wsStatus === "open" ? "● Đang kết nối" : "○ Mất kết nối, đang thử lại..."}
-          </span>
-        </p>
+      <div className="page-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
+        <div>
+          <h1>Chat nhóm</h1>
+          <p>
+            Nhóm "All" gồm toàn bộ tài khoản đang hoạt động.
+            {isAdmin && " Admin tạo thêm được các nhóm riêng và chọn thành viên."}
+            {" "}
+            <span style={{ color: wsStatus === "open" ? "#1a8a4a" : "var(--text-400)" }}>
+              {wsStatus === "open" ? "● Đang kết nối" : "○ Mất kết nối, đang thử lại..."}
+            </span>
+          </p>
+        </div>
+        <button className="upload-btn" style={{ width: "auto" }} onClick={() => setShowNicknameModal(true)}>
+          {myNickname.enabled ? `👤 ${myNickname.nickname}` : "👤 Đặt Nick name"}
+        </button>
       </div>
 
       {error && <div className="placeholder-box">{error}</div>}
@@ -729,6 +801,14 @@ export default function ChatNhomPage() {
           allUsers={allUsers}
           onClose={() => setShowGroupForm(false)}
           onSave={handleSaveGroup}
+        />
+      )}
+
+      {showNicknameModal && (
+        <NicknameModal
+          initial={myNickname}
+          onClose={() => setShowNicknameModal(false)}
+          onSave={handleSaveNickname}
         />
       )}
 
