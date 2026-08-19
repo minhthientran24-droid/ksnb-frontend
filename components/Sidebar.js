@@ -5,6 +5,7 @@ import { getUser } from "../lib/api";
 
 const NAV_ITEMS = [
   { href: "/", icon: "⌂", label: "Trang chủ" },
+  { href: "/chat-nhom", icon: "💬", label: "Chat nhóm" },
   { href: "/bao-cao", icon: "▤", label: "Báo cáo tháng", hideForRoles: ["editor_base"] },
   { href: "/ho-tro-kiem-ke", icon: "🧰", label: "Hỗ Trợ Kiểm Kê" },
   { href: "/gui-mail-bcks", icon: "📧", label: "Gửi mail BCKS" },
