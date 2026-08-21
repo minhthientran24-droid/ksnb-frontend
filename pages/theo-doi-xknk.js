@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
-import { getUser, getXknkCanTon, uploadXknkCanTon } from "../lib/api";
+import {
+  getUser, getXknkCanTon, uploadXknkCanTon, checkXknkCanTonRow, downloadXknkCanTonRow,
+} from "../lib/api";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
 
@@ -21,7 +23,7 @@ function fmtDateTime(iso) {
   return d.toLocaleString("vi-VN");
 }
 
-function CanTonTable({ title, rows }) {
+function CanTonTable({ title, rows, onCheck, onDownload, busyId }) {
   return (
     <div className="card" style={{ marginBottom: 16 }}>
       <div className="card-head">
@@ -39,11 +41,12 @@ function CanTonTable({ title, rows }) {
               <th>Tổng Xuất Khác</th>
               <th>Tổng Nhập Khác</th>
               <th>Chênh lệch</th>
+              <th>Kiểm tra</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.ma_shop}>
+              <tr key={r.id}>
                 <td>{r.rank}</td>
                 <td style={{ textAlign: "left" }}>{r.vung || "-"}</td>
                 <td>{r.ma_shop}</td>
@@ -53,10 +56,26 @@ function CanTonTable({ title, rows }) {
                 <td className="num" style={{ fontWeight: 700, color: r.chenh_lech < 0 ? "var(--danger)" : "inherit" }}>
                   {fmtMoney(r.chenh_lech)}
                 </td>
+                <td>
+                  {r.checked_by_name ? (
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+                      <span style={{ fontSize: 11, color: "var(--text-600)" }}>
+                        {r.checked_by_me ? "Bạn đã kiểm tra" : `Đã kiểm tra bởi ${r.checked_by_name}`}
+                      </span>
+                      {r.can_download && (
+                        <button className="fbtn" onClick={() => onDownload(r)}>📥 Tải data</button>
+                      )}
+                    </div>
+                  ) : (
+                    <button className="fbtn" disabled={busyId === r.id} onClick={() => onCheck(r.id)}>
+                      {busyId === r.id ? "Đang xử lý..." : "🔍 Kiểm tra"}
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan={7} style={{ textAlign: "center", color: "var(--text-400)" }}>Không có dữ liệu</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-400)" }}>Không có dữ liệu</td></tr>
             )}
           </tbody>
         </table>
@@ -70,6 +89,7 @@ function CanTonTab({ isAdmin }) {
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState("");
+  const [busyId, setBusyId] = useState(null);
   const fileInputRef = useRef(null);
 
   function load() {
@@ -93,6 +113,26 @@ function CanTonTab({ isAdmin }) {
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleCheck(rowId) {
+    setBusyId(rowId);
+    try {
+      const result = await checkXknkCanTonRow(rowId);
+      setData(result);
+    } catch (err) {
+      alert(err.message || "Kiểm tra thất bại");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleDownload(row) {
+    try {
+      await downloadXknkCanTonRow(row.id, `XKNK_can_ton_shop_${row.ma_shop}.xlsx`);
+    } catch (err) {
+      alert(err.message || "Tải file thất bại");
     }
   }
 
@@ -130,8 +170,8 @@ function CanTonTab({ isAdmin }) {
 
       {data && (data.cat_lieu.length > 0 || data.con_lai.length > 0) ? (
         <>
-          <CanTonTable title="Sản phẩm thuộc danh mục cắt liều" rows={data.cat_lieu} />
-          <CanTonTable title="Sản phẩm còn lại (không cắt liều)" rows={data.con_lai} />
+          <CanTonTable title="Sản phẩm thuộc danh mục cắt liều" rows={data.cat_lieu} onCheck={handleCheck} onDownload={handleDownload} busyId={busyId} />
+          <CanTonTable title="Sản phẩm còn lại (không cắt liều)" rows={data.con_lai} onCheck={handleCheck} onDownload={handleDownload} busyId={busyId} />
         </>
       ) : (
         !error && <div className="placeholder-box">Chưa có dữ liệu — admin upload file báo cáo Xuất Khác - Nhập Khác để bắt đầu.</div>
