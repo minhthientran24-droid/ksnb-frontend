@@ -1,0 +1,18 @@
+{
+  "name": "KSNB Long Châu",
+  "short_name": "KSNB Long Châu",
+  "description": "Cổng thông tin Phòng Kiểm Soát Nội Bộ - Nhà Thuốc Long Châu",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#EAF1FC",
+  "theme_color": "#1B3B80",
+  "lang": "vi",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

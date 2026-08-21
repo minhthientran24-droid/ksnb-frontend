@@ -836,6 +836,14 @@ export default function ChatNhomPage() {
         .chat-icon-btn:hover { background: rgba(0,0,0,0.06); }
 
         .chat-main { flex: 1; display: flex; flex-direction: column; background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; min-width: 0; }
+
+        @media (max-width: 860px) {
+          .chat-shell { flex-direction: column; height: calc(100vh - 230px); min-height: 560px; }
+          .chat-sidebar { width: 100%; max-height: 140px; flex-shrink: 0; }
+          .chat-main { flex: 1; min-height: 320px; }
+          .chat-msg-row { max-width: 88%; }
+          .chat-image { max-width: 70vw; }
+        }
         .chat-main-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); }
         .chat-messages { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
         .chat-msg-row { display: flex; flex-direction: column; align-items: flex-start; max-width: 70%; }

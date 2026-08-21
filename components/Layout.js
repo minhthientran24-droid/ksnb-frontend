@@ -50,7 +50,7 @@ export default function Layout({ crumb, children }) {
           </div>
           <div className="tb-user">
             <div className="avatar">{initials}</div>
-            {user?.full_name}
+            <span className="tb-user-name">{user?.full_name}</span>
             <button className="logout-btn" onClick={handleLogout}>
               Đăng xuất
             </button>

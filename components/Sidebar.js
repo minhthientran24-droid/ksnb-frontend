@@ -31,6 +31,9 @@ export default function Sidebar() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [myRole, setMyRole] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
+  // Menu dạng ngăn kéo (drawer) riêng cho mobile — độc lập với "collapsed"
+  // (tính năng thu gọn còn icon dành cho desktop, không dùng trên mobile).
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     const me = getUser();
@@ -39,6 +42,11 @@ export default function Sidebar() {
     const saved = typeof window !== "undefined" && localStorage.getItem(STORAGE_KEY);
     if (saved === "1") setCollapsed(true);
   }, []);
+
+  // Tự đóng menu ngăn kéo mỗi khi chuyển trang, đỡ phải tự tay đóng.
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [router.pathname]);
 
   function toggleCollapsed() {
     const next = !collapsed;
@@ -62,26 +70,37 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
-      <div className="sb-logo">
-        {!collapsed && <div className="logo-text">Phòng Kiểm Soát Nội Bộ</div>}
-      </div>
+    <>
+      <button
+        className="sb-mobile-toggle"
+        aria-label="Mở menu"
+        onClick={() => setMobileOpen((v) => !v)}
+      >
+        ☰
+      </button>
+      {mobileOpen && <div className="sb-mobile-backdrop" onClick={() => setMobileOpen(false)} />}
 
-      <nav className="sb-nav">
-        {NAV_ITEMS.filter((item) => !item.hideForRoles?.includes(myRole)).map(renderItem)}
+      <aside className={`sidebar ${collapsed ? "collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`}>
+        <div className="sb-logo">
+          {!collapsed && <div className="logo-text">Phòng Kiểm Soát Nội Bộ</div>}
+        </div>
 
-        {isAdmin && (
-          <>
-            <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "10px 14px" }} />
-            {ADMIN_ITEMS.map(renderItem)}
-          </>
-        )}
-      </nav>
+        <nav className="sb-nav">
+          {NAV_ITEMS.filter((item) => !item.hideForRoles?.includes(myRole)).map(renderItem)}
 
-      <div className="sb-toggle" onClick={toggleCollapsed}>
-        <span className="sb-toggle-icon">{collapsed ? "»" : "«"}</span>
-        <span className="sb-toggle-label">Thu gọn menu</span>
-      </div>
-    </aside>
+          {isAdmin && (
+            <>
+              <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "10px 14px" }} />
+              {ADMIN_ITEMS.map(renderItem)}
+            </>
+          )}
+        </nav>
+
+        <div className="sb-toggle" onClick={toggleCollapsed}>
+          <span className="sb-toggle-icon">{collapsed ? "»" : "«"}</span>
+          <span className="sb-toggle-label">Thu gọn menu</span>
+        </div>
+      </aside>
+    </>
   );
 }
