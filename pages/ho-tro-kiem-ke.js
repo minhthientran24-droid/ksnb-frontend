@@ -191,8 +191,8 @@ export default function HoTroKiemKePage() {
                 {canUploadKetQua ? (
                   <>
                     <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 12, lineHeight: 1.6 }}>
-                      Tải lên file kết quả kiểm kê thanh lý (đã điền Số Lượng Thực Tế, Lý Do, Số lượng truy thu).
-                      Hệ thống tách các dòng có <b>Số lượng truy thu &gt; 0</b> để trả về file import{" "}
+                      Tải lên file kết quả kiểm kê thanh lý (đã điền SL Xử lý, Lý Do, Xác định truy thu).
+                      Hệ thống tách các dòng có <b>Xác định truy thu = Truy thu</b> để trả về file import{" "}
                       <b>Xuất Khác Tính Giá Trị</b>. Phần ghi nhận LCNB Về Kho Tổng đang được hoàn thiện.
                     </p>
                     <input
