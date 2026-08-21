@@ -97,8 +97,8 @@ export default function HoTroKiemKePage() {
     setResult(null);
     setError("");
     try {
-      const blob = await checkKiemKeCanDate(file);
-      setResult({ filename: `KetQua_KiemKeCanDate_${file.name.replace(/\.[^.]+$/, "")}.xlsx`, blob });
+      const { blob, filename } = await checkKiemKeCanDate(file);
+      setResult({ filename, blob });
     } catch (err) {
       setError(err.message || "Xử lý thất bại");
     } finally {
