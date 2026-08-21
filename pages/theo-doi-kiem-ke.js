@@ -3,6 +3,7 @@ import Layout from "../components/Layout";
 import {
   getKiemKePeriods, listKiemKe, updateKiemKeGhiChu,
   getShopChiaHomNay, getDangKiem, doiLichShopChiaHomNay, getUser,
+  downloadKetQuaKiemKeGuiMail,
 } from "../lib/api";
 
 function normName(s) {
@@ -189,6 +190,22 @@ export default function TheoDoiKiemKePage() {
     return isAdmin || normName(row.ksnb) === normName(me?.full_name);
   }
 
+  // Tải file log kết quả kiểm kê ghi liên tục mỗi lần gửi mail BCKS (tab
+  // "Đã kiểm", chỉ admin) — chốt 21/08.
+  const [ketQuaLogBusy, setKetQuaLogBusy] = useState(false);
+  const [ketQuaLogMsg, setKetQuaLogMsg] = useState("");
+  async function handleDownloadKetQuaLog() {
+    setKetQuaLogBusy(true);
+    setKetQuaLogMsg("");
+    try {
+      await downloadKetQuaKiemKeGuiMail();
+    } catch (e) {
+      setKetQuaLogMsg("❌ " + e.message);
+    } finally {
+      setKetQuaLogBusy(false);
+    }
+  }
+
   function openReschedule(row) {
     setRescheduling(row);
     setRescheduleForm({ ngay_can_kiem: "", ly_do: "" });
@@ -292,6 +309,14 @@ export default function TheoDoiKiemKePage() {
               : "Cột Ghi chú do NV KSNB tự cập nhật."}
           </p>
         </div>
+        {isAdmin && loai === "da_kiem" && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+            <button className="fbtn" disabled={ketQuaLogBusy} onClick={handleDownloadKetQuaLog}>
+              {ketQuaLogBusy ? "Đang tải..." : "📥 Tải file kết quả kiểm kê (gửi mail)"}
+            </button>
+            {ketQuaLogMsg && <div style={{ fontSize: 12, color: "var(--danger)" }}>{ketQuaLogMsg}</div>}
+          </div>
+        )}
       </div>
 
       {/* Tab chọn Đã kiểm / Đang kiểm / Shop được chia hôm nay */}
