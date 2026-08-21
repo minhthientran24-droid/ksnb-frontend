@@ -311,7 +311,10 @@ export default function TheoDoiKiemKePage() {
         </div>
         {isAdmin && loai === "da_kiem" && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-            <button className="fbtn" disabled={ketQuaLogBusy} onClick={handleDownloadKetQuaLog}>
+            <button
+              className="fbtn" disabled={ketQuaLogBusy} onClick={handleDownloadKetQuaLog}
+              style={{ background: "#FFF1E1", borderColor: "var(--orange)", color: "var(--orange)" }}
+            >
               {ketQuaLogBusy ? "Đang tải..." : "📥 Tải file kết quả kiểm kê (gửi mail)"}
             </button>
             {ketQuaLogMsg && <div style={{ fontSize: 12, color: "var(--danger)" }}>{ketQuaLogMsg}</div>}
