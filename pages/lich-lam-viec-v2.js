@@ -564,9 +564,9 @@ function ScheduleView({ data, group, onDone }) {
 
           <div style={{ fontSize: 11.5, color: "var(--text-600)", marginTop: 12, lineHeight: 1.5 }}>
             {selected.size === 0
-              ? "Chưa tick shop nào → hệ thống tự random chọn đủ số lượng trong danh sách \"cần chia lịch\" (ưu tiên shop Xin kiểm kê/Đóng cửa/Vi phạm trước)."
+              ? "Chưa tick shop nào → hệ thống tự chọn đủ số lượng trong danh sách \"cần chia lịch\" (ưu tiên shop Xin kiểm kê/Đóng cửa/Vi phạm trước, trong đó ưu tiên shop gần hạn kiểm kê nhất, chỉ random giữa các shop cùng hạn)."
               : selected.size < quotaTotal
-                ? `Đã tick ${selected.size}/${quotaTotal} shop → ${quotaTotal - selected.size} shop còn lại sẽ tự random bổ sung (ưu tiên shop khẩn trước).`
+                ? `Đã tick ${selected.size}/${quotaTotal} shop → ${quotaTotal - selected.size} shop còn lại sẽ tự bổ sung (ưu tiên shop khẩn + gần hạn kiểm kê nhất trước).`
                 : "Đã tick đủ/thừa số lượng → chia đúng các shop đã tick."}
           </div>
 
