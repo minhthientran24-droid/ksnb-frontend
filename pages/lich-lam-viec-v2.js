@@ -5,7 +5,7 @@ import { getUser, listKiemKeStaff } from "../lib/api";
 import {
   llv2BridgeLogin,
   llv2GetShops, llv2GetCandidates, llv2GetScheduledToday,
-  llv2Schedule, llv2Reschedule, llv2SetClass,
+  llv2Schedule, llv2SetClass, llv2DeleteCycle,
   llv2UploadDanhSach, llv2DownloadDanhSachUrl, llv2UploadQuota,
   llv2BulkCreateTickets, llv2CreateDanhSachChia, llv2EhoAllShopAuditUrl,
 } from "../lib/llv2Api";
@@ -18,6 +18,7 @@ const PHAN_LOAI_PILL = {
   "Vi phạm": "danger",
   "Shop mới": "ok",
   "Định kỳ": "ok",
+  "Dời lịch": "warn", // tự động gán sau khi bấm "Dời lịch" — không chọn tay được ở form Cập nhật phân loại
 };
 const CLASS_OPTIONS = ["Xin kiểm kê", "Đóng cửa", "Vi phạm", "Shop mới", "Định kỳ"];
 const REQUEST_REASONS = ["Rà soát hàng hóa", "Luân chuyển nhân sự", "Nhân sự nghỉ việc"];
@@ -582,8 +583,8 @@ function ScheduleView({ data, group, onDone }) {
 
 function TodayScheduledView({ data, group, onDone }) {
   const { filters, setFilter, applyFilters, hasActive, clearFilters } = useColumnFilters();
-  const [editing, setEditing] = useState(null); // row đang dời lịch
-  const [form, setForm] = useState({ ngay_can_kiem: "", ly_do: "" });
+  const [cancelling, setCancelling] = useState(null); // row đang hủy (view admin — thay cho Dời lịch)
+  const [cancelReason, setCancelReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false); // đang xếp hàng ticket SSC
@@ -645,18 +646,20 @@ function TodayScheduledView({ data, group, onDone }) {
   const procRows = proc ? (data.rows || []).filter((r) => proc.ids.has(r.id)) : [];
   const procDoneCount = procRows.filter((r) => ["da_tao", "loi", "can_xac_minh"].includes(r.ticket_status)).length;
 
-  function openEdit(row) {
-    setEditing(row);
-    setForm({ ngay_can_kiem: "", ly_do: "" });
+  function openCancel(row) {
+    setCancelling(row);
+    setCancelReason("");
     setMsg("");
   }
 
-  async function submit() {
+  // Hủy kỳ đã chia (view admin, thay cho nút Dời lịch) — chỉ xác nhận có
+  // chắc chắn hủy không, lý do là tùy chọn (không nhập cũng được).
+  async function confirmCancel() {
     setBusy(true);
     try {
-      await llv2Reschedule({ id: editing.id, ...form });
-      setMsg("✅ Đã dời lịch");
-      setEditing(null);
+      await llv2DeleteCycle({ id: cancelling.id, reason: cancelReason });
+      setMsg("✅ Đã hủy");
+      setCancelling(null);
       onDone();
     } catch (e) {
       setMsg("❌ " + e.message);
@@ -784,7 +787,7 @@ function TodayScheduledView({ data, group, onDone }) {
                 <td style={{ fontSize: 11.5 }}>{statusLabel(r.display_status)}</td>
                 <td><JobStatusBadge status={r.ticket_status} url={r.ticket_url} /></td>
                 <td>
-                  <button className="fbtn" onClick={() => openEdit(r)}>Dời lịch</button>
+                  <button className="fbtn" style={{ color: "var(--danger)", borderColor: "var(--danger)" }} onClick={() => openCancel(r)}>Hủy</button>
                 </td>
               </tr>
             ))}
@@ -795,24 +798,28 @@ function TodayScheduledView({ data, group, onDone }) {
         </table>
       </div>
 
-      {editing && (
+      {cancelling && (
         <Modal
-          title={`Dời lịch — shop ${editing.ma_shop}`}
-          subtitle={`${editing.ten_shop || ""}${editing.ngay_kiem ? ` · Ngày kiểm hiện tại: ${editing.ngay_kiem}` : ""}`}
-          onClose={() => setEditing(null)}
+          title={`Hủy kỳ đã chia — shop ${cancelling.ma_shop}`}
+          subtitle={`${cancelling.ten_shop || ""}${cancelling.ngay_kiem ? ` · Ngày kiểm: ${cancelling.ngay_kiem} · KSNB: ${cancelling.ksnb || ""}` : ""}`}
+          onClose={() => setCancelling(null)}
         >
+          <div style={{ fontSize: 13.5, marginBottom: 14 }}>Bạn có chắc chắn muốn hủy kỳ đã chia này không?</div>
           <div className="field">
-            <label className="flabel">Ngày cần kiểm mới</label>
-            <input type="date" className="finput" style={{ width: "100%" }} value={form.ngay_can_kiem} onChange={(e) => setForm({ ...form, ngay_can_kiem: e.target.value })} />
-          </div>
-          <div className="field">
-            <label className="flabel">Lý do</label>
-            <input className="finput" style={{ width: "100%" }} value={form.ly_do} onChange={(e) => setForm({ ...form, ly_do: e.target.value })} />
+            <label className="flabel">Lý do (không bắt buộc)</label>
+            <textarea
+              className="finput" rows={3} style={{ width: "100%", resize: "vertical" }}
+              value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Có thể để trống"
+            />
           </div>
           {msg && <div style={{ fontSize: 12.5, marginBottom: 12, color: msg.startsWith("✅") ? "#3E7A2A" : "var(--danger)" }}>{msg}</div>}
           <div className="llv-modal-actions">
-            <button className="login-btn" style={{ width: "auto", padding: "9px 20px" }} disabled={busy} onClick={submit}>{busy ? "Đang lưu..." : "Xác nhận dời"}</button>
-            <button className="fbtn" onClick={() => setEditing(null)}>Hủy</button>
+            <button
+              className="login-btn" style={{ width: "auto", padding: "9px 20px", background: "var(--danger)", borderColor: "var(--danger)" }}
+              disabled={busy} onClick={confirmCancel}
+            >{busy ? "Đang hủy..." : "Xác nhận hủy"}</button>
+            <button className="fbtn" onClick={() => setCancelling(null)}>Đóng</button>
           </div>
         </Modal>
       )}
