@@ -5,11 +5,31 @@ import { getActivityLogSummary, getUser } from "../lib/api";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
 
+function formatDateVn(iso) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
 export default function NhatKyHoatDongPage() {
   const router = useRouter();
   const [checked, setChecked] = useState(false);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [pickerValue, setPickerValue] = useState(""); // giá trị đang chọn trong ô ngày, chưa chắc đã áp dụng
+
+  function load(date) {
+    setLoading(true);
+    setError("");
+    getActivityLogSummary(date)
+      .then((res) => {
+        setData(res);
+        setPickerValue(res.date); // đồng bộ ô chọn ngày theo đúng ngày server trả về
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }
 
   useEffect(() => {
     const user = getUser();
@@ -18,7 +38,7 @@ export default function NhatKyHoatDongPage() {
       return;
     }
     setChecked(true);
-    getActivityLogSummary().then(setData).catch((err) => setError(err.message));
+    load(); // không truyền ngày -> server mặc định hôm nay
   }, []);
 
   if (!checked) return null;
@@ -31,18 +51,39 @@ export default function NhatKyHoatDongPage() {
       <div className="page-head">
         <h1>Nhật ký hoạt động</h1>
         <p>
-          Tổng số lần đăng nhập và số lần dùng từng tính năng của mỗi tài khoản.
+          Số lần dùng từng tính năng của mỗi tài khoản, xem theo từng ngày.
           Chỉ ghi nhận các hành động chính — không phải mọi thao tác trên web.
         </p>
       </div>
 
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card-body" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <label style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-900)" }}>Xem theo ngày</label>
+          <input
+            type="date"
+            className="finput"
+            value={pickerValue}
+            onChange={(e) => setPickerValue(e.target.value)}
+            style={{ width: 160 }}
+          />
+          <button className="fbtn" disabled={loading || !pickerValue} onClick={() => load(pickerValue)}>
+            {loading ? "Đang tải..." : "🔍 Kiểm tra"}
+          </button>
+          {data?.date && !loading && (
+            <span style={{ fontSize: 12, color: "var(--text-600)" }}>
+              Đang xem ngày <b>{formatDateVn(data.date)}</b>
+            </span>
+          )}
+        </div>
+      </div>
+
       {error && <div className="placeholder-box">Không tải được dữ liệu: {error}</div>}
 
-      {data && (
+      {data && !error && (
         <div className="card">
           <div className="card-body" style={{ padding: 0, overflowX: "auto" }}>
             {users.length === 0 ? (
-              <div className="placeholder-box">Chưa có dữ liệu hoạt động nào được ghi nhận.</div>
+              <div className="placeholder-box">Chưa có hoạt động nào được ghi nhận trong ngày này.</div>
             ) : (
               <table style={{ fontSize: 11.5 }}>
                 <thead>
