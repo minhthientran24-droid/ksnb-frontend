@@ -139,7 +139,7 @@ function JobFormCard({ editingJob, onDone, onCancel }) {
       <div className="card-head">
         <h3>{editingJob ? `✏️ Sửa job: ${editingJob.ten_chu_de}` : "Thêm chủ đề mới"}</h3>
       </div>
-      <form onSubmit={handleSubmit} style={{ padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+      <form onSubmit={handleSubmit} className="form-grid-2" style={{ padding: "16px 20px" }}>
         <div>
           <label style={labelStyle}>Tên chủ đề *</label>
           <input style={inputStyle} value={form.ten_chu_de} onChange={(e) => setForm({ ...form, ten_chu_de: e.target.value })} />

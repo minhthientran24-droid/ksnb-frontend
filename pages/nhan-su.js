@@ -287,7 +287,7 @@ export default function NhanSuPage() {
           <div className="card-head">
             <h3>{editingId === "own" ? "Hồ sơ của tôi" : `Sửa hồ sơ: ${form.full_name}`}</h3>
           </div>
-          <form onSubmit={handleSave} style={{ padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <form onSubmit={handleSave} className="form-grid-2" style={{ padding: "16px 20px" }}>
             <div><label style={labelStyle}>Tên *</label>
               <input style={inputStyle} value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} /></div>
             <div><label style={labelStyle}>Chức danh *</label>

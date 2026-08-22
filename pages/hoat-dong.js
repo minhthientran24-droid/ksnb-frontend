@@ -97,7 +97,7 @@ export default function HoatDongPage() {
       {showForm && (
         <div className="card">
           <div className="card-head"><h3>{editingId ? "Sửa hoạt động" : "Đăng hoạt động mới"}</h3></div>
-          <form onSubmit={handleSave} style={{ padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <form onSubmit={handleSave} className="form-grid-2" style={{ padding: "16px 20px" }}>
             <div><label style={labelStyle}>Tiêu đề *</label>
               <input style={inputStyle} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
             <div><label style={labelStyle}>Ngày diễn ra *</label>

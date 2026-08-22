@@ -212,7 +212,7 @@ export default function QuanLyTaiKhoanPage() {
       {showForm && (
         <div className="card">
           <div className="card-head"><h3>Tạo tài khoản mới</h3></div>
-          <form onSubmit={handleCreate} style={{ padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <form onSubmit={handleCreate} className="form-grid-2" style={{ padding: "16px 20px" }}>
             <div><label style={labelStyle}>Email đăng nhập *</label>
               <input style={inputStyle} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="thientm@fpt.com" /></div>
             <div><label style={labelStyle}>Họ tên *</label>

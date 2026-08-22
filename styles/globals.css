@@ -183,6 +183,13 @@ td.num{font-variant-numeric:tabular-nums;}
 td.neg{color:var(--danger); font-weight:600;}
 .two-col{display:grid; grid-template-columns:1.3fr 1fr; gap:20px; align-items:start;}
 
+/* Lưới 2/3 cột dùng chung cho form nhập liệu + card đặt cạnh nhau — thay
+   cho kiểu gridTemplateColumns viết tay trong từng trang (không tự co
+   lại được trên mobile vì là inline style, media query ngoài không đè
+   được). Alias .grid-2/.grid-3 giữ đúng số cột cho khối không phải form. */
+.form-grid-2, .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+.form-grid-3, .grid-3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;}
+
 .flabel{font-size:12px; font-weight:600; color:var(--text-600); display:block; margin-bottom:6px;}
 .finput{padding:9px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:13.5px; background:#FAFBFD; font-family:inherit;}
 .fbtn{background:none; border:1px solid var(--border); border-radius:6px; padding:8px 16px; font-size:12.5px; color:var(--text-600); cursor:pointer;}
@@ -258,6 +265,7 @@ td.neg{color:var(--danger); font-weight:600;}
   .kpi-grid{grid-template-columns:repeat(2,1fr); gap:10px;}
   .org-grid{grid-template-columns:1fr; gap:10px;}
   .two-col{grid-template-columns:1fr;}
+  .form-grid-2, .grid-2, .form-grid-3, .grid-3{grid-template-columns:1fr;}
 
   /* Bảng dữ liệu: cuộn ngang trong khung thay vì bị bóp méo */
   .card-body{overflow-x:auto; -webkit-overflow-scrolling:touch;}
@@ -265,6 +273,27 @@ td.neg{color:var(--danger); font-weight:600;}
   th, td{padding:8px 10px;}
 
   .tb-user-name{display:none;}
+
+  /* Vùng chạm to hơn cho ngón tay (khuyến nghị Apple HIG ~44px) — mọi nút
+     bấm/ô nhập dùng chung class trên toàn web đều tự động ăn theo, không
+     cần sửa từng trang. Chỉ áp riêng mobile, desktop giữ nguyên kích
+     thước cũ (gọn hơn, phù hợp dùng chuột). */
+  .fbtn{padding:11px 18px; font-size:13.5px; min-height:44px;}
+  .month-tab{padding:11px 18px; font-size:13.5px; min-height:44px; display:flex; align-items:center;}
+  .month-tabs{gap:10px;}
+  .upload-btn{padding:13px 20px; font-size:14px; min-height:44px;}
+  .login-btn{padding:14px; font-size:15px; min-height:46px;}
+  .finput, .field input{padding:12px 13px; font-size:15px; min-height:44px; box-sizing:border-box;}
+  input[type="date"], input[type="number"]{min-height:44px; box-sizing:border-box;}
+  /* iOS Safari tự zoom trang khi ô nhập có font-size <16px lúc focus —
+     font-size:15px ở trên vẫn dưới ngưỡng này, ép hẳn 16px riêng cho input
+     text/number/date để không bị zoom giật khi bấm vào ô nhập. */
+  input[type="text"], input[type="number"], input[type="date"],
+  input[type="email"], input[type="password"], textarea{font-size:16px;}
+
+  /* Nút trong bảng (Dời lịch/Hủy/Kiểm tra...) hay bị chạm nhầm dòng kế bên
+     vì bảng đã thu nhỏ padding — nới khoảng cách dọc và đảm bảo đủ cao. */
+  td .fbtn, td button{min-height:40px;}
 }
 
 @media (max-width:480px){

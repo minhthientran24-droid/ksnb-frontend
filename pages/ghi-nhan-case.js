@@ -199,7 +199,7 @@ export default function GhiNhanCasePage() {
         <div className="card">
           <div className="card-head"><h3>+ Ghi nhận case mới (nhập tay) — Kỳ {periodLabel}</h3></div>
           <form onSubmit={handleAdd} className="card-body" style={{ padding: "16px 20px" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+            <div className="form-grid-3" style={{ gap: 12 }}>
               <div>
                 <label style={labelStyle}>Chủ đề / nhóm vi phạm *</label>
                 <input required className="finput" style={inputStyle} value={form.chu_de}
@@ -271,7 +271,7 @@ export default function GhiNhanCasePage() {
             <div className="card-body" style={{ padding: "16px 20px", borderLeft: `4px solid ${md.color}` }}>
               {editing ? (
                 <>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                  <div className="form-grid-3" style={{ gap: 12 }}>
                     <input className="finput" style={inputStyle} value={editForm.chu_de}
                       onChange={(e) => setEditForm({ ...editForm, chu_de: e.target.value })} />
                     <input className="finput" style={inputStyle} value={editForm.doi_tuong}

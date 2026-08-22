@@ -843,6 +843,11 @@ export default function ChatNhomPage() {
           .chat-main { flex: 1; min-height: 320px; }
           .chat-msg-row { max-width: 88%; }
           .chat-image { max-width: 70vw; }
+          /* Nút thả cảm xúc dựa vào :hover để hiện ra — cảm ứng không có
+             hover nên trước đây gần như vô hình (opacity 0.35) và khó bấm
+             trúng trên mobile. Hiện rõ sẵn + vùng chạm to hơn. */
+          .chat-react-trigger { opacity: 0.6; padding: 8px 9px; }
+          .chat-msg-actions { gap: 4px; }
         }
         .chat-main-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); }
         .chat-messages { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 10px; }

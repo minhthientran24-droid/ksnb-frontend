@@ -173,7 +173,7 @@ export default function HoTroKiemKePage() {
         <>
           {isAdmin && <ReferenceFilesPanel />}
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, alignItems: "start" }}>
+          <div className="grid-2" style={{ gap: 18, alignItems: "start" }}>
             <div className="card">
               <div className="card-head"><h3>🛠️ Hỗ trợ xử lý tồn kho thanh lý</h3></div>
               <div className="card-body">
@@ -314,7 +314,7 @@ export default function HoTroKiemKePage() {
               "Kiểm kê Thanh Lý" trong cùng file kết quả — không chỉnh sửa gì.
             </p>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div className="grid-2" style={{ gap: 16, marginBottom: 16 }}>
               <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "12px 14px" }}>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--navy-900)", marginBottom: 8 }}>
                   1. Báo cáo Xuất Khác - Nhập Khác
@@ -431,7 +431,7 @@ export default function HoTroKiemKePage() {
                 <span style={{ fontSize: 12.5, color: "#8A6D00", fontWeight: 600, marginBottom: 10 }}>
                   ⏳ Khung kết quả (mẫu) — sẽ tải được thật sau khi có rule xử lý
                 </span>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div className="grid-2" style={{ gap: 12 }}>
                   <div style={vxResultFileCardStyle}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: "var(--navy-900)", marginBottom: 4 }}>📄 File kết quả 1</div>
                     <div style={{ fontSize: 11, color: "var(--text-400)", marginBottom: 10 }}>Nội dung chờ chốt rule</div>
