@@ -89,6 +89,7 @@ export default function NhatKyHoatDongPage() {
                 <thead>
                   <tr>
                     <th style={{ ...thStyle, textAlign: "left" }}>Người dùng</th>
+                    <th style={thStyle}>Khu vực</th>
                     <th style={thStyle}>Tổng lượt</th>
                     {actions.map((a) => (
                       <th key={a.key} style={thStyle}>{a.label}</th>
@@ -102,6 +103,7 @@ export default function NhatKyHoatDongPage() {
                         <div style={{ fontWeight: 700, color: "var(--text-900)", fontSize: 12 }}>{u.full_name || "(đã xoá)"}</div>
                         <div style={{ fontSize: 10.5, color: "var(--text-400)" }}>{u.email}</div>
                       </td>
+                      <td className="num" style={tdStyle}>{u.khu_vuc || "—"}</td>
                       <td className="num" style={{ ...tdStyle, fontWeight: 800, color: "var(--navy-800)" }}>{u.total}</td>
                       {actions.map((a) => (
                         <td key={a.key} className="num" style={tdStyle}>{u.actions?.[a.key] || 0}</td>
