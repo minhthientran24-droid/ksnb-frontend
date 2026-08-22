@@ -163,7 +163,7 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
 }
 
 export default function TheoDoiKiemKePage() {
-  const [loai, setLoai] = useState("da_kiem"); // "da_kiem" | "dang_kiem" | "shop_chia_hom_nay"
+  const [loai, setLoai] = useState("shop_chia_hom_nay"); // "shop_chia_hom_nay" | "dang_kiem" | "da_kiem" — mặc định vào là tab "Shop được chia - Chuẩn bị kiểm kê" (chốt 22/08)
   const [periods, setPeriods] = useState([]);
   const [period, setPeriod] = useState(null);
   const [rows, setRows] = useState([]);
@@ -322,16 +322,16 @@ export default function TheoDoiKiemKePage() {
         )}
       </div>
 
-      {/* Tab chọn Đã kiểm / Đang kiểm / Shop được chia hôm nay */}
+      {/* Tab chọn Shop được chia hôm nay / Đang kiểm / Đã kiểm (chốt 22/08) */}
       <div className="month-tabs">
-        <div className={`month-tab ${loai === "da_kiem" ? "active" : ""}`} onClick={() => setLoai("da_kiem")}>
-          ✅ Đã kiểm
+        <div className={`month-tab ${loai === "shop_chia_hom_nay" ? "active" : ""}`} onClick={() => setLoai("shop_chia_hom_nay")}>
+          📌 Shop được chia - Chuẩn bị kiểm kê
         </div>
         <div className={`month-tab ${loai === "dang_kiem" ? "active" : ""}`} onClick={() => setLoai("dang_kiem")}>
           ⏳ Đang kiểm
         </div>
-        <div className={`month-tab ${loai === "shop_chia_hom_nay" ? "active" : ""}`} onClick={() => setLoai("shop_chia_hom_nay")}>
-          📌 Shop được chia - Chuẩn bị kiểm kê
+        <div className={`month-tab ${loai === "da_kiem" ? "active" : ""}`} onClick={() => setLoai("da_kiem")}>
+          ✅ Đã kiểm
         </div>
       </div>
 
