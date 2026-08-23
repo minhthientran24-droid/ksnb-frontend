@@ -16,7 +16,7 @@ function formatDateVn(iso) {
   return d.toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-const EMPTY_SHOP_FORM = { query: "", ma_shop: "", ten_shop: "", vung: "", tinh: "", huyen: "", loai_shop: "", ghi_chu: "" };
+const EMPTY_SHOP_FORM = { ma_shop: "", ten_shop: "", vung: "", tinh: "", huyen: "", loai_shop: "", ghi_chu: "" };
 const EMPTY_KSNB_FORM = { ten_ksnb: "", so_luong_shop: "", ghi_chu: "" };
 
 export default function DeXuatKiemKePage() {
@@ -64,8 +64,11 @@ function ShopProposalPanel() {
   }
   useEffect(load, []);
 
-  async function handleQueryBlur() {
-    const q = form.query.trim();
+  // Gõ Mã shop HOẶC Tên shop đầy đủ rồi bấm Tab (onBlur) ở đúng ô đó là tự
+  // tra cứu và điền các trường còn lại — cả 2 ô Mã shop/Tên shop đều kích
+  // hoạt tra cứu, dùng chung 1 hàm.
+  async function handleLookup(query) {
+    const q = (query || "").trim();
     if (!q) return;
     setLooking(true);
     setLookupMsg("");
@@ -98,7 +101,7 @@ function ShopProposalPanel() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.ten_shop.trim()) {
-      setSaveError("Cần có Tên shop (gõ ở ô trên rồi bấm Tab, hoặc điền tay ở ô Tên shop).");
+      setSaveError("Cần có Tên shop.");
       return;
     }
     setSaving(true);
@@ -139,27 +142,30 @@ function ShopProposalPanel() {
 
         {showForm && (
           <form onSubmit={handleSubmit} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "14px 16px", marginBottom: 16 }}>
-            <div className="field">
-              <label className="flabel">Mã shop hoặc Tên shop đầy đủ</label>
-              <input
-                className="finput" style={{ width: "100%" }} autoFocus
-                placeholder="Gõ mã shop hoặc tên shop đầy đủ, bấm Tab để tự điền thông tin"
-                value={form.query}
-                onChange={(e) => setForm({ ...form, query: e.target.value })}
-                onBlur={handleQueryBlur}
-              />
-              {looking && <div style={{ fontSize: 11.5, color: "var(--text-400)", marginTop: 4 }}>Đang tra cứu...</div>}
-              {lookupMsg && !looking && <div style={{ fontSize: 11.5, marginTop: 4 }}>{lookupMsg}</div>}
+            <div style={{ fontSize: 11.5, color: "var(--text-400)", marginBottom: 10 }}>
+              Gõ Mã shop hoặc Tên shop đầy đủ rồi bấm Tab — nếu khớp data shop có sẵn sẽ tự điền các trường còn lại.
             </div>
+            {looking && <div style={{ fontSize: 11.5, color: "var(--text-400)", marginBottom: 8 }}>Đang tra cứu...</div>}
+            {lookupMsg && !looking && <div style={{ fontSize: 11.5, marginBottom: 8 }}>{lookupMsg}</div>}
 
-            <div className="form-grid-2" style={{ marginTop: 10 }}>
+            <div className="form-grid-2">
               <div className="field">
                 <label className="flabel">Mã shop</label>
-                <input className="finput" style={{ width: "100%" }} value={form.ma_shop} onChange={(e) => setForm({ ...form, ma_shop: e.target.value })} />
+                <input
+                  className="finput" style={{ width: "100%" }} autoFocus
+                  value={form.ma_shop}
+                  onChange={(e) => setForm({ ...form, ma_shop: e.target.value })}
+                  onBlur={(e) => handleLookup(e.target.value)}
+                />
               </div>
               <div className="field">
                 <label className="flabel">Tên shop *</label>
-                <input className="finput" style={{ width: "100%" }} value={form.ten_shop} onChange={(e) => setForm({ ...form, ten_shop: e.target.value })} />
+                <input
+                  className="finput" style={{ width: "100%" }}
+                  value={form.ten_shop}
+                  onChange={(e) => setForm({ ...form, ten_shop: e.target.value })}
+                  onBlur={(e) => handleLookup(e.target.value)}
+                />
               </div>
               <div className="field">
                 <label className="flabel">Vùng</label>
