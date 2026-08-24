@@ -448,8 +448,9 @@ function BulkUploadCard({ onDone, onOpenForm }) {
       <div className="card-body">
         <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 12, lineHeight: 1.6 }}>
           Thêm từng chủ đề bằng tay, hoặc đăng nhiều cùng lúc bằng Excel đúng mẫu cột (dòng 1):{" "}
-          <strong>Tên Chủ Đề | Vùng | Tên Shop | Nội Dung Vi Phạm</strong> — chỉ bắt buộc cột Tên Chủ Đề, các cột
+          <strong>Tên Chủ Đề | Vùng | Mã Shop | Tên Shop | Nội Dung Vi Phạm</strong> — chỉ bắt buộc cột Tên Chủ Đề, các cột
           khác để trống cũng được. Lưu ý: đăng hàng loạt bằng Excel{" "}
+          <strong>không tự tra Tên Shop/Vùng theo Mã Shop</strong> (khác đăng 1 job qua form) và{" "}
           <strong>không đính kèm được file data check</strong> cho từng dòng — cần bấm "Sửa" từng job sau khi đăng
           nếu muốn thêm file.
         </p>
