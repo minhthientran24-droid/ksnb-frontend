@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import {
   getUser,
   lookupDeXuatShop, listDeXuatShops, createDeXuatShop, deleteDeXuatShop,
   listDeXuatKsnb, createDeXuatKsnb, deleteDeXuatKsnb, downloadDeXuatKiemKe,
+  downloadDeXuatShopBulkImportTemplate, bulkImportDeXuatShops,
 } from "../lib/api";
 
 const ALLOWED_ROLES = ["admin", "editor", "super_admin"];
@@ -86,11 +87,48 @@ function ShopProposalPanel() {
   const [looking, setLooking] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [importBusy, setImportBusy] = useState(false);
+  const [templateBusy, setTemplateBusy] = useState(false);
+  const [importMsg, setImportMsg] = useState("");
+  const importInputRef = useRef(null);
 
   function load() {
     listDeXuatShops().then(setRows).catch((err) => setError(err.message));
   }
   useEffect(load, []);
+
+  async function handleDownloadTemplate() {
+    setTemplateBusy(true);
+    setImportMsg("");
+    try {
+      await downloadDeXuatShopBulkImportTemplate();
+    } catch (err) {
+      setImportMsg("❌ " + err.message);
+    } finally {
+      setTemplateBusy(false);
+    }
+  }
+
+  async function handleImportFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportBusy(true);
+    setImportMsg("");
+    try {
+      const r = await bulkImportDeXuatShops(file);
+      let msg = `✅ Đã thêm ${r.count} shop.`;
+      if (r.unresolved?.length) {
+        msg += ` ⚠️ ${r.unresolved.length} mã shop chưa xác định (không có trong hệ thống): ${r.unresolved.join(", ")} — cần tự sửa tay.`;
+      }
+      setImportMsg(msg);
+      load();
+    } catch (err) {
+      setImportMsg("❌ " + err.message);
+    } finally {
+      setImportBusy(false);
+      if (importInputRef.current) importInputRef.current.value = "";
+    }
+  }
 
   // Gõ Mã shop HOẶC Tên shop đầy đủ rồi bấm Tab (onBlur) ở đúng ô đó là tự
   // tra cứu và điền các trường còn lại — cả 2 ô Mã shop/Tên shop đều kích
@@ -166,7 +204,24 @@ function ShopProposalPanel() {
         {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 10 }}>{error}</div>}
 
         {!showForm && (
-          <button className="upload-btn" onClick={openForm}>➕ Đề xuất shop kiểm kê trực tiếp</button>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: importMsg ? 10 : 0 }}>
+            <button className="upload-btn" onClick={openForm}>➕ Đề xuất shop kiểm kê trực tiếp</button>
+            <button className="upload-btn" disabled={templateBusy} onClick={handleDownloadTemplate}>
+              📥 {templateBusy ? "Đang tải..." : "Tải template Excel"}
+            </button>
+            <input
+              ref={importInputRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }}
+              onChange={handleImportFile} disabled={importBusy}
+            />
+            <button className="upload-btn" disabled={importBusy} onClick={() => importInputRef.current?.click()}>
+              📤 {importBusy ? "Đang import..." : "Import Excel"}
+            </button>
+          </div>
+        )}
+        {!showForm && importMsg && (
+          <div style={{ fontSize: 12, color: importMsg.startsWith("❌") ? "var(--danger)" : "var(--text-600)", marginBottom: 10 }}>
+            {importMsg}
+          </div>
         )}
 
         {showForm && (
