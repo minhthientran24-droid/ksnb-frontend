@@ -3,7 +3,7 @@ import Layout from "../components/Layout";
 import {
   getKiemKePeriods, listKiemKe, updateKiemKeGhiChu,
   getShopChiaHomNay, getDangKiem, doiLichShopChiaHomNay, getUser,
-  downloadKetQuaKiemKeGuiMail,
+  downloadKetQuaKiemKeGuiMail, downloadLcnbThanhLyHni, downloadLcnbThanhLyHcm,
 } from "../lib/api";
 
 function normName(s) {
@@ -206,6 +206,28 @@ export default function TheoDoiKiemKePage() {
     }
   }
 
+  // "LCNB Thanh Lý về Kho Tổng" (24/08) — 2 file riêng theo kho nhận, tính
+  // lại từ file log kết quả kiểm kê mỗi lần tải, chỉ admin ở tab "Đã kiểm".
+  const [lcnbBusy, setLcnbBusy] = useState({ hni: false, hcm: false });
+  const [lcnbMsg, setLcnbMsg] = useState({ hni: "", hcm: "" });
+  async function handleDownloadLcnb(kho) {
+    setLcnbBusy((s) => ({ ...s, [kho]: true }));
+    setLcnbMsg((s) => ({ ...s, [kho]: "" }));
+    try {
+      const fn = kho === "hni" ? downloadLcnbThanhLyHni : downloadLcnbThanhLyHcm;
+      const { soDong, chuaXacDinh } = await fn();
+      let msg = `✅ Đã tải ${soDong} dòng.`;
+      if (chuaXacDinh > 0) {
+        msg += ` ⚠️ ${chuaXacDinh} dòng chưa xác định được Mã kho nhận (thiếu dữ liệu Tỉnh/ShopInfo) — không nằm trong cả 2 file.`;
+      }
+      setLcnbMsg((s) => ({ ...s, [kho]: msg }));
+    } catch (e) {
+      setLcnbMsg((s) => ({ ...s, [kho]: "❌ " + e.message }));
+    } finally {
+      setLcnbBusy((s) => ({ ...s, [kho]: false }));
+    }
+  }
+
   function openReschedule(row) {
     setRescheduling(row);
     setRescheduleForm({ ngay_can_kiem: "", ly_do: "" });
@@ -311,13 +333,29 @@ export default function TheoDoiKiemKePage() {
         </div>
         {isAdmin && loai === "da_kiem" && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-            <button
-              className="fbtn" disabled={ketQuaLogBusy} onClick={handleDownloadKetQuaLog}
-              style={{ background: "#FFF1E1", borderColor: "var(--orange)", color: "var(--orange)" }}
-            >
-              {ketQuaLogBusy ? "Đang tải..." : "📥 Tải file kết quả kiểm kê (gửi mail)"}
-            </button>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                className="fbtn" disabled={ketQuaLogBusy} onClick={handleDownloadKetQuaLog}
+                style={{ background: "#FFF1E1", borderColor: "var(--orange)", color: "var(--orange)" }}
+              >
+                {ketQuaLogBusy ? "Đang tải..." : "📥 Tải file kết quả kiểm kê (gửi mail)"}
+              </button>
+              <button
+                className="fbtn" disabled={lcnbBusy.hni} onClick={() => handleDownloadLcnb("hni")}
+                style={{ background: "#FFF1E1", borderColor: "var(--orange)", color: "var(--orange)" }}
+              >
+                {lcnbBusy.hni ? "Đang tải..." : "📥 LCNB Thanh Lý HNI"}
+              </button>
+              <button
+                className="fbtn" disabled={lcnbBusy.hcm} onClick={() => handleDownloadLcnb("hcm")}
+                style={{ background: "#FFF1E1", borderColor: "var(--orange)", color: "var(--orange)" }}
+              >
+                {lcnbBusy.hcm ? "Đang tải..." : "📥 LCNB Thanh Lý HCM"}
+              </button>
+            </div>
             {ketQuaLogMsg && <div style={{ fontSize: 12, color: "var(--danger)" }}>{ketQuaLogMsg}</div>}
+            {lcnbMsg.hni && <div style={{ fontSize: 12, color: lcnbMsg.hni.startsWith("❌") ? "var(--danger)" : "var(--text-600)" }}>{lcnbMsg.hni}</div>}
+            {lcnbMsg.hcm && <div style={{ fontSize: 12, color: lcnbMsg.hcm.startsWith("❌") ? "var(--danger)" : "var(--text-600)" }}>{lcnbMsg.hcm}</div>}
           </div>
         )}
       </div>
