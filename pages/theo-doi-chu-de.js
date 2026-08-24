@@ -271,6 +271,9 @@ export default function TheoDoiChuDePage() {
   }, []);
 
   const isAdmin = me && ADMIN_ROLES.includes(me.role);
+  // Đăng job (đơn lẻ + hàng loạt bằng Excel) mở thêm cho editor (chốt
+  // 24/08) — Sửa/Xóa job đã đăng vẫn chỉ admin/super_admin.
+  const canUpload = isAdmin || me?.role === "editor";
 
   function closeForm() {
     setShowForm(false);
@@ -330,15 +333,15 @@ export default function TheoDoiChuDePage() {
       <div className="page-head">
         <h1>Theo dõi chủ đề</h1>
         <p>
-          {isAdmin
+          {canUpload
             ? "Đăng job chủ đề cần kiểm tra lên đây — NV KSNB tự bấm \"Nhận Job\" để nhận xử lý."
             : "Bấm \"Nhận Job\" để nhận xử lý — job có file data check sẽ hiện nút tải về."}
         </p>
       </div>
 
-      {isAdmin && !showForm && <BulkUploadCard onDone={load} onOpenForm={() => setShowForm(true)} />}
+      {canUpload && !showForm && <BulkUploadCard onDone={load} onOpenForm={() => setShowForm(true)} />}
 
-      {isAdmin && showForm && (
+      {canUpload && showForm && (
         <JobFormCard editingJob={editingJob} onDone={afterSave} onCancel={closeForm} />
       )}
 
