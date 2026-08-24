@@ -270,7 +270,7 @@ export default function QuanLyTaiKhoanPage() {
       {error && <div className="placeholder-box">Không tải được dữ liệu: {error}</div>}
 
       <div className="card">
-        <div className="card-body" style={{ padding: 0, maxHeight: 620, overflow: "auto" }}>
+        <div className="card-body" style={{ padding: 0, overflowX: "auto" }}>
           <table>
             <thead>
               <tr>
