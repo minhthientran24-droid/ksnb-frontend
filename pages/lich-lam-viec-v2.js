@@ -331,7 +331,7 @@ function ShopListView({ data, onReload }) {
           <h3>Danh sách shop ({rows.length}/{(data.rows || []).length})</h3>
           {hasActive && <button className="fbtn" onClick={clearFilters}>Xóa bộ lọc</button>}
         </div>
-        <div className="card-body llv-scroll" style={{ padding: 0, maxHeight: 560 }}>
+        <div className="card-body llv-scroll" style={{ padding: 0 }}>
           {msg && <div style={{ padding: "8px 20px", fontSize: 12.5 }}>{msg}</div>}
           <table>
             <thead>
@@ -499,7 +499,7 @@ function ScheduleView({ data, group, onDone }) {
           <h3>Shop chờ chia ({rows.length}/{data.rows.length}) — ngày quét {data.scan_date}</h3>
           {hasActive && <button className="fbtn" onClick={clearFilters}>Xóa bộ lọc</button>}
         </div>
-        <div className="card-body llv-scroll" style={{ padding: 0, maxHeight: 500 }}>
+        <div className="card-body llv-scroll" style={{ padding: 0 }}>
           <table>
             <thead>
               <tr>
@@ -761,7 +761,7 @@ function TodayScheduledView({ data, group, onDone }) {
           {dsChiaMsg && <div style={{ fontSize: 14, color: dsChiaMsg.startsWith("✅") ? "#3E7A2A" : "var(--danger)" }}>{dsChiaMsg}</div>}
         </div>
       )}
-      <div className="card-body llv-scroll" style={{ padding: 0, maxHeight: 600 }}>
+      <div className="card-body llv-scroll" style={{ padding: 0 }}>
         {msg && <div style={{ padding: "8px 20px", fontSize: 12.5 }}>{msg}</div>}
         {bulkMsg && <div style={{ padding: "8px 20px", fontSize: 12.5, color: bulkMsg.startsWith("✅") ? "#3E7A2A" : "var(--danger)" }}>{bulkMsg}</div>}
         {ehoMsg && <div style={{ padding: "8px 20px", fontSize: 12.5, color: ehoMsg.startsWith("✅") ? "#3E7A2A" : "var(--danger)" }}>{ehoMsg}</div>}
