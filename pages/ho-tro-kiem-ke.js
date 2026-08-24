@@ -39,9 +39,6 @@ export default function HoTroKiemKePage() {
   const isAdmin = ["admin", "super_admin"].includes(me?.role);
   // Tải lên kết quả kiểm kê thanh lý: mọi role được dùng, trừ viewer.
   const canUploadKetQua = me?.role && me.role !== "viewer";
-  // Tải danh sách LCNB Về Kho Tổng: chỉ admin/super_admin/editor (không gồm editor_base, viewer).
-  const canDownloadLcnb = ["admin", "super_admin", "editor"].includes(me?.role);
-
   // Cập nhật kết quả kiểm kê thanh lý -> xuất file Xuất Khác Tính Giá Trị
   const [ketQuaProcessing, setKetQuaProcessing] = useState(false);
   const [ketQuaResult, setKetQuaResult] = useState(null); // { filename, blob, soDong } | null
@@ -67,10 +64,6 @@ export default function HoTroKiemKePage() {
   const [vxProcessing, setVxProcessing] = useState(false);
   const [vxShowResult, setVxShowResult] = useState(false);
   const vxFileInputRef = useRef(null);
-
-  function handleComingSoon() {
-    alert("Tính năng đang được hoàn thiện, sẽ sớm ra mắt.");
-  }
 
   function handleVxUpload(e) {
     const file = e.target.files?.[0];
@@ -136,12 +129,11 @@ export default function HoTroKiemKePage() {
     setKetQuaResult(null);
     setKetQuaError("");
     try {
-      const { blob, soDong, lcnb } = await capNhatKetQuaKiemKe(file);
+      const { blob, soDong } = await capNhatKetQuaKiemKe(file);
       setKetQuaResult({
         filename: `XuatKhacTinhGiaTri_${file.name.replace(/\.[^.]+$/, "")}.xlsx`,
         blob,
         soDong,
-        lcnb,
       });
     } catch (err) {
       setKetQuaError(err.message || "Xử lý thất bại");
@@ -219,7 +211,7 @@ export default function HoTroKiemKePage() {
                     <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 12, lineHeight: 1.6 }}>
                       Tải lên file kết quả kiểm kê thanh lý (đã điền SL Xử lý, Lý Do, Xác định truy thu).
                       Hệ thống tách các dòng có <b>Xác định truy thu = Truy thu</b> để trả về file import{" "}
-                      <b>Xuất Khác Tính Giá Trị</b>. Phần ghi nhận LCNB Về Kho Tổng đang được hoàn thiện.
+                      <b>Xuất Khác Tính Giá Trị</b>.
                     </p>
                     <input
                       ref={ketQuaFileInputRef}
@@ -251,13 +243,6 @@ export default function HoTroKiemKePage() {
                       <div style={resultBoxStyle}>
                         <span style={{ fontSize: 12.5, color: "#3E7A2A", fontWeight: 600 }}>
                           ✅ Đã xử lý xong — {ketQuaResult.soDong} dòng xuất khác tính giá trị
-                          {ketQuaResult.lcnb && (
-                            <>
-                              <br />
-                              📦 LCNB Về Kho Tổng: {ketQuaResult.lcnb.so_dong} dòng — số lượng {ketQuaResult.lcnb.so_luong_lcnb}
-                              {" "}(tổng file {ketQuaResult.lcnb.so_luong_tong_file} − xuất khác {ketQuaResult.lcnb.so_luong_xuat_khac})
-                            </>
-                          )}
                         </span>
                         <button
                           style={downloadBtnStyle}
@@ -282,22 +267,6 @@ export default function HoTroKiemKePage() {
                   </div>
                 )}
 
-                {canDownloadLcnb && (
-                  <>
-                    <div style={{ borderTop: "1px solid var(--border)", margin: "16px 0" }} />
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
-                      <div>
-                        <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-900)" }}>
-                          📦 Danh sách LCNB Về Kho Tổng
-                        </div>
-                        <div style={{ fontSize: 11.5, color: "var(--text-400)", marginTop: 3 }}>
-                          Danh sách luỹ kế của tháng hiện tại
-                        </div>
-                      </div>
-                      <button onClick={handleComingSoon} style={lcnbDlBtnStyle}>📥 Tải về</button>
-                    </div>
-                  </>
-                )}
               </div>
             </div>
           </div>
@@ -553,10 +522,6 @@ const downloadBtnStyle = {
 const lockedBoxStyle = {
   border: "1.5px dashed var(--border)", borderRadius: 8, padding: "20px 16px",
   display: "flex", alignItems: "flex-start", gap: 12, background: "#F7F9FD",
-};
-const lcnbDlBtnStyle = {
-  background: "#fff", border: "1.5px solid var(--navy-800)", color: "var(--navy-800)", borderRadius: 8,
-  padding: "9px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
 };
 const comingSoonBannerStyle = {
   background: "#FFF1E1", border: "1px solid #F5C68A", color: "#8A5A00", borderRadius: 8,
