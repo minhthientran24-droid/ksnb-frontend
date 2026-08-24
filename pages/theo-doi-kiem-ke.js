@@ -3,8 +3,8 @@ import Layout from "../components/Layout";
 import {
   getKiemKePeriods, listKiemKe, updateKiemKeGhiChu,
   getShopChiaHomNay, getDangKiem, doiLichShopChiaHomNay, getUser,
-  downloadKetQuaKiemKeGuiMail, downloadLcnbThanhLyHni, downloadLcnbThanhLyHcm,
-  getLcnbThanhLyMonths,
+  downloadKetQuaKiemKeGuiMail, getKetQuaKiemKeGuiMailMonths,
+  downloadLcnbThanhLyHni, downloadLcnbThanhLyHcm, getLcnbThanhLyMonths,
 } from "../lib/api";
 
 function normName(s) {
@@ -192,14 +192,29 @@ export default function TheoDoiKiemKePage() {
   }
 
   // Tải file log kết quả kiểm kê ghi liên tục mỗi lần gửi mail BCKS (tab
-  // "Đã kiểm", chỉ admin) — chốt 21/08.
+  // "Đã kiểm", chỉ admin) — chốt 21/08, lưu theo tháng + có bộ chọn tháng
+  // từ 25/08.
+  const [ketQuaLogMonths, setKetQuaLogMonths] = useState([]);
+  const [ketQuaLogThang, setKetQuaLogThang] = useState("");
   const [ketQuaLogBusy, setKetQuaLogBusy] = useState(false);
   const [ketQuaLogMsg, setKetQuaLogMsg] = useState("");
+
+  useEffect(() => {
+    if (!isAdmin || loai !== "da_kiem") return;
+    getKetQuaKiemKeGuiMailMonths()
+      .then(({ months }) => {
+        setKetQuaLogMonths(months);
+        setKetQuaLogThang((t) => (t ? t : months[0] || ""));
+      })
+      .catch(() => {});
+  }, [isAdmin, loai]);
+
   async function handleDownloadKetQuaLog() {
     setKetQuaLogBusy(true);
     setKetQuaLogMsg("");
     try {
-      await downloadKetQuaKiemKeGuiMail();
+      await downloadKetQuaKiemKeGuiMail(ketQuaLogThang || undefined);
+      getKetQuaKiemKeGuiMailMonths().then(({ months }) => setKetQuaLogMonths(months)).catch(() => {});
     } catch (e) {
       setKetQuaLogMsg("❌ " + e.message);
     } finally {
@@ -352,30 +367,32 @@ export default function TheoDoiKiemKePage() {
           </p>
         </div>
         {isAdmin && loai === "da_kiem" && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "flex-end" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+            {/* Line 1: chọn tháng - Tải file kết quả kiểm kê */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
+              <select
+                className="month-select"
+                value={ketQuaLogThang} onChange={(e) => setKetQuaLogThang(e.target.value)}
+                title="Chọn tháng file kết quả kiểm kê"
+              >
+                {ketQuaLogMonths.length === 0 && <option value="">Tháng này (chưa có dữ liệu)</option>}
+                {ketQuaLogMonths.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
               <button
                 className="fbtn" disabled={ketQuaLogBusy} onClick={handleDownloadKetQuaLog}
                 style={{ background: "#FFF1E1", borderColor: "var(--orange)", color: "var(--orange)" }}
               >
                 {ketQuaLogBusy ? "Đang tải..." : "📥 Tải file kết quả kiểm kê (gửi mail)"}
               </button>
+              {ketQuaLogMsg && <div style={{ fontSize: 12, color: "var(--danger)" }}>{ketQuaLogMsg}</div>}
+            </div>
+
+            {/* Line 2: chọn tháng - LCNB Thanh Lý HCM */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
               <select
-                value={lcnbThang.hni} onChange={(e) => setLcnbThang((s) => ({ ...s, hni: e.target.value }))}
-                title="Chọn tháng LCNB Thanh Lý HNI" style={{ fontSize: 13 }}
-              >
-                {lcnbMonths.hni.length === 0 && <option value="">Tháng này (chưa có dữ liệu)</option>}
-                {lcnbMonths.hni.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <button
-                className="fbtn" disabled={lcnbBusy.hni} onClick={() => handleDownloadLcnb("hni")}
-                style={{ background: "#FFF1E1", borderColor: "var(--orange)", color: "var(--orange)" }}
-              >
-                {lcnbBusy.hni ? "Đang tải..." : "📥 LCNB Thanh Lý HNI"}
-              </button>
-              <select
+                className="month-select"
                 value={lcnbThang.hcm} onChange={(e) => setLcnbThang((s) => ({ ...s, hcm: e.target.value }))}
-                title="Chọn tháng LCNB Thanh Lý HCM" style={{ fontSize: 13 }}
+                title="Chọn tháng LCNB Thanh Lý HCM"
               >
                 {lcnbMonths.hcm.length === 0 && <option value="">Tháng này (chưa có dữ liệu)</option>}
                 {lcnbMonths.hcm.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -386,10 +403,27 @@ export default function TheoDoiKiemKePage() {
               >
                 {lcnbBusy.hcm ? "Đang tải..." : "📥 LCNB Thanh Lý HCM"}
               </button>
+              {lcnbMsg.hcm && <div style={{ fontSize: 12, color: lcnbMsg.hcm.startsWith("❌") ? "var(--danger)" : "var(--text-600)" }}>{lcnbMsg.hcm}</div>}
             </div>
-            {ketQuaLogMsg && <div style={{ fontSize: 12, color: "var(--danger)" }}>{ketQuaLogMsg}</div>}
-            {lcnbMsg.hni && <div style={{ fontSize: 12, color: lcnbMsg.hni.startsWith("❌") ? "var(--danger)" : "var(--text-600)" }}>{lcnbMsg.hni}</div>}
-            {lcnbMsg.hcm && <div style={{ fontSize: 12, color: lcnbMsg.hcm.startsWith("❌") ? "var(--danger)" : "var(--text-600)" }}>{lcnbMsg.hcm}</div>}
+
+            {/* Line 3: chọn tháng - LCNB Thanh Lý HNI */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
+              <select
+                className="month-select"
+                value={lcnbThang.hni} onChange={(e) => setLcnbThang((s) => ({ ...s, hni: e.target.value }))}
+                title="Chọn tháng LCNB Thanh Lý HNI"
+              >
+                {lcnbMonths.hni.length === 0 && <option value="">Tháng này (chưa có dữ liệu)</option>}
+                {lcnbMonths.hni.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <button
+                className="fbtn" disabled={lcnbBusy.hni} onClick={() => handleDownloadLcnb("hni")}
+                style={{ background: "#FFF1E1", borderColor: "var(--orange)", color: "var(--orange)" }}
+              >
+                {lcnbBusy.hni ? "Đang tải..." : "📥 LCNB Thanh Lý HNI"}
+              </button>
+              {lcnbMsg.hni && <div style={{ fontSize: 12, color: lcnbMsg.hni.startsWith("❌") ? "var(--danger)" : "var(--text-600)" }}>{lcnbMsg.hni}</div>}
+            </div>
           </div>
         )}
       </div>

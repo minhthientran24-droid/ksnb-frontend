@@ -217,6 +217,16 @@ td.neg{color:var(--danger); font-weight:600;}
 .month-tab{padding:8px 16px; border-radius:20px; font-size:12.5px; font-weight:600; background:#fff; border:1px solid var(--border); color:var(--text-600); cursor:pointer;}
 .month-tab.active{background:var(--navy-800); color:#fff; border-color:var(--navy-800);}
 
+/* Style CHUẨN cho MỌI ô "chọn tháng" (dropdown <select> lọc theo tháng)
+   trên toàn web (chốt 25/08) — bo tròn viền xanh dương, dùng lại cho mọi
+   nút chọn tháng mới sau này thay vì <select> mặc định. */
+.month-select{
+  padding:8px 14px; border-radius:20px; font-size:12.5px; font-weight:600;
+  background:#fff; border:1.5px solid var(--blue-accent); color:var(--navy-800);
+  cursor:pointer; font-family:inherit;
+}
+.month-select:focus{outline:none; box-shadow:0 0 0 2px rgba(85,128,214,0.25);}
+
 .pill{display:inline-block; padding:3px 10px; border-radius:20px; font-size:11.5px; font-weight:700;}
 
 .tiny-spinner{
