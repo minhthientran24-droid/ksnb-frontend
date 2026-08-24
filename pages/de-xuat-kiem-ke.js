@@ -16,8 +16,14 @@ function formatDateVn(iso) {
   return d.toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-const EMPTY_SHOP_FORM = { ma_shop: "", ten_shop: "", vung: "", tinh: "", huyen: "", loai_shop: "", ghi_chu: "" };
-const EMPTY_KSNB_FORM = { ten_ksnb: "", so_luong_shop: "", ghi_chu: "" };
+const EMPTY_SHOP_FORM = { ma_shop: "", ten_shop: "", vung: "", tinh: "", huyen: "", loai_shop: "", thang_kiem_ke: "", ghi_chu: "" };
+const EMPTY_KSNB_FORM = { ten_ksnb: "", so_luong_shop: "", thang_kiem_ke: "", ghi_chu: "" };
+
+function formatThangKiemKe(v) {
+  if (!v) return "—";
+  const [y, m] = v.split("-");
+  return m && y ? `${m}/${y}` : v;
+}
 
 export default function DeXuatKiemKePage() {
   const router = useRouter();
@@ -109,7 +115,8 @@ function ShopProposalPanel() {
     try {
       await createDeXuatShop({
         ma_shop: form.ma_shop, ten_shop: form.ten_shop, vung: form.vung,
-        tinh: form.tinh, huyen: form.huyen, loai_shop: form.loai_shop, ghi_chu: form.ghi_chu,
+        tinh: form.tinh, huyen: form.huyen, loai_shop: form.loai_shop,
+        thang_kiem_ke: form.thang_kiem_ke, ghi_chu: form.ghi_chu,
       });
       setShowForm(false);
       load();
@@ -183,6 +190,10 @@ function ShopProposalPanel() {
                 <label className="flabel">Loại shop</label>
                 <input className="finput" style={{ width: "100%" }} value={form.loai_shop} onChange={(e) => setForm({ ...form, loai_shop: e.target.value })} />
               </div>
+              <div className="field">
+                <label className="flabel">Tháng kiểm kê</label>
+                <input type="month" className="finput" style={{ width: "100%" }} value={form.thang_kiem_ke} onChange={(e) => setForm({ ...form, thang_kiem_ke: e.target.value })} />
+              </div>
             </div>
 
             <div className="field" style={{ marginTop: 10 }}>
@@ -208,8 +219,9 @@ function ShopProposalPanel() {
                 <th style={thStyle}>Mã shop</th>
                 <th style={{ ...thStyle, textAlign: "left" }}>Tên shop</th>
                 <th style={thStyle}>Vùng</th>
+                <th style={thStyle}>Tháng kiểm kê</th>
                 <th style={thStyle}>Người đề xuất</th>
-                <th style={thStyle}>Ngày đề xuất</th>
+                <th style={thStyle}>Ngày cập nhật</th>
                 <th style={thStyle}></th>
               </tr>
             </thead>
@@ -223,13 +235,14 @@ function ShopProposalPanel() {
                     {r.ghi_chu && <div style={{ fontSize: 10.5, color: "var(--text-400)", marginTop: 2 }}>📝 {r.ghi_chu}</div>}
                   </td>
                   <td style={tdStyle}>{r.vung || "—"}</td>
+                  <td style={tdStyle}>{formatThangKiemKe(r.thang_kiem_ke)}</td>
                   <td style={tdStyle}>{r.de_xuat_boi || "—"}</td>
-                  <td style={tdStyle}>{formatDateVn(r.created_at)}</td>
+                  <td style={tdStyle}>{formatDateVn(r.updated_at)}</td>
                   <td style={tdStyle}><button className="fbtn danger" onClick={() => handleDelete(r.id)}>Xóa</button></td>
                 </tr>
               ))}
               {!rows.length && (
-                <tr><td colSpan={6} style={{ color: "var(--text-400)", padding: 18 }}>Chưa có đề xuất shop nào.</td></tr>
+                <tr><td colSpan={7} style={{ color: "var(--text-400)", padding: 18 }}>Chưa có đề xuất shop nào.</td></tr>
               )}
             </tbody>
           </table>
@@ -272,7 +285,7 @@ function KsnbProposalPanel() {
     setSaving(true);
     setSaveError("");
     try {
-      await createDeXuatKsnb({ ten_ksnb: form.ten_ksnb, so_luong_shop: soLuong, ghi_chu: form.ghi_chu });
+      await createDeXuatKsnb({ ten_ksnb: form.ten_ksnb, so_luong_shop: soLuong, thang_kiem_ke: form.thang_kiem_ke, ghi_chu: form.ghi_chu });
       setShowForm(false);
       load();
     } catch (err) {
@@ -313,6 +326,10 @@ function KsnbProposalPanel() {
                 <label className="flabel">Số lượng shop cần kiểm *</label>
                 <input type="number" min={1} className="finput" style={{ width: "100%" }} value={form.so_luong_shop} onChange={(e) => setForm({ ...form, so_luong_shop: e.target.value })} />
               </div>
+              <div className="field">
+                <label className="flabel">Tháng kiểm kê</label>
+                <input type="month" className="finput" style={{ width: "100%" }} value={form.thang_kiem_ke} onChange={(e) => setForm({ ...form, thang_kiem_ke: e.target.value })} />
+              </div>
             </div>
 
             <div className="field" style={{ marginTop: 10 }}>
@@ -337,8 +354,9 @@ function KsnbProposalPanel() {
               <tr>
                 <th style={{ ...thStyle, textAlign: "left" }}>Tên KSNB</th>
                 <th style={thStyle}>Số lượng shop</th>
+                <th style={thStyle}>Tháng kiểm kê</th>
                 <th style={thStyle}>Người đề xuất</th>
-                <th style={thStyle}>Ngày đề xuất</th>
+                <th style={thStyle}>Ngày cập nhật</th>
                 <th style={thStyle}></th>
               </tr>
             </thead>
@@ -350,13 +368,14 @@ function KsnbProposalPanel() {
                     {r.ghi_chu && <div style={{ fontSize: 10.5, color: "var(--text-400)", marginTop: 2 }}>📝 {r.ghi_chu}</div>}
                   </td>
                   <td className="num" style={{ ...tdStyle, fontWeight: 700 }}>{r.so_luong_shop}</td>
+                  <td style={tdStyle}>{formatThangKiemKe(r.thang_kiem_ke)}</td>
                   <td style={tdStyle}>{r.de_xuat_boi || "—"}</td>
-                  <td style={tdStyle}>{formatDateVn(r.created_at)}</td>
+                  <td style={tdStyle}>{formatDateVn(r.updated_at)}</td>
                   <td style={tdStyle}><button className="fbtn danger" onClick={() => handleDelete(r.id)}>Xóa</button></td>
                 </tr>
               ))}
               {!rows.length && (
-                <tr><td colSpan={5} style={{ color: "var(--text-400)", padding: 18 }}>Chưa có đề xuất KSNB nào.</td></tr>
+                <tr><td colSpan={6} style={{ color: "var(--text-400)", padding: 18 }}>Chưa có đề xuất KSNB nào.</td></tr>
               )}
             </tbody>
           </table>
