@@ -4,7 +4,7 @@ import Layout from "../components/Layout";
 import {
   getUser,
   lookupDeXuatShop, listDeXuatShops, createDeXuatShop, deleteDeXuatShop,
-  listDeXuatKsnb, createDeXuatKsnb, deleteDeXuatKsnb,
+  listDeXuatKsnb, createDeXuatKsnb, deleteDeXuatKsnb, downloadDeXuatKiemKe,
 } from "../lib/api";
 
 const ALLOWED_ROLES = ["admin", "editor", "super_admin"];
@@ -28,6 +28,8 @@ function formatThangKiemKe(v) {
 export default function DeXuatKiemKePage() {
   const router = useRouter();
   const [checked, setChecked] = useState(false);
+  const [dlBusy, setDlBusy] = useState(false);
+  const [dlMsg, setDlMsg] = useState("");
 
   useEffect(() => {
     const user = getUser();
@@ -38,13 +40,33 @@ export default function DeXuatKiemKePage() {
     setChecked(true);
   }, []);
 
+  async function handleDownload() {
+    setDlBusy(true);
+    setDlMsg("");
+    try {
+      await downloadDeXuatKiemKe();
+    } catch (e) {
+      setDlMsg("❌ " + e.message);
+    } finally {
+      setDlBusy(false);
+    }
+  }
+
   if (!checked) return null;
 
   return (
     <Layout crumb="Đề xuất kiểm kê">
-      <div className="page-head">
-        <h1>Đề xuất kiểm kê</h1>
-        <p>Đề xuất shop cần kiểm kê trực tiếp và KSNB đi kiểm kê trực tiếp.</p>
+      <div className="page-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h1>Đề xuất kiểm kê</h1>
+          <p>Đề xuất shop cần kiểm kê trực tiếp và KSNB đi kiểm kê trực tiếp.</p>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+          <button className="upload-btn" disabled={dlBusy} onClick={handleDownload}>
+            {dlBusy ? "Đang tải..." : "📥 Tải về data"}
+          </button>
+          {dlMsg && <div style={{ fontSize: 12, color: "var(--danger)" }}>{dlMsg}</div>}
+        </div>
       </div>
 
       <div className="grid-2" style={{ gap: 18, alignItems: "start" }}>
