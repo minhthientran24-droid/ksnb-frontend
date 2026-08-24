@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
 import {
   getUser, listChuDeJobs, createChuDeJob, updateChuDeJob, deleteChuDeJob,
-  claimChuDeJob, unclaimChuDeJob, listKsnbForChuDe, completeChuDeJob,
-  downloadChuDeJobFile, downloadChuDeJobResultFile,
+  claimChuDeJob, unclaimChuDeJob, addChuDeJobSupporters, listKsnbForChuDe,
+  completeChuDeJob, downloadChuDeJobFile, downloadChuDeJobResultFile,
   bulkUploadChuDeJobs, downloadChuDeJobBulkUploadTemplate,
 } from "../lib/api";
 
@@ -131,6 +131,76 @@ function ClaimJobModal({ job, meId, onDone, onCancel }) {
             </div>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ---------- Popup: Thêm người hỗ trợ cho job ĐÃ nhận (chốt 25/08) — loại
+// người phụ trách chính + người hỗ trợ đã có sẵn khỏi danh sách chọn. ----------
+function AddSupportersModal({ job, onDone, onCancel }) {
+  const [ksnbList, setKsnbList] = useState([]);
+  const [loadingList, setLoadingList] = useState(true);
+  const [selected, setSelected] = useState(new Set());
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const excluded = new Set([job.claimed_by_user_id, ...(job.supporters || []).map((s) => s.user_id)]);
+    listKsnbForChuDe()
+      .then((list) => setKsnbList(list.filter((u) => !excluded.has(u.id))))
+      .catch((err) => setError(err.message || "Không tải được danh sách KSNB"))
+      .finally(() => setLoadingList(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [job.id]);
+
+  function toggle(id) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  async function submit() {
+    setSaving(true);
+    setError("");
+    try {
+      await addChuDeJobSupporters(job.id, [...selected]);
+      onDone();
+    } catch (err) {
+      setError(err.message || "Thêm người hỗ trợ thất bại");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={overlayStyle} onClick={onCancel}>
+      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+        <h3 style={{ marginBottom: 4 }}>➕ Thêm người hỗ trợ</h3>
+        <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 14 }}>
+          Job <strong>"{job.ten_chu_de}"</strong> — chọn thêm 1 hoặc nhiều KSNB cùng hỗ trợ xử lý.
+        </p>
+        <div style={{ maxHeight: 300, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 8, padding: "4px 2px", marginBottom: 14 }}>
+          {loadingList && <div style={{ fontSize: 12.5, color: "var(--text-400)", padding: 10 }}>Đang tải danh sách...</div>}
+          {!loadingList && ksnbList.length === 0 && (
+            <div style={{ fontSize: 12.5, color: "var(--text-400)", padding: 10 }}>Không còn KSNB nào khác để thêm</div>
+          )}
+          {ksnbList.map((u) => (
+            <label key={u.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}>
+              <input type="checkbox" checked={selected.has(u.id)} onChange={() => toggle(u.id)} />
+              {u.full_name}
+            </label>
+          ))}
+        </div>
+        {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14 }}>{error}</div>}
+        <div style={{ display: "flex", gap: 10 }}>
+          <button disabled={saving || selected.size === 0} className="login-btn" style={{ width: "auto", padding: "9px 22px", margin: 0 }} onClick={submit}>
+            {saving ? "Đang lưu..." : `Xác nhận (${selected.size} người)`}
+          </button>
+          <button type="button" onClick={onCancel} style={deleteBtnStyle}>Hủy</button>
+        </div>
       </div>
     </div>
   );
@@ -371,6 +441,7 @@ export default function TheoDoiChuDePage() {
   const [busyId, setBusyId] = useState(null);
   const [completingJob, setCompletingJob] = useState(null);
   const [claimingJob, setClaimingJob] = useState(null);
+  const [addingSupportersJob, setAddingSupportersJob] = useState(null);
 
   function load() {
     setLoading(true);
@@ -402,6 +473,11 @@ export default function TheoDoiChuDePage() {
 
   function afterClaim() {
     setClaimingJob(null);
+    load();
+  }
+
+  function afterAddSupporters() {
+    setAddingSupportersJob(null);
     load();
   }
 
@@ -500,6 +576,9 @@ export default function TheoDoiChuDePage() {
                   const canAccessFiles = mine || isSupporter || isAdmin; // chỉ NV đã nhận đúng job này (chính/hỗ trợ, hoặc admin) mới tải file được
                   const canComplete = (mine || isSupporter || isAdmin) && job.trang_thai === "Đang xử lý";
                   const canUnclaim = canUpload && job.trang_thai === "Đang xử lý"; // admin/editor — job gặp rủi ro, trả về Chưa nhận
+                  // Thêm người hỗ trợ (25/08): CHỈ người phụ trách chính thấy được (không
+                  // phải người hỗ trợ, không phải user khác) — admin/editor thấy ở mọi job.
+                  const canAddSupporters = (mine || canUpload) && job.trang_thai === "Đang xử lý";
                   const busy = busyId === job.id;
                   const soNgay = soNgayXuLy(job.ngay_bat_dau_check);
                   return (
@@ -543,6 +622,11 @@ export default function TheoDoiChuDePage() {
                               ✅ Đánh dấu hoàn tất
                             </button>
                           )}
+                          {canAddSupporters && (
+                            <button className="fbtn" onClick={() => setAddingSupportersJob(job)}>
+                              ➕ Thêm người hỗ trợ
+                            </button>
+                          )}
                           {canUnclaim && (
                             <button className="fbtn" disabled={busy} onClick={() => handleUnclaim(job)}>
                               {busy ? "Đang trả..." : "↩️ Trả lại (chờ nhận)"}
@@ -567,6 +651,9 @@ export default function TheoDoiChuDePage() {
 
       {claimingJob && (
         <ClaimJobModal job={claimingJob} meId={me?.id} onDone={afterClaim} onCancel={() => setClaimingJob(null)} />
+      )}
+      {addingSupportersJob && (
+        <AddSupportersModal job={addingSupportersJob} onDone={afterAddSupporters} onCancel={() => setAddingSupportersJob(null)} />
       )}
       {completingJob && (
         <CompleteJobModal job={completingJob} onDone={afterComplete} onCancel={() => setCompletingJob(null)} />
