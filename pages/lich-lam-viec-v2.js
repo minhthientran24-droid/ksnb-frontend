@@ -733,9 +733,9 @@ function TodayScheduledView({ data, group, onDone }) {
         <h3>Shop được chia - Chuẩn bị kiểm kê ({rows.length}/{data.rows.length}) — {data.date}</h3>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {hasActive && <button className="fbtn" onClick={clearFilters}>Xóa bộ lọc</button>}
-          <button className="fbtn" disabled={bulkBusy} onClick={runBulkTicket} style={ACTION_BTN_STYLES.blue}>
-            {bulkBusy ? "Đang xếp hàng..." : "📨 Tạo ticket thông báo"}
-          </button>
+          {/* Nút "Tạo ticket thông báo" đã ẩn (chốt 25/08, anh Thiện thấy chưa
+              cần dùng) — giữ nguyên hàm runBulkTicket/state bulkBusy phòng khi
+              cần bật lại, chỉ bỏ nút khỏi UI. */}
           <button className="fbtn" disabled={ehoBusy} onClick={onExportEho} style={ACTION_BTN_STYLES.orange}>
             {ehoBusy ? "Đang tải..." : "📋 Tạo phiếu kiểm kê"}
           </button>
