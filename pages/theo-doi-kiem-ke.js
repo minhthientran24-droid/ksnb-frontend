@@ -4,6 +4,7 @@ import {
   getKiemKePeriods, listKiemKe, updateKiemKeGhiChu,
   getShopChiaHomNay, getDangKiem, doiLichShopChiaHomNay, getUser,
   downloadKetQuaKiemKeGuiMail, downloadLcnbThanhLyHni, downloadLcnbThanhLyHcm,
+  getLcnbThanhLyMonths,
 } from "../lib/api";
 
 function normName(s) {
@@ -206,21 +207,40 @@ export default function TheoDoiKiemKePage() {
     }
   }
 
-  // "LCNB Thanh Lý về Kho Tổng" (24/08) — 2 file riêng theo kho nhận, tính
-  // lại từ file log kết quả kiểm kê mỗi lần tải, chỉ admin ở tab "Đã kiểm".
+  // "LCNB Thanh Lý về Kho Tổng" (24/08, lưu theo tháng + cắt file >500
+  // dòng từ 25/08) — 2 file riêng theo kho nhận, mỗi kho lưu luỹ kế riêng
+  // theo tháng, chỉ admin ở tab "Đã kiểm". Mặc định chọn tháng gần nhất có
+  // dữ liệu (hoặc để trống = tháng hiện tại nếu chưa có tháng nào).
+  const [lcnbMonths, setLcnbMonths] = useState({ hni: [], hcm: [] });
+  const [lcnbThang, setLcnbThang] = useState({ hni: "", hcm: "" });
   const [lcnbBusy, setLcnbBusy] = useState({ hni: false, hcm: false });
   const [lcnbMsg, setLcnbMsg] = useState({ hni: "", hcm: "" });
+
+  useEffect(() => {
+    if (!isAdmin || loai !== "da_kiem") return;
+    ["hni", "hcm"].forEach((kho) => {
+      getLcnbThanhLyMonths(kho)
+        .then(({ months }) => {
+          setLcnbMonths((s) => ({ ...s, [kho]: months }));
+          setLcnbThang((s) => (s[kho] ? s : { ...s, [kho]: months[0] || "" }));
+        })
+        .catch(() => {});
+    });
+  }, [isAdmin, loai]);
+
   async function handleDownloadLcnb(kho) {
     setLcnbBusy((s) => ({ ...s, [kho]: true }));
     setLcnbMsg((s) => ({ ...s, [kho]: "" }));
     try {
       const fn = kho === "hni" ? downloadLcnbThanhLyHni : downloadLcnbThanhLyHcm;
-      const { soDong, chuaXacDinh } = await fn();
-      let msg = `✅ Đã tải ${soDong} dòng.`;
+      const { soDong, soPhan, chuaXacDinh } = await fn(lcnbThang[kho] || undefined);
+      let msg = `✅ Đã tải ${soDong} dòng` + (soPhan > 1 ? ` (cắt thành ${soPhan} file, gộp .zip)` : "") + ".";
       if (chuaXacDinh > 0) {
-        msg += ` ⚠️ ${chuaXacDinh} dòng chưa xác định được Mã kho nhận (thiếu dữ liệu Tỉnh/ShopInfo) — không nằm trong cả 2 file.`;
+        msg += ` ⚠️ ${chuaXacDinh} dòng chưa xác định được Mã kho nhận (thiếu dữ liệu Tỉnh/ShopInfo) — không nằm trong file tháng nào.`;
       }
       setLcnbMsg((s) => ({ ...s, [kho]: msg }));
+      // Tải xong lần đầu trong tháng hiện tại có thể vừa tạo tháng mới -> nạp lại danh sách tháng
+      getLcnbThanhLyMonths(kho).then(({ months }) => setLcnbMonths((s) => ({ ...s, [kho]: months }))).catch(() => {});
     } catch (e) {
       setLcnbMsg((s) => ({ ...s, [kho]: "❌ " + e.message }));
     } finally {
@@ -340,12 +360,26 @@ export default function TheoDoiKiemKePage() {
               >
                 {ketQuaLogBusy ? "Đang tải..." : "📥 Tải file kết quả kiểm kê (gửi mail)"}
               </button>
+              <select
+                value={lcnbThang.hni} onChange={(e) => setLcnbThang((s) => ({ ...s, hni: e.target.value }))}
+                title="Chọn tháng LCNB Thanh Lý HNI" style={{ fontSize: 13 }}
+              >
+                {lcnbMonths.hni.length === 0 && <option value="">Tháng này (chưa có dữ liệu)</option>}
+                {lcnbMonths.hni.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
               <button
                 className="fbtn" disabled={lcnbBusy.hni} onClick={() => handleDownloadLcnb("hni")}
                 style={{ background: "#FFF1E1", borderColor: "var(--orange)", color: "var(--orange)" }}
               >
                 {lcnbBusy.hni ? "Đang tải..." : "📥 LCNB Thanh Lý HNI"}
               </button>
+              <select
+                value={lcnbThang.hcm} onChange={(e) => setLcnbThang((s) => ({ ...s, hcm: e.target.value }))}
+                title="Chọn tháng LCNB Thanh Lý HCM" style={{ fontSize: 13 }}
+              >
+                {lcnbMonths.hcm.length === 0 && <option value="">Tháng này (chưa có dữ liệu)</option>}
+                {lcnbMonths.hcm.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
               <button
                 className="fbtn" disabled={lcnbBusy.hcm} onClick={() => handleDownloadLcnb("hcm")}
                 style={{ background: "#FFF1E1", borderColor: "var(--orange)", color: "var(--orange)" }}
