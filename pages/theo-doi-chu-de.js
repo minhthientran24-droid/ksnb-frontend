@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
 import {
   getUser, listChuDeJobs, createChuDeJob, updateChuDeJob, deleteChuDeJob,
-  claimChuDeJob, completeChuDeJob, downloadChuDeJobFile, downloadChuDeJobResultFile,
+  claimChuDeJob, unclaimChuDeJob, listKsnbForChuDe, completeChuDeJob,
+  downloadChuDeJobFile, downloadChuDeJobResultFile,
   bulkUploadChuDeJobs, downloadChuDeJobBulkUploadTemplate,
 } from "../lib/api";
 
@@ -37,6 +38,103 @@ function soNgayXuLy(ngayBatDauCheck) {
 }
 
 const VI_PHAM_OPTIONS = ["Không vi phạm", "Có vi phạm"];
+
+// ---------- Popup: Nhận Job — xác nhận, hoặc "Nhận + thêm người hỗ trợ"
+// mở tiếp màn hình tick chọn 1/nhiều KSNB (chốt 25/08) ----------
+function ClaimJobModal({ job, meId, onDone, onCancel }) {
+  const [step, setStep] = useState("confirm"); // "confirm" | "pick-supporters"
+  const [ksnbList, setKsnbList] = useState([]);
+  const [loadingList, setLoadingList] = useState(false);
+  const [selected, setSelected] = useState(new Set());
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  function openPickSupporters() {
+    setStep("pick-supporters");
+    setError("");
+    if (ksnbList.length === 0) {
+      setLoadingList(true);
+      listKsnbForChuDe()
+        .then((list) => setKsnbList(list.filter((u) => u.id !== meId)))
+        .catch((err) => setError(err.message || "Không tải được danh sách KSNB"))
+        .finally(() => setLoadingList(false));
+    }
+  }
+
+  function toggle(id) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  async function submit(supporterIds) {
+    setSaving(true);
+    setError("");
+    try {
+      await claimChuDeJob(job.id, supporterIds);
+      onDone();
+    } catch (err) {
+      setError(err.message || "Nhận job thất bại");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={overlayStyle} onClick={onCancel}>
+      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+        {step === "confirm" && (
+          <>
+            <h3 style={{ marginBottom: 4 }}>📌 Nhận Job</h3>
+            <p style={{ fontSize: 13, color: "var(--text-600)", marginBottom: 18 }}>
+              Xác nhận nhận xử lý job <strong>"{job.ten_chu_de}"</strong>
+              {job.ten_shop ? ` — shop ${job.ten_shop}` : ""}?
+            </p>
+            {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14 }}>{error}</div>}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-start" }}>
+              <button disabled={saving} className="login-btn" style={{ width: "auto", padding: "9px 22px", margin: 0 }} onClick={() => submit([])}>
+                {saving ? "Đang nhận..." : "✅ Xác nhận Nhận Job"}
+              </button>
+              <button type="button" disabled={saving} className="upload-btn" onClick={openPickSupporters}>
+                ➕ Nhận + thêm người hỗ trợ
+              </button>
+              <button type="button" onClick={onCancel} style={deleteBtnStyle}>Hủy</button>
+            </div>
+          </>
+        )}
+        {step === "pick-supporters" && (
+          <>
+            <h3 style={{ marginBottom: 4 }}>👥 Chọn người hỗ trợ</h3>
+            <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 14 }}>
+              Job <strong>"{job.ten_chu_de}"</strong> — chọn 1 hoặc nhiều KSNB cùng hỗ trợ xử lý (anh/chị vẫn là người phụ trách chính).
+            </p>
+            <div style={{ maxHeight: 300, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 8, padding: "4px 2px", marginBottom: 14 }}>
+              {loadingList && <div style={{ fontSize: 12.5, color: "var(--text-400)", padding: 10 }}>Đang tải danh sách...</div>}
+              {!loadingList && ksnbList.length === 0 && (
+                <div style={{ fontSize: 12.5, color: "var(--text-400)", padding: 10 }}>Không có KSNB nào khác trong hệ thống</div>
+              )}
+              {ksnbList.map((u) => (
+                <label key={u.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}>
+                  <input type="checkbox" checked={selected.has(u.id)} onChange={() => toggle(u.id)} />
+                  {u.full_name}
+                </label>
+              ))}
+            </div>
+            {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14 }}>{error}</div>}
+            <div style={{ display: "flex", gap: 10 }}>
+              <button disabled={saving} className="login-btn" style={{ width: "auto", padding: "9px 22px", margin: 0 }} onClick={() => submit([...selected])}>
+                {saving ? "Đang nhận..." : `Xác nhận (${selected.size} người hỗ trợ)`}
+              </button>
+              <button type="button" onClick={() => setStep("confirm")} style={deleteBtnStyle}>Quay lại</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ---------- Popup: đánh dấu Hoàn tất — chọn kết quả + upload file kết quả ----------
 function CompleteJobModal({ job, onDone, onCancel }) {
@@ -272,6 +370,7 @@ export default function TheoDoiChuDePage() {
   const [editingJob, setEditingJob] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [completingJob, setCompletingJob] = useState(null);
+  const [claimingJob, setClaimingJob] = useState(null);
 
   function load() {
     setLoading(true);
@@ -301,13 +400,21 @@ export default function TheoDoiChuDePage() {
     load();
   }
 
-  async function handleClaim(job) {
+  function afterClaim() {
+    setClaimingJob(null);
+    load();
+  }
+
+  // Trả job về "Chưa nhận" (25/08, admin/editor) — người đã nhận gặp rủi
+  // ro/không xử lý được, để người khác vào nhận lại.
+  async function handleUnclaim(job) {
+    if (!confirm(`Trả job "${job.ten_chu_de}" về trạng thái "Chưa nhận"? Người hỗ trợ (nếu có) cũng sẽ bị gỡ.`)) return;
     setBusyId(job.id);
     try {
-      await claimChuDeJob(job.id);
+      await unclaimChuDeJob(job.id);
       load();
     } catch (err) {
-      alert(err.message || "Nhận job thất bại");
+      alert(err.message || "Trả job thất bại");
     } finally {
       setBusyId(null);
     }
@@ -387,9 +494,12 @@ export default function TheoDoiChuDePage() {
               </thead>
               <tbody>
                 {jobs.map((job) => {
+                  const supporters = job.supporters || [];
                   const mine = me && job.claimed_by_user_id === me.id;
-                  const canAccessFiles = mine || isAdmin; // chỉ NV đã nhận đúng job này (hoặc admin) mới tải file được
-                  const canComplete = (mine || isAdmin) && job.trang_thai === "Đang xử lý";
+                  const isSupporter = me && supporters.some((s) => s.user_id === me.id);
+                  const canAccessFiles = mine || isSupporter || isAdmin; // chỉ NV đã nhận đúng job này (chính/hỗ trợ, hoặc admin) mới tải file được
+                  const canComplete = (mine || isSupporter || isAdmin) && job.trang_thai === "Đang xử lý";
+                  const canUnclaim = canUpload && job.trang_thai === "Đang xử lý"; // admin/editor — job gặp rủi ro, trả về Chưa nhận
                   const busy = busyId === job.id;
                   const soNgay = soNgayXuLy(job.ngay_bat_dau_check);
                   return (
@@ -399,7 +509,14 @@ export default function TheoDoiChuDePage() {
                       <td>{job.vung || "-"}</td>
                       <td>{job.ten_shop || "-"}</td>
                       <td style={{ textAlign: "left" }}>{job.noi_dung_vi_pham || "-"}</td>
-                      <td>{job.nhan_vien_phu_trach || "-"}</td>
+                      <td style={{ textAlign: "left" }}>
+                        {job.nhan_vien_phu_trach || "-"}
+                        {supporters.length > 0 && (
+                          <div style={{ fontSize: 11, color: "var(--text-400)", marginTop: 2 }}>
+                            + hỗ trợ: {supporters.map((s) => s.full_name).join(", ")}
+                          </div>
+                        )}
+                      </td>
                       <td>{fmtDateTime(job.ngay_bat_dau_check) || "-"}</td>
                       <td>{soNgay === null ? "-" : `${soNgay} ngày`}</td>
                       <td>{statusPill(job.trang_thai)}</td>
@@ -407,8 +524,8 @@ export default function TheoDoiChuDePage() {
                       <td>
                         <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "stretch" }}>
                           {job.trang_thai === "Chưa nhận" && (
-                            <button className="fbtn" disabled={busy} onClick={() => handleClaim(job)}>
-                              {busy ? "Đang nhận..." : "Nhận Job"}
+                            <button className="fbtn" onClick={() => setClaimingJob(job)}>
+                              Nhận Job
                             </button>
                           )}
                           {job.has_data_file && canAccessFiles && (
@@ -424,6 +541,11 @@ export default function TheoDoiChuDePage() {
                           {canComplete && (
                             <button className="fbtn" onClick={() => setCompletingJob(job)}>
                               ✅ Đánh dấu hoàn tất
+                            </button>
+                          )}
+                          {canUnclaim && (
+                            <button className="fbtn" disabled={busy} onClick={() => handleUnclaim(job)}>
+                              {busy ? "Đang trả..." : "↩️ Trả lại (chờ nhận)"}
                             </button>
                           )}
                           {isAdmin && (
@@ -443,6 +565,9 @@ export default function TheoDoiChuDePage() {
         </div>
       )}
 
+      {claimingJob && (
+        <ClaimJobModal job={claimingJob} meId={me?.id} onDone={afterClaim} onCancel={() => setClaimingJob(null)} />
+      )}
       {completingJob && (
         <CompleteJobModal job={completingJob} onDone={afterComplete} onCancel={() => setCompletingJob(null)} />
       )}
