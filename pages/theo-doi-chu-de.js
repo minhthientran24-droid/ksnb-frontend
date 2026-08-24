@@ -3,7 +3,7 @@ import Layout from "../components/Layout";
 import {
   getUser, listChuDeJobs, createChuDeJob, updateChuDeJob, deleteChuDeJob,
   claimChuDeJob, completeChuDeJob, downloadChuDeJobFile, downloadChuDeJobResultFile,
-  bulkUploadChuDeJobs,
+  bulkUploadChuDeJobs, downloadChuDeJobBulkUploadTemplate,
 } from "../lib/api";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
@@ -194,6 +194,7 @@ function JobFormCard({ editingJob, onDone, onCancel }) {
 function BulkUploadCard({ onDone, onOpenForm }) {
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [error, setError] = useState("");
   const [resultMsg, setResultMsg] = useState("");
 
@@ -215,6 +216,18 @@ function BulkUploadCard({ onDone, onOpenForm }) {
     }
   }
 
+  async function handleDownloadTemplate() {
+    setDownloadingTemplate(true);
+    setError("");
+    try {
+      await downloadChuDeJobBulkUploadTemplate();
+    } catch (err) {
+      setError(err.message || "Tải template thất bại");
+    } finally {
+      setDownloadingTemplate(false);
+    }
+  }
+
   return (
     <div className="card">
       <div className="card-head">
@@ -231,6 +244,9 @@ function BulkUploadCard({ onDone, onOpenForm }) {
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <button className="login-btn" style={{ width: "auto", padding: "10px 24px", margin: 0, fontSize: 13 }} onClick={onOpenForm}>
             Thêm chủ đề mới
+          </button>
+          <button className="upload-btn" onClick={handleDownloadTemplate} disabled={downloadingTemplate}>
+            📥 {downloadingTemplate ? "Đang tải..." : "Tải template Excel"}
           </button>
           <input
             ref={fileInputRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }}
