@@ -136,11 +136,12 @@ export default function HoTroKiemKePage() {
     setKetQuaResult(null);
     setKetQuaError("");
     try {
-      const { blob, soDong } = await capNhatKetQuaKiemKe(file);
+      const { blob, soDong, lcnb } = await capNhatKetQuaKiemKe(file);
       setKetQuaResult({
         filename: `XuatKhacTinhGiaTri_${file.name.replace(/\.[^.]+$/, "")}.xlsx`,
         blob,
         soDong,
+        lcnb,
       });
     } catch (err) {
       setKetQuaError(err.message || "Xử lý thất bại");
@@ -250,6 +251,13 @@ export default function HoTroKiemKePage() {
                       <div style={resultBoxStyle}>
                         <span style={{ fontSize: 12.5, color: "#3E7A2A", fontWeight: 600 }}>
                           ✅ Đã xử lý xong — {ketQuaResult.soDong} dòng xuất khác tính giá trị
+                          {ketQuaResult.lcnb && (
+                            <>
+                              <br />
+                              📦 LCNB Về Kho Tổng: {ketQuaResult.lcnb.so_dong} dòng — số lượng {ketQuaResult.lcnb.so_luong_lcnb}
+                              {" "}(tổng file {ketQuaResult.lcnb.so_luong_tong_file} − xuất khác {ketQuaResult.lcnb.so_luong_xuat_khac})
+                            </>
+                          )}
                         </span>
                         <button
                           style={downloadBtnStyle}
