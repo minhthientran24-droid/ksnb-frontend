@@ -4,12 +4,18 @@ import {
   getUser, listChuDeJobs, createChuDeJob, updateChuDeJob, deleteChuDeJob,
   claimChuDeJob, unclaimChuDeJob, addChuDeJobSupporters, listKsnbForChuDe,
   completeChuDeJob, downloadChuDeJobFile, downloadChuDeJobResultFile,
-  bulkUploadChuDeJobs, downloadChuDeJobBulkUploadTemplate,
+  bulkUploadChuDeJobs, downloadChuDeJobBulkUploadTemplate, lookupChuDeShop,
 } from "../lib/api";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
 
-const emptyForm = { ten_chu_de: "", vung: "", ten_shop: "", noi_dung_vi_pham: "" };
+const emptyForm = { ten_chu_de: "", vung: "", ma_shop: "", ten_shop: "", noi_dung_vi_pham: "" };
+
+// Cột "Tên Shop" hiển thị "Mã Shop - Tên Shop" (25/08) khi có ma_shop.
+function shopDisplay(job) {
+  if (job.ma_shop && job.ten_shop) return `${job.ma_shop} - ${job.ten_shop}`;
+  return job.ma_shop || job.ten_shop || "-";
+}
 
 const STATUS_STYLE = {
   "Chưa nhận": { background: "#FFF1E1", color: "var(--orange)" },
@@ -279,6 +285,30 @@ function JobFormCard({ editingJob, onDone, onCancel }) {
   const fileInputRef = useRef(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [looking, setLooking] = useState(false);
+  const [lookupMsg, setLookupMsg] = useState("");
+
+  // Gõ Mã shop rồi bấm Tab (onBlur) là tự tra cứu, điền Tên Shop/Vùng
+  // (chốt 25/08) — dùng ShopInfo, tra được shop cả nước.
+  async function handleLookup(query) {
+    const q = (query || "").trim();
+    if (!q) return;
+    setLooking(true);
+    setLookupMsg("");
+    try {
+      const res = await lookupChuDeShop(q);
+      if (res.found) {
+        setForm((f) => ({ ...f, ma_shop: res.ma_shop || "", ten_shop: res.ten_shop || "", vung: res.vung || f.vung }));
+        setLookupMsg("✅ Đã tìm thấy shop, tự điền Tên Shop/Vùng.");
+      } else {
+        setLookupMsg("⚠️ Không khớp shop nào trong hệ thống — có thể tự nhập tay Tên Shop.");
+      }
+    } catch (err) {
+      setLookupMsg("❌ " + err.message);
+    } finally {
+      setLooking(false);
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -308,9 +338,23 @@ function JobFormCard({ editingJob, onDone, onCancel }) {
         <h3>{editingJob ? `✏️ Sửa job: ${editingJob.ten_chu_de}` : "Thêm chủ đề mới"}</h3>
       </div>
       <form onSubmit={handleSubmit} className="form-grid-2" style={{ padding: "16px 20px" }}>
+        {(looking || lookupMsg) && (
+          <div style={{ gridColumn: "1 / -1", fontSize: 11.5, color: looking ? "var(--text-400)" : undefined }}>
+            {looking ? "Đang tra cứu..." : lookupMsg}
+          </div>
+        )}
         <div>
           <label style={labelStyle}>Tên chủ đề *</label>
           <input style={inputStyle} value={form.ten_chu_de} onChange={(e) => setForm({ ...form, ten_chu_de: e.target.value })} />
+        </div>
+        <div>
+          <label style={labelStyle}>Mã shop</label>
+          <input
+            style={inputStyle} value={form.ma_shop}
+            onChange={(e) => setForm({ ...form, ma_shop: e.target.value })}
+            onBlur={(e) => handleLookup(e.target.value)}
+            placeholder="Gõ mã shop rồi bấm Tab..."
+          />
         </div>
         <div>
           <label style={labelStyle}>Vùng</label>
@@ -586,7 +630,7 @@ export default function TheoDoiChuDePage() {
                       <td>{job.upload_date}</td>
                       <td style={{ textAlign: "left" }}>{job.ten_chu_de}</td>
                       <td>{job.vung || "-"}</td>
-                      <td>{job.ten_shop || "-"}</td>
+                      <td style={{ textAlign: "left" }}>{shopDisplay(job)}</td>
                       <td style={{ textAlign: "left" }}>{job.noi_dung_vi_pham || "-"}</td>
                       <td style={{ textAlign: "left" }}>
                         {job.nhan_vien_phu_trach || "-"}
