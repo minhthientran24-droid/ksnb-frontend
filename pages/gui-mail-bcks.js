@@ -223,7 +223,7 @@ function SelfServicePanel({ smtpConfigured }) {
   const [file, setFile] = useState(null);
   const [previewing, setPreviewing] = useState(false);
   const [previewError, setPreviewError] = useState("");
-  const [preview, setPreview] = useState(null); // { ma_shop, ten_shop, warnings, attachment_name, summary_image_base64 } từ API
+  const [preview, setPreview] = useState(null); // { ma_shop, ten_shop, report_type, warnings, attachment_name, summary_image_base64 } từ API
   const [toText, setToText] = useState("");
   const [ccText, setCcText] = useState("");
   const [subject, setSubject] = useState("");
@@ -317,8 +317,17 @@ function SelfServicePanel({ smtpConfigured }) {
             <div style={{
               background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 8,
               padding: "10px 14px", marginBottom: 14, fontSize: 12.5,
+              display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
             }}>
-              <strong>Shop:</strong> {preview.ma_shop} - {preview.ten_shop}
+              <span><strong>Shop:</strong> {preview.ma_shop} - {preview.ten_shop}</span>
+              <span style={{
+                fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999,
+                ...(preview.report_type === "vaccine"
+                  ? { background: "#E6F4FF", color: "#0B5FA5", border: "1px solid #A9D6F5" }
+                  : { background: "#EAF6E5", color: "#3E7A2A", border: "1px solid #CFE8C4" }),
+              }}>
+                {preview.report_type === "vaccine" ? "💉 Shop Vaccine" : "🏪 Shop Long Châu"}
+              </span>
             </div>
 
             {preview.warnings?.length > 0 && (
