@@ -62,11 +62,12 @@ export default function HoTroKiemKePage() {
   const tlKetQuaFileInputRef = useRef(null);
 
   // Hỗ trợ kiểm kê shop VX (chốt 25/08 — rule xử lý thật). Upload file tồn
-  // kho thô (TonKhoProductItem*.csv) -> lọc + xuất 1 file kết quả 3 sheet
-  // (VPKM / Kiểm Kê VX / Kiểm kê VTYT) để shop điền tay + đối chiếu.
+  // kho thô (TonKhoProductItem*.csv) -> lọc + xuất 3 file kết quả riêng
+  // (VPKM / Kiểm Kê VX / Kiểm kê VTYT), bấm 1 nút tải cả 3 để shop điền
+  // tay + đối chiếu.
   const [vxFile, setVxFile] = useState(null); // File | null
   const [vxProcessing, setVxProcessing] = useState(false);
-  const [vxResult, setVxResult] = useState(null); // { blob, stats } | null
+  const [vxResult, setVxResult] = useState(null); // { files: [{filename, blob}], stats } | null
   const [vxError, setVxError] = useState("");
   const vxFileInputRef = useRef(null);
 
@@ -78,8 +79,8 @@ export default function HoTroKiemKePage() {
     setVxError("");
     setVxProcessing(true);
     try {
-      const { blob, filename, stats } = await processHoTroVx(file);
-      setVxResult({ blob, stats, filename });
+      const { files, stats } = await processHoTroVx(file);
+      setVxResult({ files, stats });
     } catch (err) {
       setVxError(err.message || "Xử lý thất bại");
     } finally {
@@ -87,16 +88,23 @@ export default function HoTroKiemKePage() {
     }
   }
 
+  // Bấm 1 lần tải cả 3 file — không đóng gói zip, trigger 3 lượt tải liên
+  // tiếp (mỗi lượt cách nhau 1 chút) từ cùng 1 thao tác bấm nút của người
+  // dùng để trình duyệt không chặn tải nhiều file.
   function handleVxDownload() {
-    if (!vxResult) return;
-    const url = URL.createObjectURL(vxResult.blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = vxResult.filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    if (!vxResult?.files?.length) return;
+    vxResult.files.forEach(({ filename, blob }, i) => {
+      setTimeout(() => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }, i * 400);
+    });
   }
 
   async function handleTongHopProcess() {
@@ -439,7 +447,7 @@ export default function HoTroKiemKePage() {
                     Kiểm kê VTYT: {vxResult.stats["Kiểm kê VTYT"] ?? 0} dòng
                   </span>
                   <button className="upload-btn" style={{ alignSelf: "flex-start" }} onClick={handleVxDownload}>
-                    📥 Tải file kết quả (3 file .xlsx, gộp trong 1 file .zip)
+                    📥 Tải file kết quả (bấm 1 lần tải cả 3 file .xlsx)
                   </button>
                 </div>
               )}
