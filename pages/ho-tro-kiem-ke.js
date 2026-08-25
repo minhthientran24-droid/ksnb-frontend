@@ -435,7 +435,7 @@ export default function HoTroKiemKePage() {
               {vxResult && !vxProcessing && (
                 <div style={{ ...resultBoxStyle, flexDirection: "column", alignItems: "stretch" }}>
                   <span style={{ fontSize: 12.5, color: "#3E7A2A", fontWeight: 600, marginBottom: 10 }}>
-                    ✅ Đã xử lý xong — VPKM: {vxResult.stats["VPKM"] ?? 0} dòng · Kiểm Kê VX: {vxResult.stats["Kiểm Kê VX"] ?? 0} dòng ·
+                    ✅ Đã xử lý xong — Kiểm Kê VPKM: {vxResult.stats["Kiểm Kê VPKM"] ?? 0} dòng · Kiểm Kê VX: {vxResult.stats["Kiểm Kê VX"] ?? 0} dòng ·
                     Kiểm kê VTYT: {vxResult.stats["Kiểm kê VTYT"] ?? 0} dòng
                   </span>
                   <button className="upload-btn" style={{ alignSelf: "flex-start" }} onClick={handleVxDownload}>
