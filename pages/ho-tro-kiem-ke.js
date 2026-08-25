@@ -80,7 +80,7 @@ export default function HoTroKiemKePage() {
   const [bcksTttcFiles, setBcksTttcFiles] = useState([]); // File[]
   const [bcksTttcWarning, setBcksTttcWarning] = useState("");
   const [bcksTttcProcessing, setBcksTttcProcessing] = useState(false);
-  const [bcksTttcResult, setBcksTttcResult] = useState(null); // { blob, filename } | null
+  const [bcksTttcResult, setBcksTttcResult] = useState(null); // { files: [{filename, blob}] } | null
   const [bcksTttcError, setBcksTttcError] = useState("");
   const bcksTttcFileInputRef = useRef(null);
 
@@ -140,14 +140,26 @@ export default function HoTroKiemKePage() {
     setBcksTttcResult(null);
   }
 
+  // Bấm 1 lần tải cả (các) file kết quả — trigger tải liên tiếp (cách
+  // nhau 1 chút) từ cùng 1 thao tác của người dùng để trình duyệt không
+  // chặn tải nhiều file, giống hệt cách làm ở "Hỗ trợ kiểm kê shop VX".
+  function downloadBcksTttcFiles(files) {
+    (files || []).forEach(({ filename, blob }, i) => {
+      setTimeout(() => downloadBlob(blob, filename), i * 400);
+    });
+  }
+
   async function handleBcksTttcProcess() {
     if (!bcksTttcFiles.length) return;
     setBcksTttcProcessing(true);
     setBcksTttcResult(null);
     setBcksTttcError("");
     try {
-      const { blob, filename } = await tongHopBcksTttc(bcksTttcFiles);
-      setBcksTttcResult({ blob, filename });
+      const { files } = await tongHopBcksTttc(bcksTttcFiles);
+      setBcksTttcResult({ files });
+      // Tự động tải về ngay khi xử lý xong — bấm nút "Tổng hợp báo cáo
+      // kiểm soát" là đủ, không cần bấm thêm nút tải.
+      downloadBcksTttcFiles(files);
     } catch (err) {
       setBcksTttcError(err.message || "Xử lý thất bại");
     } finally {
@@ -577,13 +589,14 @@ export default function HoTroKiemKePage() {
               {bcksTttcResult && !bcksTttcProcessing && (
                 <div style={resultBoxStyle}>
                   <span style={{ fontSize: 12.5, color: "#3E7A2A", fontWeight: 600 }}>
-                    ✅ Đã tổng hợp xong ({bcksTttcFiles.length} file kiểm kê -&gt; {bcksTttcFiles.length + 1} sheet)
+                    ✅ Đã tổng hợp xong — đã tự động tải về {bcksTttcResult.files.length} file
+                    {bcksTttcResult.files.length > 1 ? " (báo cáo tổng hợp + file Import NKXK)" : ""}
                   </span>
                   <button
                     style={downloadBtnStyle}
-                    onClick={() => downloadBlob(bcksTttcResult.blob, bcksTttcResult.filename)}
+                    onClick={() => downloadBcksTttcFiles(bcksTttcResult.files)}
                   >
-                    📥 Tải file kết quả về
+                    📥 Tải lại
                   </button>
                 </div>
               )}
