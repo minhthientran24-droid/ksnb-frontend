@@ -449,6 +449,7 @@ export default function HoTroKiemKePage() {
               subtitle='Áp dụng cho sheet "VPKM" và "Kiểm kê VTYT" — cập nhật khi danh mục thay đổi'
             />
           )}
+          <div className="grid-2" style={{ gap: 18, alignItems: "start" }}>
           <div className="card">
             <div className="card-head"><h3>💉 Hỗ trợ kiểm kê shop VX</h3></div>
             <div className="card-body">
@@ -491,7 +492,7 @@ export default function HoTroKiemKePage() {
             </div>
           </div>
 
-          <div className="card" style={{ marginTop: 18 }}>
+          <div className="card">
             <div className="card-head"><h3>📑 Tổng hợp BCKS TTTC</h3></div>
             <div className="card-body">
               <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 16, lineHeight: 1.6 }}>
@@ -563,6 +564,7 @@ export default function HoTroKiemKePage() {
                 </div>
               )}
             </div>
+          </div>
           </div>
         </>
       )}
