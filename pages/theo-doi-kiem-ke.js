@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import {
   getKiemKePeriods, listKiemKe, updateKiemKeGhiChu,
-  getShopChiaHomNay, getDangKiem, doiLichShopChiaHomNay, getUser,
+  getShopChiaHomNay, getDangKiem, doiLichShopChiaHomNay, huyDangKiem, getUser,
   downloadKetQuaKiemKeGuiMail, getKetQuaKiemKeGuiMailMonths,
   downloadLcnbThanhLyHni, downloadLcnbThanhLyHcm, getLcnbThanhLyMonths,
 } from "../lib/api";
@@ -72,7 +72,7 @@ function JobStatusBadge({ status, url }) {
 // Bảng dùng chung cho 2 tab lấy dữ liệu từ Phân công KSNB kiểm kê (LLV v2):
 // "Shop được chia - Chuẩn bị kiểm kê" (có nút Dời lịch) và "Đang kiểm" (chỉ
 // xem, có thêm cột Số ngày kiểm + cảnh báo trễ hạn, sắp theo số ngày giảm dần).
-function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canReschedule, onOpenReschedule, emptyText, showSoNgayKiem, showTicket }) {
+function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canReschedule, onOpenReschedule, showHuy, onOpenHuy, emptyText, showSoNgayKiem, showTicket }) {
   let rows = (data?.rows || []).filter((r) => {
     if (!searchQuery) return true;
     return (
@@ -87,7 +87,7 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
       .sort((a, b) => (b._soNgayKiem ?? -Infinity) - (a._soNgayKiem ?? -Infinity));
   }
 
-  const colCount = 7 + (showSoNgayKiem ? 1 : 0) + (showTicket ? 1 : 0) + (showDoiLich ? 1 : 0);
+  const colCount = 7 + (showSoNgayKiem ? 1 : 0) + (showTicket ? 1 : 0) + (showDoiLich ? 1 : 0) + (showHuy ? 1 : 0);
 
   return (
     <div className="card">
@@ -104,7 +104,7 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
             <tr>
               <th>Vùng</th><th>Mã shop</th><th>Tên shop</th><th>KSNB phụ trách</th>
               <th>Ngày kiểm</th>{showSoNgayKiem && <th>Số ngày kiểm</th>}
-              <th>Hình thức</th><th>Trạng thái</th>{showTicket && <th>Ticket thông báo</th>}{showDoiLich && <th></th>}
+              <th>Hình thức</th><th>Trạng thái</th>{showTicket && <th>Ticket thông báo</th>}{showDoiLich && <th></th>}{showHuy && <th></th>}
             </tr>
           </thead>
           <tbody>
@@ -148,6 +148,11 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
                       )}
                     </td>
                   )}
+                  {showHuy && (
+                    <td>
+                      <button className="fbtn" style={{ color: "var(--danger)", borderColor: "var(--danger)" }} onClick={() => onOpenHuy(r)}>Hủy</button>
+                    </td>
+                  )}
                 </tr>
               );
             })}
@@ -189,6 +194,39 @@ export default function TheoDoiKiemKePage() {
 
   function canReschedule(row) {
     return isAdmin || normName(row.ksnb) === normName(me?.full_name);
+  }
+
+  // Huỷ kiểm kê (tab "Đang kiểm", chốt 25/08) — CHỈ admin, bắt buộc nhập
+  // lý do + ngày dời lịch. Nút chỉ hiện với admin nên không cần check
+  // quyền theo dòng như canReschedule.
+  const [huyRow, setHuyRow] = useState(null); // row đang huỷ
+  const [huyForm, setHuyForm] = useState({ ngay_can_kiem: "", ly_do: "" });
+  const [huyBusy, setHuyBusy] = useState(false);
+  const [huyMsg, setHuyMsg] = useState("");
+
+  function openHuy(row) {
+    setHuyRow(row);
+    setHuyForm({ ngay_can_kiem: "", ly_do: "" });
+    setHuyMsg("");
+  }
+
+  async function submitHuy() {
+    if (!huyForm.ngay_can_kiem || !huyForm.ly_do.trim()) {
+      setHuyMsg("❌ Vui lòng nhập đủ ngày dời lịch và lý do.");
+      return;
+    }
+    setHuyBusy(true);
+    setHuyMsg("");
+    try {
+      const r = await huyDangKiem(huyRow.id, huyForm.ngay_can_kiem, huyForm.ly_do);
+      setHuyRow(null);
+      getDangKiem().then(setDangKiemData).catch((err) => setError(err.message));
+      alert(`✅ Đã huỷ kiểm kê shop ${r.ma_shop} — dời sang ngày ${huyForm.ngay_can_kiem}.`);
+    } catch (err) {
+      setHuyMsg("❌ " + err.message);
+    } finally {
+      setHuyBusy(false);
+    }
   }
 
   // Tải file log kết quả kiểm kê ghi liên tục mỗi lần gửi mail BCKS (tab
@@ -498,6 +536,8 @@ export default function TheoDoiKiemKePage() {
           isAdmin={isAdmin}
           searchQuery={searchQuery}
           showDoiLich={false}
+          showHuy={isAdmin}
+          onOpenHuy={openHuy}
           showSoNgayKiem
           emptyText="Không có shop nào đang trong kỳ kiểm."
         />
@@ -530,6 +570,37 @@ export default function TheoDoiKiemKePage() {
               {rescheduleBusy ? "Đang lưu..." : "Xác nhận dời"}
             </button>
             <button className="fbtn" onClick={() => setRescheduling(null)}>Hủy</button>
+          </div>
+        </Modal>
+      )}
+
+      {huyRow && (
+        <Modal
+          title={`Huỷ kiểm kê — shop ${huyRow.ma_shop}`}
+          subtitle={`${huyRow.ten_shop || ""}${huyRow.ngay_kiem ? ` · Ngày kiểm hiện tại: ${huyRow.ngay_kiem}` : ""}`}
+          onClose={() => setHuyRow(null)}
+        >
+          <div className="field">
+            <label className="flabel">Ngày dời lịch</label>
+            <input type="date" className="finput" style={{ width: "100%" }}
+              value={huyForm.ngay_can_kiem}
+              onChange={(e) => setHuyForm({ ...huyForm, ngay_can_kiem: e.target.value })} />
+          </div>
+          <div className="field">
+            <label className="flabel">Lý do huỷ</label>
+            <input className="finput" style={{ width: "100%" }}
+              value={huyForm.ly_do}
+              onChange={(e) => setHuyForm({ ...huyForm, ly_do: e.target.value })} />
+          </div>
+          <div style={{ fontSize: 11.5, color: "var(--text-600)", marginBottom: 12 }}>
+            Shop sẽ rời khỏi danh sách "Đang kiểm", chuyển về "Chờ chia lịch" với ngày cần kiểm mới là ngày dời lịch nhập ở trên.
+          </div>
+          {huyMsg && <div style={{ fontSize: 12.5, marginBottom: 12, color: "var(--danger)" }}>{huyMsg}</div>}
+          <div className="llv-modal-actions">
+            <button className="login-btn" style={{ width: "auto", padding: "9px 20px", background: "var(--danger)" }} disabled={huyBusy} onClick={submitHuy}>
+              {huyBusy ? "Đang lưu..." : "Xác nhận huỷ"}
+            </button>
+            <button className="fbtn" onClick={() => setHuyRow(null)}>Đóng</button>
           </div>
         </Modal>
       )}
