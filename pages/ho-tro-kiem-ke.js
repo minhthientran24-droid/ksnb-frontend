@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
 import {
-  checkKiemKeCanDate, capNhatKetQuaKiemKe, tongHopBcksFromXknk, processHoTroVx,
+  checkKiemKeCanDate, capNhatKetQuaKiemKe, tongHopBcksFromXknk, processHoTroVx, tongHopBcksTttc,
   getKiemKeThanhLyReferenceFiles, uploadKiemKeThanhLyReferenceFile, getUser,
 } from "../lib/api";
 
@@ -71,13 +71,16 @@ export default function HoTroKiemKePage() {
   const [vxError, setVxError] = useState("");
   const vxFileInputRef = useRef(null);
 
-  // Tổng hợp BCKS TTTC (25/08 — UI TRƯỚC, rule + code xử lý thật làm sau).
-  // Cho chọn 1-3 file kiểm kê (đã kiểm kê thật, tải về từ mục "Hỗ trợ kiểm
-  // kê shop VX" phía trên rồi shop điền tay) để gộp thành 1 báo cáo kiểm
-  // soát hoàn chỉnh. Chọn nhiều hơn 3 file -> cảnh báo, không cho xử lý.
+  // Tổng hợp BCKS TTTC (25/08 — rule + code xử lý thật). Cho chọn 1-3 file
+  // kiểm kê (đã kiểm kê thật, tải về từ mục "Hỗ trợ kiểm kê shop VX" phía
+  // trên rồi shop điền tay) để ráp thành 1 báo cáo kiểm soát hoàn chỉnh
+  // (tối đa 4 sheet: tối đa 3 sheet kiểm kê + 1 sheet Tổng hợp Kiểm Kê
+  // TTTC). Chọn nhiều hơn 3 file -> cảnh báo, không cho xử lý.
   const [bcksTttcFiles, setBcksTttcFiles] = useState([]); // File[]
   const [bcksTttcWarning, setBcksTttcWarning] = useState("");
-  const [bcksTttcResult, setBcksTttcResult] = useState(null); // placeholder — chưa có xử lý thật
+  const [bcksTttcProcessing, setBcksTttcProcessing] = useState(false);
+  const [bcksTttcResult, setBcksTttcResult] = useState(null); // { blob, filename } | null
+  const [bcksTttcError, setBcksTttcError] = useState("");
   const bcksTttcFileInputRef = useRef(null);
 
   async function handleVxUpload(e) {
@@ -136,12 +139,19 @@ export default function HoTroKiemKePage() {
     setBcksTttcResult(null);
   }
 
-  // TODO (rule + code xử lý thật làm sau — hiện tại mới xây UI): gộp 1-3
-  // file kiểm kê thành 1 báo cáo kiểm soát hoàn chỉnh, tên file kết quả
-  // "Báo cáo kiểm soát TTTC <Mã Shop> - <Tên Shop> ngày <hôm nay>".
-  function handleBcksTttcProcess() {
+  async function handleBcksTttcProcess() {
     if (!bcksTttcFiles.length) return;
-    setBcksTttcResult({ placeholder: true, count: bcksTttcFiles.length });
+    setBcksTttcProcessing(true);
+    setBcksTttcResult(null);
+    setBcksTttcError("");
+    try {
+      const { blob, filename } = await tongHopBcksTttc(bcksTttcFiles);
+      setBcksTttcResult({ blob, filename });
+    } catch (err) {
+      setBcksTttcError(err.message || "Xử lý thất bại");
+    } finally {
+      setBcksTttcProcessing(false);
+    }
   }
 
   async function handleTongHopProcess() {
@@ -545,22 +555,35 @@ export default function HoTroKiemKePage() {
               <div style={{ marginTop: 16 }}>
                 <button
                   onClick={handleBcksTttcProcess}
-                  disabled={!bcksTttcFiles.length}
+                  disabled={!bcksTttcFiles.length || bcksTttcProcessing}
                   style={actionBtnStyle}
                 >
-                  🚀 Tổng hợp báo cáo kiểm soát
+                  {bcksTttcProcessing ? "Đang xử lý..." : "🚀 Tổng hợp báo cáo kiểm soát"}
                 </button>
               </div>
 
-              {bcksTttcResult && (
-                <div style={{ ...resultBoxStyle, flexDirection: "column", alignItems: "stretch", background: "#FFF6E0", border: "1px solid #F0DFA0" }}>
-                  <span style={{ fontSize: 12.5, color: "#8A6D1A", fontWeight: 600 }}>
-                    🔧 Đã nhận {bcksTttcResult.count} file — chức năng xử lý gộp báo cáo (rule + code thật)
-                    đang được xây dựng, sẽ hoàn thiện ở bản cập nhật tiếp theo.
+              {bcksTttcProcessing && (
+                <div style={{ marginTop: 14, fontSize: 12.5, color: "var(--text-600)", display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className="tiny-spinner" />
+                  Đang xử lý file, vui lòng đợi...
+                </div>
+              )}
+
+              {bcksTttcError && !bcksTttcProcessing && (
+                <div style={{ marginTop: 14, fontSize: 12.5, color: "var(--danger)" }}>❌ {bcksTttcError}</div>
+              )}
+
+              {bcksTttcResult && !bcksTttcProcessing && (
+                <div style={resultBoxStyle}>
+                  <span style={{ fontSize: 12.5, color: "#3E7A2A", fontWeight: 600 }}>
+                    ✅ Đã tổng hợp xong ({bcksTttcFiles.length} file kiểm kê -&gt; {bcksTttcFiles.length + 1} sheet)
                   </span>
-                  <span style={{ fontSize: 11.5, color: "var(--text-600)", marginTop: 6 }}>
-                    Tên file kết quả dự kiến: <code>Báo cáo kiểm soát TTTC &lt;Mã Shop&gt; - &lt;Tên Shop&gt; ngày {new Date().toLocaleDateString("vi-VN")}.xlsx</code>
-                  </span>
+                  <button
+                    style={downloadBtnStyle}
+                    onClick={() => downloadBlob(bcksTttcResult.blob, bcksTttcResult.filename)}
+                  >
+                    📥 Tải file kết quả về
+                  </button>
                 </div>
               )}
             </div>
