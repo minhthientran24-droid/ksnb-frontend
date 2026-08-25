@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
 import {
-  checkKiemKeCanDate, capNhatKetQuaKiemKe, tongHopBcksFromXknk,
+  checkKiemKeCanDate, capNhatKetQuaKiemKe, tongHopBcksFromXknk, processHoTroVx,
   getKiemKeThanhLyReferenceFiles, uploadKiemKeThanhLyReferenceFile, getUser,
 } from "../lib/api";
 
@@ -16,6 +16,10 @@ const REFERENCE_ITEMS = [
 
 const CAT_LIEU_REFERENCE_ITEMS = [
   { key: "dmsp_cat_lieu", label: "DM sản phẩm cắt liều (DMSP_CatLieu)" },
+];
+
+const VX_REFERENCE_ITEMS = [
+  { key: "msp_loai_tru_vx", label: "MSP loại trừ xử lý tồn kho VX (MSP_LoaiTru_VX)" },
 ];
 
 function downloadBlob(blob, filename) {
@@ -57,26 +61,42 @@ export default function HoTroKiemKePage() {
   const xknkFileInputRef = useRef(null);
   const tlKetQuaFileInputRef = useRef(null);
 
-  // Hỗ trợ kiểm kê shop VX — MỚI, mới có UI, chưa code rule xử lý (chốt
-  // 21/08: "làm UI trước khi code rule"). Upload xong chỉ hiện khung kết
-  // quả dạng chờ (2 file tải về, nút khoá tạm) để anh duyệt layout trước.
+  // Hỗ trợ kiểm kê shop VX (chốt 25/08 — rule xử lý thật). Upload file tồn
+  // kho thô (TonKhoProductItem*.csv) -> lọc + xuất 1 file kết quả 3 sheet
+  // (VPKM / Kiểm Kê VX / Kiểm kê VTYT) để shop điền tay + đối chiếu.
   const [vxFile, setVxFile] = useState(null); // File | null
   const [vxProcessing, setVxProcessing] = useState(false);
-  const [vxShowResult, setVxShowResult] = useState(false);
+  const [vxResult, setVxResult] = useState(null); // { blob, stats } | null
+  const [vxError, setVxError] = useState("");
   const vxFileInputRef = useRef(null);
 
-  function handleVxUpload(e) {
+  async function handleVxUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
     setVxFile(file);
-    setVxShowResult(false);
+    setVxResult(null);
+    setVxError("");
     setVxProcessing(true);
-    // Chưa có rule xử lý thật — giả lập trạng thái "đang xử lý" rồi hiện
-    // khung kết quả (2 file) ở dạng CHỜ, để anh duyệt UI trước khi code rule.
-    setTimeout(() => {
+    try {
+      const { blob, stats } = await processHoTroVx(file);
+      setVxResult({ blob, stats, filename: `HoTroKiemKeVX_${file.name.replace(/\.[^.]+$/, "")}.xlsx` });
+    } catch (err) {
+      setVxError(err.message || "Xử lý thất bại");
+    } finally {
       setVxProcessing(false);
-      setVxShowResult(true);
-    }, 600);
+    }
+  }
+
+  function handleVxDownload() {
+    if (!vxResult) return;
+    const url = URL.createObjectURL(vxResult.blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = vxResult.filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   }
 
   async function handleTongHopProcess() {
@@ -376,54 +396,56 @@ export default function HoTroKiemKePage() {
       )}
 
       {tab === "vx" && (
-        <div className="card">
-          <div className="card-head"><h3>💉 Hỗ trợ kiểm kê shop VX</h3></div>
-          <div className="card-body">
-            <div style={comingSoonBannerStyle}>
-              🚧 Đang trong giai đoạn thiết kế giao diện — rule xử lý dữ liệu sẽ được bổ sung sau.
-            </div>
+        <>
+          {isAdmin && (
+            <ReferenceFilesPanel
+              items={VX_REFERENCE_ITEMS}
+              title="⚙️ Danh mục MSP loại trừ khi xử lý VX (Admin)"
+              subtitle='Áp dụng cho sheet "VPKM" và "Kiểm kê VTYT" — cập nhật khi danh mục thay đổi'
+            />
+          )}
+          <div className="card">
+            <div className="card-head"><h3>💉 Hỗ trợ kiểm kê shop VX</h3></div>
+            <div className="card-body">
+              <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 16, lineHeight: 1.6 }}>
+                Chọn file tồn kho shop VX từ máy tính (TonKhoProductItem*.csv) — hệ thống lọc theo Ngành
+                và xuất 1 file kết quả gồm 3 sheet <strong>VPKM / Kiểm Kê VX / Kiểm kê VTYT</strong> để
+                shop tự điền "Số lượng shop điền" đối chiếu.
+              </p>
 
-            <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 16, lineHeight: 1.6 }}>
-              Chọn file tồn kho shop VX từ máy tính — hệ thống sẽ xử lý và trả kết quả để tải về ngay
-              trên màn hình này (tối đa 2 file kết quả).
-            </p>
+              <input ref={vxFileInputRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={handleVxUpload} />
+              <button className="upload-btn" onClick={() => vxFileInputRef.current?.click()} disabled={vxProcessing}>
+                📤 Tải lên file tồn kho
+              </button>
+              {vxFile && (
+                <div style={{ fontSize: 11, color: "#4C9A2A", marginTop: 8 }}>✅ {vxFile.name}</div>
+              )}
 
-            <input ref={vxFileInputRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={handleVxUpload} />
-            <button className="upload-btn" onClick={() => vxFileInputRef.current?.click()} disabled={vxProcessing}>
-              📤 Tải lên file tồn kho
-            </button>
-            {vxFile && (
-              <div style={{ fontSize: 11, color: "#4C9A2A", marginTop: 8 }}>✅ {vxFile.name}</div>
-            )}
-
-            {vxProcessing && (
-              <div style={{ marginTop: 14, fontSize: 12.5, color: "var(--text-600)", display: "flex", alignItems: "center", gap: 8 }}>
-                <span className="tiny-spinner" />
-                Đang xử lý file, vui lòng đợi...
-              </div>
-            )}
-
-            {vxShowResult && !vxProcessing && (
-              <div style={{ ...resultBoxStyle, background: "#FFF7E6", border: "1px solid #F0D999", flexDirection: "column", alignItems: "stretch" }}>
-                <span style={{ fontSize: 12.5, color: "#8A6D00", fontWeight: 600, marginBottom: 10 }}>
-                  ⏳ Khung kết quả (mẫu) — sẽ tải được thật sau khi có rule xử lý
-                </span>
-                <div className="grid-2" style={{ gap: 12 }}>
-                  <div style={vxResultFileCardStyle}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--navy-900)", marginBottom: 4 }}>📄 File kết quả 1</div>
-                    <div style={{ fontSize: 11, color: "var(--text-400)", marginBottom: 10 }}>Nội dung chờ chốt rule</div>
-                    <button style={vxDisabledDlBtnStyle} disabled title="Sẽ mở khi có rule xử lý thật">📥 Tải về</button>
-                  </div>
-                  <div style={vxResultFileCardStyle}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--navy-900)", marginBottom: 4 }}>📄 File kết quả 2</div>
-                    <div style={{ fontSize: 11, color: "var(--text-400)", marginBottom: 10 }}>Nội dung chờ chốt rule</div>
-                    <button style={vxDisabledDlBtnStyle} disabled title="Sẽ mở khi có rule xử lý thật">📥 Tải về</button>
-                  </div>
+              {vxProcessing && (
+                <div style={{ marginTop: 14, fontSize: 12.5, color: "var(--text-600)", display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className="tiny-spinner" />
+                  Đang xử lý file, vui lòng đợi...
                 </div>
-              </div>
-            )}
+              )}
+
+              {vxError && !vxProcessing && (
+                <div style={{ marginTop: 14, fontSize: 12.5, color: "var(--danger)" }}>❌ {vxError}</div>
+              )}
+
+              {vxResult && !vxProcessing && (
+                <div style={{ ...resultBoxStyle, flexDirection: "column", alignItems: "stretch" }}>
+                  <span style={{ fontSize: 12.5, color: "#3E7A2A", fontWeight: 600, marginBottom: 10 }}>
+                    ✅ Đã xử lý xong — VPKM: {vxResult.stats["VPKM"] ?? 0} dòng · Kiểm Kê VX: {vxResult.stats["Kiểm Kê VX"] ?? 0} dòng ·
+                    Kiểm kê VTYT: {vxResult.stats["Kiểm kê VTYT"] ?? 0} dòng
+                  </span>
+                  <button className="upload-btn" style={{ alignSelf: "flex-start" }} onClick={handleVxDownload}>
+                    📥 Tải file kết quả
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </Layout>
   );
@@ -522,15 +544,4 @@ const downloadBtnStyle = {
 const lockedBoxStyle = {
   border: "1.5px dashed var(--border)", borderRadius: 8, padding: "20px 16px",
   display: "flex", alignItems: "flex-start", gap: 12, background: "#F7F9FD",
-};
-const comingSoonBannerStyle = {
-  background: "#FFF1E1", border: "1px solid #F5C68A", color: "#8A5A00", borderRadius: 8,
-  padding: "10px 14px", fontSize: 12, fontWeight: 600, marginBottom: 16,
-};
-const vxResultFileCardStyle = {
-  border: "1px solid var(--border)", borderRadius: 8, padding: "12px 14px", background: "#fff",
-};
-const vxDisabledDlBtnStyle = {
-  background: "#F2F2F2", border: "1px solid var(--border)", color: "var(--text-400)", borderRadius: 8,
-  padding: "8px 16px", fontSize: 12.5, fontWeight: 700, cursor: "not-allowed", whiteSpace: "nowrap", width: "100%",
 };
