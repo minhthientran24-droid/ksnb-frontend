@@ -71,6 +71,15 @@ export default function HoTroKiemKePage() {
   const [vxError, setVxError] = useState("");
   const vxFileInputRef = useRef(null);
 
+  // Tổng hợp BCKS TTTC (25/08 — UI TRƯỚC, rule + code xử lý thật làm sau).
+  // Cho chọn 1-3 file kiểm kê (đã kiểm kê thật, tải về từ mục "Hỗ trợ kiểm
+  // kê shop VX" phía trên rồi shop điền tay) để gộp thành 1 báo cáo kiểm
+  // soát hoàn chỉnh. Chọn nhiều hơn 3 file -> cảnh báo, không cho xử lý.
+  const [bcksTttcFiles, setBcksTttcFiles] = useState([]); // File[]
+  const [bcksTttcWarning, setBcksTttcWarning] = useState("");
+  const [bcksTttcResult, setBcksTttcResult] = useState(null); // placeholder — chưa có xử lý thật
+  const bcksTttcFileInputRef = useRef(null);
+
   async function handleVxUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -105,6 +114,34 @@ export default function HoTroKiemKePage() {
         URL.revokeObjectURL(url);
       }, i * 400);
     });
+  }
+
+  // Chọn 1 hoặc nhiều file cùng lúc (input multiple) — >3 file thì cảnh
+  // báo và huỷ chọn, không cho xử lý.
+  function handleBcksTttcFileSelect(e) {
+    const files = Array.from(e.target.files || []);
+    setBcksTttcResult(null);
+    if (files.length > 3) {
+      setBcksTttcFiles([]);
+      setBcksTttcWarning(`Chỉ được chọn tối đa 3 file kiểm kê — anh vừa chọn ${files.length} file, vui lòng chọn lại.`);
+    } else if (files.length > 0) {
+      setBcksTttcFiles(files);
+      setBcksTttcWarning("");
+    }
+    e.target.value = ""; // cho phép chọn lại đúng những file vừa gỡ/đổi
+  }
+
+  function handleBcksTttcRemoveFile(idx) {
+    setBcksTttcFiles((prev) => prev.filter((_, i) => i !== idx));
+    setBcksTttcResult(null);
+  }
+
+  // TODO (rule + code xử lý thật làm sau — hiện tại mới xây UI): gộp 1-3
+  // file kiểm kê thành 1 báo cáo kiểm soát hoàn chỉnh, tên file kết quả
+  // "Báo cáo kiểm soát TTTC <Mã Shop> - <Tên Shop> ngày <hôm nay>".
+  function handleBcksTttcProcess() {
+    if (!bcksTttcFiles.length) return;
+    setBcksTttcResult({ placeholder: true, count: bcksTttcFiles.length });
   }
 
   async function handleTongHopProcess() {
@@ -449,6 +486,80 @@ export default function HoTroKiemKePage() {
                   <button className="upload-btn" style={{ alignSelf: "flex-start" }} onClick={handleVxDownload}>
                     📥 Tải file kết quả (bấm 1 lần tải cả 3 file .xlsx)
                   </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="card" style={{ marginTop: 18 }}>
+            <div className="card-head"><h3>📑 Tổng hợp BCKS TTTC</h3></div>
+            <div className="card-body">
+              <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 16, lineHeight: 1.6 }}>
+                Tải lên 1 hoặc nhiều file kiểm kê <b>đã kiểm kê thật</b> (file tải về từ mục "Hỗ trợ kiểm kê
+                shop VX" phía trên, shop đã điền "Số lượng shop điền") — hệ thống gộp lại thành 1 báo cáo
+                kiểm soát hoàn chỉnh. Chọn 1 file thì gộp 1, chọn 3 thì gộp 3; chọn nhiều hơn 3 file kiểm kê
+                sẽ báo lỗi.
+              </p>
+
+              <input
+                ref={bcksTttcFileInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                multiple
+                style={{ display: "none" }}
+                onChange={handleBcksTttcFileSelect}
+              />
+              <button className="upload-btn" onClick={() => bcksTttcFileInputRef.current?.click()}>
+                📤 Chọn file kiểm kê (tối đa 3 file)
+              </button>
+
+              {bcksTttcWarning && (
+                <div style={{ marginTop: 12, fontSize: 12.5, color: "var(--danger)" }}>⚠️ {bcksTttcWarning}</div>
+              )}
+
+              {bcksTttcFiles.length > 0 && (
+                <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+                  {bcksTttcFiles.map((f, i) => (
+                    <div
+                      key={`${f.name}-${i}`}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+                        fontSize: 11.5, color: "#3E7A2A", background: "#EAF6E5", border: "1px solid #CFE8C4",
+                        borderRadius: 6, padding: "6px 10px",
+                      }}
+                    >
+                      <span>✅ {f.name}</span>
+                      <button
+                        onClick={() => handleBcksTttcRemoveFile(i)}
+                        style={{ background: "none", border: "none", color: "var(--danger)", cursor: "pointer", fontSize: 12, fontWeight: 700 }}
+                        title="Bỏ file này"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ marginTop: 16 }}>
+                <button
+                  onClick={handleBcksTttcProcess}
+                  disabled={!bcksTttcFiles.length}
+                  style={actionBtnStyle}
+                >
+                  🚀 Tổng hợp báo cáo kiểm soát
+                </button>
+              </div>
+
+              {bcksTttcResult && (
+                <div style={{ ...resultBoxStyle, flexDirection: "column", alignItems: "stretch", background: "#FFF6E0", border: "1px solid #F0DFA0" }}>
+                  <span style={{ fontSize: 12.5, color: "#8A6D1A", fontWeight: 600 }}>
+                    🔧 Đã nhận {bcksTttcResult.count} file — chức năng xử lý gộp báo cáo (rule + code thật)
+                    đang được xây dựng, sẽ hoàn thiện ở bản cập nhật tiếp theo.
+                  </span>
+                  <span style={{ fontSize: 11.5, color: "var(--text-600)", marginTop: 6 }}>
+                    Tên file kết quả dự kiến: <code>Báo cáo kiểm soát TTTC &lt;Mã Shop&gt; - &lt;Tên Shop&gt; ngày {new Date().toLocaleDateString("vi-VN")}.xlsx</code>
+                  </span>
                 </div>
               )}
             </div>
