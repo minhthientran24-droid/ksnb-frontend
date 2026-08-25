@@ -78,8 +78,8 @@ export default function HoTroKiemKePage() {
     setVxError("");
     setVxProcessing(true);
     try {
-      const { blob, stats } = await processHoTroVx(file);
-      setVxResult({ blob, stats, filename: `HoTroKiemKeVX_${file.name.replace(/\.[^.]+$/, "")}.xlsx` });
+      const { blob, filename, stats } = await processHoTroVx(file);
+      setVxResult({ blob, stats, filename });
     } catch (err) {
       setVxError(err.message || "Xử lý thất bại");
     } finally {
@@ -439,7 +439,7 @@ export default function HoTroKiemKePage() {
                     Kiểm kê VTYT: {vxResult.stats["Kiểm kê VTYT"] ?? 0} dòng
                   </span>
                   <button className="upload-btn" style={{ alignSelf: "flex-start" }} onClick={handleVxDownload}>
-                    📥 Tải file kết quả
+                    📥 Tải file kết quả (3 file .xlsx, gộp trong 1 file .zip)
                   </button>
                 </div>
               )}
