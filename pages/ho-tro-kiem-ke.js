@@ -20,6 +20,7 @@ const CAT_LIEU_REFERENCE_ITEMS = [
 
 const VX_REFERENCE_ITEMS = [
   { key: "msp_loai_tru_vx", label: "MSP loại trừ xử lý tồn kho VX (MSP_LoaiTru_VX)" },
+  { key: "vtyt_tieu_hao", label: "Danh sách VTYT tiêu hao (VTYT_TieuHao)" },
 ];
 
 function downloadBlob(blob, filename) {
@@ -455,8 +456,8 @@ export default function HoTroKiemKePage() {
           {isAdmin && (
             <ReferenceFilesPanel
               items={VX_REFERENCE_ITEMS}
-              title="⚙️ Danh mục MSP loại trừ khi xử lý VX (Admin)"
-              subtitle='Áp dụng cho sheet "VPKM" và "Kiểm kê VTYT" — cập nhật khi danh mục thay đổi'
+              title="⚙️ Danh mục tham chiếu xử lý VX (Admin)"
+              subtitle='MSP loại trừ: áp dụng sheet "Kiểm Kê VPKM" + "Kiểm kê VTYT". VTYT tiêu hao: áp dụng riêng sheet "Kiểm kê VTYT" (điền cột Ghi chú) — cập nhật khi danh mục thay đổi'
             />
           )}
           <div className="grid-2" style={{ gap: 18, alignItems: "start" }}>
