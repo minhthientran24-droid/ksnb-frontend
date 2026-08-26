@@ -391,7 +391,10 @@ export default function TheoDoiKiemKePage() {
         (r.ten_shop || "").toLowerCase().includes(searchQuery)
       );
     })
-    .sort((a, b) => Math.abs(b.gia_tri_that_thoat || 0) - Math.abs(a.gia_tri_that_thoat || 0));
+    .sort((a, b) =>
+      (Math.abs(b.gia_tri_non_cl || 0) + Math.abs(b.gia_tri_cat_lieu || 0)) -
+      (Math.abs(a.gia_tri_non_cl || 0) + Math.abs(a.gia_tri_cat_lieu || 0))
+    );
 
   return (
     <Layout crumb="Theo dõi kiểm kê">
@@ -638,26 +641,31 @@ export default function TheoDoiKiemKePage() {
             <h3>Kỳ {period}</h3>
             <span className="note">
               {searchQuery ? `${displayRows.length}/${rows.length} shop (đang lọc)` : `${rows.length} shop`}
-              {" · sắp xếp theo giá trị thất thoát (lệch nhiều nhất lên đầu)"}
+              {" · sắp xếp theo giá trị kiểm kê (lệch nhiều nhất lên đầu)"}
             </span>
           </div>
           <div className="card-body">
             <table>
               <thead>
                 <tr>
-                  <th>Vùng</th><th>Mã shop</th><th>Tên shop</th><th>Ngày kiểm kê</th>
-                  <th>Giá trị thất thoát</th><th>Truy thu thanh lý</th><th>NV kiểm kê</th><th>Ghi chú</th>
+                  <th>Vùng</th><th>Tên shop</th><th>Ngày kiểm kê</th>
+                  <th>Giá trị kiểm kê - Non CL</th><th>Giá trị kiểm kê - Cắt liều</th><th>Truy thu thanh lý</th>
+                  <th>Cân Tồn</th><th>Lũy Kế</th><th>Ước tính truy thu</th>
+                  <th>NV kiểm kê</th><th>Ghi chú</th>
                 </tr>
               </thead>
               <tbody>
                 {displayRows.map((r) => (
                   <tr key={r.id}>
                     <td style={{ textAlign: "left" }}>{r.vung}</td>
-                    <td>{r.ma_shop}</td>
-                    <td style={{ textAlign: "left" }}>{r.ten_shop || "-"}</td>
+                    <td style={{ textAlign: "left" }}>{r.ma_shop}{r.ten_shop ? ` - ${r.ten_shop}` : ""}</td>
                     <td>{r.ngay_kiem_ke || "-"}</td>
-                    <td className="num neg">{fmtMoney(r.gia_tri_that_thoat)}</td>
+                    <td className="num neg">{fmtMoney(r.gia_tri_non_cl)}</td>
+                    <td className="num neg">{fmtMoney(r.gia_tri_cat_lieu)}</td>
                     <td className="num">{fmtMoney(r.truy_thu_thanh_ly)}</td>
+                    <td className="num">-</td>
+                    <td className="num">-</td>
+                    <td className="num">-</td>
                     <td>{r.nv_kiem_ke || "-"}</td>
                     <td style={{ minWidth: 200 }}>
                       {editingId === r.id ? (
@@ -680,7 +688,7 @@ export default function TheoDoiKiemKePage() {
                   </tr>
                 ))}
                 {displayRows.length === 0 && (
-                  <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-400)" }}>
+                  <tr><td colSpan={11} style={{ textAlign: "center", color: "var(--text-400)" }}>
                     {searchQuery ? "Không tìm thấy shop nào khớp" : "Không có shop nào trong tháng này"}
                   </td></tr>
                 )}
