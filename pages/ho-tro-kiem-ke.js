@@ -20,7 +20,6 @@ const CAT_LIEU_REFERENCE_ITEMS = [
 
 const VX_REFERENCE_ITEMS = [
   { key: "msp_loai_tru_vx", label: "MSP loại trừ xử lý tồn kho VX (MSP_LoaiTru_VX)" },
-  { key: "vtyt_tieu_hao", label: "Danh sách VTYT tiêu hao (VTYT_TieuHao)" },
 ];
 
 function downloadBlob(blob, filename) {
