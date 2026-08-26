@@ -171,6 +171,10 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
 
 export default function TheoDoiKiemKePage() {
   const [loai, setLoai] = useState("shop_chia_hom_nay"); // "shop_chia_hom_nay" | "dang_kiem" | "da_kiem" — mặc định vào là tab "Shop được chia - Chuẩn bị kiểm kê" (chốt 22/08)
+  // Tab "Đã kiểm" — tách riêng Long Châu/Vaccine (chốt 26/08 lần 12), nút
+  // chọn loại trừ lẫn nhau (không cho chọn đồng thời cả 2). Chỉ áp dụng
+  // cho "da_kiem" — "dang_kiem"/"shop_chia_hom_nay" không đụng tới.
+  const [nhom, setNhom] = useState("long_chau"); // "long_chau" | "vaccine"
   const [periods, setPeriods] = useState([]);
   const [period, setPeriod] = useState(null);
   const [rows, setRows] = useState([]);
@@ -362,26 +366,26 @@ export default function TheoDoiKiemKePage() {
     }
   }
 
-  // Tab Đã kiểm -> nạp danh sách kỳ (tháng) như cũ
+  // Tab Đã kiểm -> nạp danh sách kỳ (tháng) như cũ — kèm nhom khi loai=da_kiem
   useEffect(() => {
     if (isLlvTab) {
       setPeriods([]);
       setPeriod(null);
       return;
     }
-    getKiemKePeriods(loai)
+    getKiemKePeriods(loai, loai === "da_kiem" ? nhom : undefined)
       .then((list) => {
         setPeriods(list);
         setPeriod(list.length > 0 ? list[0] : null);
         setRows([]);
       })
       .catch((err) => setError(err.message));
-  }, [loai]);
+  }, [loai, nhom]);
 
   useEffect(() => {
     if (!period || isLlvTab) return;
-    listKiemKe(period, loai).then(setRows).catch((err) => setError(err.message));
-  }, [period, loai]);
+    listKiemKe(period, loai, loai === "da_kiem" ? nhom : undefined).then(setRows).catch((err) => setError(err.message));
+  }, [period, loai, nhom]);
 
   // Tab "Shop được chia hôm nay" / "Đang kiểm" — nạp riêng, không theo kỳ tháng
   useEffect(() => {
@@ -542,6 +546,19 @@ export default function TheoDoiKiemKePage() {
         </div>
       </div>
 
+      {/* Tab "Đã kiểm" — tách riêng Long Châu/Vaccine (chốt 26/08 lần 12),
+          2 nút loại trừ lẫn nhau, không cho chọn đồng thời cả 2. */}
+      {loai === "da_kiem" && (
+        <div className="month-tabs">
+          <div className={`month-tab ${nhom === "long_chau" ? "active" : ""}`} onClick={() => setNhom("long_chau")}>
+            🏥 Long Châu
+          </div>
+          <div className={`month-tab ${nhom === "vaccine" ? "active" : ""}`} onClick={() => setNhom("vaccine")}>
+            💉 Vaccine
+          </div>
+        </div>
+      )}
+
       {!isLlvTab && periods.length > 0 && (
         <div className="month-tabs">
           {periods.map((p) => (
@@ -554,7 +571,9 @@ export default function TheoDoiKiemKePage() {
 
       {error && <div className="placeholder-box">Không tải được dữ liệu: {error}</div>}
       {loai === "da_kiem" && !error && periods.length === 0 && (
-        <div className="placeholder-box">Chưa có shop nào được chuyển sang "Đã kiểm".</div>
+        <div className="placeholder-box">
+          Chưa có shop {nhom === "vaccine" ? "Vaccine" : "Long Châu"} nào được chuyển sang "Đã kiểm".
+        </div>
       )}
 
       {(isLlvTab || periods.length > 0) && (
