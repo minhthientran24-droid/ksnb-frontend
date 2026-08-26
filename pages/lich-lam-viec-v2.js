@@ -350,7 +350,12 @@ function ShopListView({ data, onReload }) {
                 <tr key={r.ma_shop}>
                   <td style={{ textAlign: "left", fontVariantNumeric: "tabular-nums" }}>{r.ma_shop}</td>
                   <td style={{ textAlign: "left" }}>{r.ten_shop}</td>
-                  <td><Pill kind={PHAN_LOAI_PILL[r.phan_loai]}>{r.phan_loai || "—"}</Pill></td>
+                  <td>
+                    <Pill kind={PHAN_LOAI_PILL[r.phan_loai]}>{r.phan_loai || "—"}</Pill>
+                    {r.phan_loai === "Xin kiểm kê" && r.ly_do_xin_kiem_ke && (
+                      <div style={{ marginTop: 4, fontSize: 11.5, fontWeight: 400 }}>{r.ly_do_xin_kiem_ke}</div>
+                    )}
+                  </td>
                   <td style={{ fontSize: 11.5 }}>{statusLabel(r.display_status)}</td>
                   <td>{r.next_due_date || r.ngay_can_kiem || "—"}</td>
                   <td>{r.last_ksnb || r.ksnb || "—"}</td>
