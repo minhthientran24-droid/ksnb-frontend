@@ -365,11 +365,7 @@ function SelfServicePanel({ smtpConfigured }) {
             </div>
             <div style={fieldBoxStyle}>
               <label style={fieldLabelStyle}>Nội dung mail</label>
-              <textarea
-                style={{ ...textInputStyle, minHeight: 110, resize: "vertical" }}
-                value={greeting}
-                onChange={(e) => setGreeting(e.target.value)}
-              />
+              <SignatureEditor value={greeting} onChange={setGreeting} minHeight={90} />
             </div>
 
             <div style={{ ...fieldBoxStyle, background: "var(--bg)" }}>
