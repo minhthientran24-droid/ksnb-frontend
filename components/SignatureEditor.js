@@ -13,14 +13,18 @@ const FONT_SIZES = [
   { label: "Rất lớn", px: "20px" },
 ];
 
-// Riêng "Nội dung mail" (Gửi mail BCKS, chốt 26/08) — mặc định 12px nên
-// đổi "Vừa" thành 12px cho khớp (thay vì 14px như Chữ ký/Hồ sơ nhân sự),
-// dịch cả thang xuống 1 bậc để không trùng giá trị với "Nhỏ".
+// Riêng "Nội dung mail" (Gửi mail BCKS, chốt 26/08) — mặc định cỡ 12 nên
+// đổi "Vừa" thành 12 cho khớp (thay vì 14 như Chữ ký/Hồ sơ nhân sự), dịch
+// cả thang xuống 1 bậc để không trùng giá trị với "Nhỏ". SỬA 26/08 (lần
+// 2) — dùng đơn vị "pt" (điểm, quy ước Word/Outlook khi nói "cỡ chữ 12"),
+// KHÔNG dùng "px" (pixel màn hình): 12px nhỏ hơn nhiều so với 12pt thật
+// (12pt ≈ 16px ở độ phân giải chuẩn 96dpi) — khớp lại với cỡ chữ mặc
+// định trong build_mail_greeting() (backend) cũng vừa đổi sang pt.
 export const GREETING_FONT_SIZES = [
-  { label: "Nhỏ", px: "10px" },
-  { label: "Vừa", px: "12px" },
-  { label: "Lớn", px: "14px" },
-  { label: "Rất lớn", px: "17px" },
+  { label: "Nhỏ", px: "10pt" },
+  { label: "Vừa", px: "12pt" },
+  { label: "Lớn", px: "14pt" },
+  { label: "Rất lớn", px: "17pt" },
 ];
 
 const toolbarStyle = {
