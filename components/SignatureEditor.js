@@ -13,6 +13,16 @@ const FONT_SIZES = [
   { label: "Rất lớn", px: "20px" },
 ];
 
+// Riêng "Nội dung mail" (Gửi mail BCKS, chốt 26/08) — mặc định 12px nên
+// đổi "Vừa" thành 12px cho khớp (thay vì 14px như Chữ ký/Hồ sơ nhân sự),
+// dịch cả thang xuống 1 bậc để không trùng giá trị với "Nhỏ".
+export const GREETING_FONT_SIZES = [
+  { label: "Nhỏ", px: "10px" },
+  { label: "Vừa", px: "12px" },
+  { label: "Lớn", px: "14px" },
+  { label: "Rất lớn", px: "17px" },
+];
+
 const toolbarStyle = {
   display: "flex", alignItems: "center", gap: 6, marginBottom: 6, flexWrap: "wrap",
 };
@@ -25,7 +35,7 @@ const toolSelectStyle = {
   fontSize: 12, color: "var(--text-600)", padding: "0 4px", cursor: "pointer",
 };
 
-export default function SignatureEditor({ value, onChange, placeholder, minHeight = 110 }) {
+export default function SignatureEditor({ value, onChange, placeholder, minHeight = 110, fontSizes = FONT_SIZES }) {
   const editorRef = useRef(null);
   // Bấm vào nút/toolbar (button, select, input color) làm trình duyệt tự
   // chuyển focus ra khỏi vùng contentEditable NGAY LÚC mousedown, khiến
@@ -120,7 +130,7 @@ export default function SignatureEditor({ value, onChange, placeholder, minHeigh
           onChange={(e) => { if (e.target.value) applyFontSize(e.target.value); e.target.value = ""; }}
         >
           <option value="" disabled>Cỡ chữ</option>
-          {FONT_SIZES.map((s) => <option key={s.px} value={s.px}>{s.label}</option>)}
+          {fontSizes.map((s) => <option key={s.px} value={s.px}>{s.label}</option>)}
         </select>
       </div>
       <div

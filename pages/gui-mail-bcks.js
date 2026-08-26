@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
-import SignatureEditor from "../components/SignatureEditor";
+import SignatureEditor, { GREETING_FONT_SIZES } from "../components/SignatureEditor";
 import {
   getUser, getKiemKeThanhLyReferenceFiles, uploadKiemKeThanhLyReferenceFile,
   previewGuiMailBcks, sendGuiMailBcks, getMySmtpCredential, saveMySmtpCredential,
@@ -365,7 +365,7 @@ function SelfServicePanel({ smtpConfigured }) {
             </div>
             <div style={fieldBoxStyle}>
               <label style={fieldLabelStyle}>Nội dung mail</label>
-              <SignatureEditor value={greeting} onChange={setGreeting} minHeight={90} />
+              <SignatureEditor value={greeting} onChange={setGreeting} minHeight={90} fontSizes={GREETING_FONT_SIZES} />
             </div>
 
             <div style={{ ...fieldBoxStyle, background: "var(--bg)" }}>
