@@ -4,6 +4,7 @@ import {
   getKiemKePeriods, listKiemKe, updateKiemKeGhiChu,
   getShopChiaHomNay, getDangKiem, doiLichShopChiaHomNay, huyDangKiem, getUser,
   downloadKetQuaKiemKeGuiMail, getKetQuaKiemKeGuiMailMonths,
+  downloadKetQuaKiemKeGuiMailVaccine, getKetQuaKiemKeGuiMailVaccineMonths,
   downloadLcnbThanhLyHni, downloadLcnbThanhLyHcm, getLcnbThanhLyMonths,
 } from "../lib/api";
 
@@ -260,6 +261,37 @@ export default function TheoDoiKiemKePage() {
     }
   }
 
+  // Tải file log kết quả kiểm kê Vaccine, bản song song riêng (tab "Đã
+  // kiểm", chỉ admin) — chốt 26/08 lần 7, 4 sheet (Thống kê tổng hợp báo
+  // cáo + Kiểm Kê VPKM/VTYT/VX), nút riêng với bản Long Châu ở trên.
+  const [ketQuaLogVacMonths, setKetQuaLogVacMonths] = useState([]);
+  const [ketQuaLogVacThang, setKetQuaLogVacThang] = useState("");
+  const [ketQuaLogVacBusy, setKetQuaLogVacBusy] = useState(false);
+  const [ketQuaLogVacMsg, setKetQuaLogVacMsg] = useState("");
+
+  useEffect(() => {
+    if (!isAdmin || loai !== "da_kiem") return;
+    getKetQuaKiemKeGuiMailVaccineMonths()
+      .then(({ months }) => {
+        setKetQuaLogVacMonths(months);
+        setKetQuaLogVacThang((t) => (t ? t : months[0] || ""));
+      })
+      .catch(() => {});
+  }, [isAdmin, loai]);
+
+  async function handleDownloadKetQuaLogVaccine() {
+    setKetQuaLogVacBusy(true);
+    setKetQuaLogVacMsg("");
+    try {
+      await downloadKetQuaKiemKeGuiMailVaccine(ketQuaLogVacThang || undefined);
+      getKetQuaKiemKeGuiMailVaccineMonths().then(({ months }) => setKetQuaLogVacMonths(months)).catch(() => {});
+    } catch (e) {
+      setKetQuaLogVacMsg("❌ " + e.message);
+    } finally {
+      setKetQuaLogVacBusy(false);
+    }
+  }
+
   // "LCNB Thanh Lý về Kho Tổng" (24/08, lưu theo tháng + cắt file >500
   // dòng từ 25/08) — 2 file riêng theo kho nhận, mỗi kho lưu luỹ kế riêng
   // theo tháng, chỉ admin ở tab "Đã kiểm". Mặc định chọn tháng gần nhất có
@@ -426,6 +458,25 @@ export default function TheoDoiKiemKePage() {
                 {ketQuaLogBusy ? "Đang tải..." : "📥 Tải file kết quả kiểm kê (gửi mail)"}
               </button>
               {ketQuaLogMsg && <div style={{ fontSize: 12, color: "var(--danger)" }}>{ketQuaLogMsg}</div>}
+            </div>
+
+            {/* Line 1b: chọn tháng - Tải file kết quả kiểm kê Vaccine (chốt 26/08 lần 7) */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
+              <select
+                className="month-select"
+                value={ketQuaLogVacThang} onChange={(e) => setKetQuaLogVacThang(e.target.value)}
+                title="Chọn tháng file kết quả kiểm kê Vaccine"
+              >
+                {ketQuaLogVacMonths.length === 0 && <option value="">Tháng này (chưa có dữ liệu)</option>}
+                {ketQuaLogVacMonths.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <button
+                className="fbtn" disabled={ketQuaLogVacBusy} onClick={handleDownloadKetQuaLogVaccine}
+                style={{ background: "#E8F3FF", borderColor: "var(--blue, #1976d2)", color: "var(--blue, #1976d2)" }}
+              >
+                {ketQuaLogVacBusy ? "Đang tải..." : "📥 Tải file kết quả kiểm kê Vaccine (gửi mail)"}
+              </button>
+              {ketQuaLogVacMsg && <div style={{ fontSize: 12, color: "var(--danger)" }}>{ketQuaLogVacMsg}</div>}
             </div>
 
             {/* Line 2: chọn tháng - LCNB Thanh Lý HCM */}
