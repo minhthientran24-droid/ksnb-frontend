@@ -97,6 +97,16 @@ function ShopProposalPanel() {
   }
   useEffect(load, []);
 
+  // Sắp xếp Vùng -> Tỉnh -> Tên shop (chốt 26/08) — so sánh theo locale
+  // "vi" để đúng thứ tự chữ cái tiếng Việt có dấu.
+  const sortedRows = [...rows].sort((a, b) => {
+    const vungCmp = String(a.vung || "").localeCompare(String(b.vung || ""), "vi");
+    if (vungCmp !== 0) return vungCmp;
+    const tinhCmp = String(a.tinh || "").localeCompare(String(b.tinh || ""), "vi");
+    if (tinhCmp !== 0) return tinhCmp;
+    return String(a.ten_shop || "").localeCompare(String(b.ten_shop || ""), "vi");
+  });
+
   async function handleDownloadTemplate() {
     setTemplateBusy(true);
     setImportMsg("");
@@ -199,7 +209,10 @@ function ShopProposalPanel() {
 
   return (
     <div className="card">
-      <div className="card-head"><h3>🏪 Đề xuất shop kiểm kê trực tiếp</h3></div>
+      <div className="card-head">
+        <h3>🏪 Đề xuất shop kiểm kê trực tiếp</h3>
+        <span className="note">Tổng số shop đề xuất: {rows.length}</span>
+      </div>
       <div className="card-body">
         {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 10 }}>{error}</div>}
 
@@ -303,7 +316,7 @@ function ShopProposalPanel() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {sortedRows.map((r) => (
                 <tr key={r.id}>
                   <td style={tdStyle}>{r.ma_shop || "—"}</td>
                   <td style={{ ...tdStyle, textAlign: "left" }}>
