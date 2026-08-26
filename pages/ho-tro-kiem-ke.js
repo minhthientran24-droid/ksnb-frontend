@@ -297,7 +297,7 @@ export default function HoTroKiemKePage() {
                   <>
                     <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 12, lineHeight: 1.6 }}>
                       Tải lên file kết quả kiểm kê thanh lý (đã điền SL Xử lý, Lý Do, Xác định truy thu).
-                      Hệ thống tách các dòng có <b>Xác định truy thu = Truy thu</b> để trả về file import{" "}
+                      Hệ thống tách các dòng có <b>Xác định truy thu = XK tính giá trị</b> để trả về file import{" "}
                       <b>Xuất Khác Tính Giá Trị</b>.
                     </p>
                     <input
