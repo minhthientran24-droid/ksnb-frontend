@@ -183,6 +183,11 @@ export default function TheoDoiKiemKePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const me = getUser();
   const isAdmin = ["admin", "super_admin"].includes(me?.role);
+  // LCNB Thanh Lý HCM/HNI — chốt 26/08 lần 9: mở thêm cho role "editor"
+  // (không phải editor_base) được XEM + TẢI, các nút "Tải file kết quả
+  // kiểm kê (gửi mail)" Long Châu/Vaccine vẫn CHỈ admin/super_admin như cũ.
+  const isEditor = me?.role === "editor";
+  const canLcnb = isAdmin || isEditor;
   // 2 tab lấy dữ liệu từ Phân công KSNB kiểm kê (LLV v2) — không dùng kỳ/tháng
   const isLlvTab = loai === "shop_chia_hom_nay" || loai === "dang_kiem";
 
@@ -302,7 +307,7 @@ export default function TheoDoiKiemKePage() {
   const [lcnbMsg, setLcnbMsg] = useState({ hni: "", hcm: "" });
 
   useEffect(() => {
-    if (!isAdmin || loai !== "da_kiem") return;
+    if (!canLcnb || loai !== "da_kiem") return;
     ["hni", "hcm"].forEach((kho) => {
       getLcnbThanhLyMonths(kho)
         .then(({ months }) => {
@@ -311,7 +316,7 @@ export default function TheoDoiKiemKePage() {
         })
         .catch(() => {});
     });
-  }, [isAdmin, loai]);
+  }, [canLcnb, loai]);
 
   async function handleDownloadLcnb(kho) {
     setLcnbBusy((s) => ({ ...s, [kho]: true }));
@@ -439,47 +444,51 @@ export default function TheoDoiKiemKePage() {
               : "Cột Ghi chú do NV KSNB tự cập nhật."}
           </p>
         </div>
-        {isAdmin && loai === "da_kiem" && (
+        {canLcnb && loai === "da_kiem" && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
-            {/* Line 1: chọn tháng - Tải file kết quả kiểm kê */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
-              <select
-                className="month-select"
-                value={ketQuaLogThang} onChange={(e) => setKetQuaLogThang(e.target.value)}
-                title="Chọn tháng file kết quả kiểm kê"
-              >
-                {ketQuaLogMonths.length === 0 && <option value="">Tháng này (chưa có dữ liệu)</option>}
-                {ketQuaLogMonths.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <button
-                className="fbtn" disabled={ketQuaLogBusy} onClick={handleDownloadKetQuaLog}
-                style={{ background: "#FFF1E1", borderColor: "var(--orange)", color: "var(--orange)" }}
-              >
-                {ketQuaLogBusy ? "Đang tải..." : "📥 Tải file kết quả kiểm kê (gửi mail)"}
-              </button>
-              {ketQuaLogMsg && <div style={{ fontSize: 12, color: "var(--danger)" }}>{ketQuaLogMsg}</div>}
-            </div>
+            {isAdmin && (
+              <>
+                {/* Line 1: chọn tháng - Tải file kết quả kiểm kê */}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
+                  <select
+                    className="month-select"
+                    value={ketQuaLogThang} onChange={(e) => setKetQuaLogThang(e.target.value)}
+                    title="Chọn tháng file kết quả kiểm kê"
+                  >
+                    {ketQuaLogMonths.length === 0 && <option value="">Tháng này (chưa có dữ liệu)</option>}
+                    {ketQuaLogMonths.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <button
+                    className="fbtn" disabled={ketQuaLogBusy} onClick={handleDownloadKetQuaLog}
+                    style={{ background: "#FFF1E1", borderColor: "var(--orange)", color: "var(--orange)" }}
+                  >
+                    {ketQuaLogBusy ? "Đang tải..." : "📥 Tải file kết quả kiểm kê (gửi mail)"}
+                  </button>
+                  {ketQuaLogMsg && <div style={{ fontSize: 12, color: "var(--danger)" }}>{ketQuaLogMsg}</div>}
+                </div>
 
-            {/* Line 1b: chọn tháng - Tải file kết quả kiểm kê Vaccine (chốt 26/08 lần 7) */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
-              <select
-                className="month-select"
-                value={ketQuaLogVacThang} onChange={(e) => setKetQuaLogVacThang(e.target.value)}
-                title="Chọn tháng file kết quả kiểm kê Vaccine"
-              >
-                {ketQuaLogVacMonths.length === 0 && <option value="">Tháng này (chưa có dữ liệu)</option>}
-                {ketQuaLogVacMonths.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <button
-                className="fbtn" disabled={ketQuaLogVacBusy} onClick={handleDownloadKetQuaLogVaccine}
-                style={{ background: "#E8F3FF", borderColor: "var(--blue, #1976d2)", color: "var(--blue, #1976d2)" }}
-              >
-                {ketQuaLogVacBusy ? "Đang tải..." : "📥 Tải file kết quả kiểm kê Vaccine (gửi mail)"}
-              </button>
-              {ketQuaLogVacMsg && <div style={{ fontSize: 12, color: "var(--danger)" }}>{ketQuaLogVacMsg}</div>}
-            </div>
+                {/* Line 1b: chọn tháng - Tải file kết quả kiểm kê Vaccine (chốt 26/08 lần 7) */}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
+                  <select
+                    className="month-select"
+                    value={ketQuaLogVacThang} onChange={(e) => setKetQuaLogVacThang(e.target.value)}
+                    title="Chọn tháng file kết quả kiểm kê Vaccine"
+                  >
+                    {ketQuaLogVacMonths.length === 0 && <option value="">Tháng này (chưa có dữ liệu)</option>}
+                    {ketQuaLogVacMonths.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <button
+                    className="fbtn" disabled={ketQuaLogVacBusy} onClick={handleDownloadKetQuaLogVaccine}
+                    style={{ background: "#E8F3FF", borderColor: "var(--blue, #1976d2)", color: "var(--blue, #1976d2)" }}
+                  >
+                    {ketQuaLogVacBusy ? "Đang tải..." : "📥 Tải file kết quả kiểm kê Vaccine (gửi mail)"}
+                  </button>
+                  {ketQuaLogVacMsg && <div style={{ fontSize: 12, color: "var(--danger)" }}>{ketQuaLogVacMsg}</div>}
+                </div>
+              </>
+            )}
 
-            {/* Line 2: chọn tháng - LCNB Thanh Lý HCM */}
+            {/* Line 2: chọn tháng - LCNB Thanh Lý HCM (admin + editor, chốt 26/08 lần 9) */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
               <select
                 className="month-select"
