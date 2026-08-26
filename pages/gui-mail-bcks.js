@@ -82,22 +82,6 @@ function ReferenceFilesPanel() {
   );
 }
 
-function MailLogPanel() {
-  return (
-    <div className="card">
-      <div className="card-head">
-        <h3>📜 Nhật ký gửi mail BCKS</h3>
-        <span className="note">Toàn hệ thống — Admin chỉ xem lại, không gửi thay</span>
-      </div>
-      <div className="card-body">
-        <div className="placeholder-box">
-          Chức năng ghi nhật ký đang được hoàn thiện — nhật ký sẽ hiện ở đây sau khi có mail đầu tiên được gửi.
-        </div>
-      </div>
-    </div>
-  );
-}
-
 const fieldBoxStyle = {
   border: "1px solid var(--border)", borderRadius: 8, padding: "12px 14px", marginBottom: 12,
 };
@@ -446,7 +430,6 @@ export default function GuiMailBcksPage() {
       {isAdmin && (
         <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 14 }}>
           <ReferenceFilesPanel />
-          <MailLogPanel />
         </div>
       )}
 
