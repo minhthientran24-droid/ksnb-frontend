@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
-import { listPendingUploads, uploadPendingFile, deletePendingUpload, uploadKiemKeThangReport, getUser, getLuyKeStatus, uploadLuyKe } from "../lib/api";
+import {
+  listPendingUploads, uploadPendingFile, deletePendingUpload, uploadKiemKeThangReport, getUser,
+  getLuyKeStatus, uploadLuyKe, getXknkCanTonMonths, uploadXknkCanTon,
+} from "../lib/api";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
 
@@ -21,6 +24,7 @@ export default function TaiLenDuLieuPage() {
   const kiemKeFileInputRef = useRef(null);
   const chuDeFileInputRef = useRef(null);
   const luyKeFileInputRef = useRef(null);
+  const xknkFileInputRef = useRef(null);
 
   // Báo cáo kiểm kê (tháng) — xử lý NGAY, không qua hàng chờ PC
   const [kiemKePeriod, setKiemKePeriod] = useState({ month: CURRENT_MONTH, year: CURRENT_YEAR });
@@ -37,6 +41,14 @@ export default function TaiLenDuLieuPage() {
   const [luyKeResult, setLuyKeResult] = useState(null);
   const [luyKeError, setLuyKeError] = useState("");
 
+  // Data Cân tồn XK-NK (chốt 27/08 lần 5, dời từ "Theo dõi XK-NK" sang +
+  // thêm chiều tháng) — mỗi tháng 1 bộ data riêng, up tháng nào chỉ
+  // xóa/ghi đúng tháng đó.
+  const [xknkPeriod, setXknkPeriod] = useState({ month: CURRENT_MONTH, year: CURRENT_YEAR });
+  const [xknkMonths, setXknkMonths] = useState([]); // [{thang, matched_rows, total_rows, uploaded_at, uploaded_by, source_filename}]
+  const [xknkResult, setXknkResult] = useState(null);
+  const [xknkError, setXknkError] = useState("");
+
   useEffect(() => {
     const user = getUser();
     if (!user || !ADMIN_ROLES.includes(user.role)) {
@@ -46,6 +58,7 @@ export default function TaiLenDuLieuPage() {
     setChecked(true);
     load();
     reloadLuyKeStatus();
+    reloadXknkStatus();
   }, []);
 
   function load() {
@@ -54,6 +67,33 @@ export default function TaiLenDuLieuPage() {
 
   function reloadLuyKeStatus() {
     getLuyKeStatus().then((r) => setLuyKeMonths(r.months || [])).catch(() => {});
+  }
+
+  function reloadXknkStatus() {
+    getXknkCanTonMonths().then((r) => setXknkMonths(r.months || [])).catch(() => {});
+  }
+
+  async function handleXknkFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const thang = `${xknkPeriod.year}-${xknkPeriod.month}`;
+    if (!confirm(`Upload file này sẽ XÓA SẠCH dữ liệu Cân tồn XK-NK của THÁNG ${thang} hiện có (nếu có) rồi ghi lại từ đầu — không dùng lại data cũ của tháng này. Các tháng khác không bị ảnh hưởng. Tiếp tục?`)) {
+      e.target.value = "";
+      return;
+    }
+    setUploadingType("xknk_can_ton");
+    setXknkError("");
+    setXknkResult(null);
+    try {
+      const res = await uploadXknkCanTon(thang, file);
+      setXknkResult({ thang: res.thang, matched_rows: res.matched_rows, total_rows: res.total_rows });
+      e.target.value = "";
+      reloadXknkStatus();
+    } catch (err) {
+      setXknkError(err.message || "Upload thất bại");
+    } finally {
+      setUploadingType(null);
+    }
   }
 
   async function handleLuyKeFileChange(e) {
@@ -362,6 +402,95 @@ export default function TaiLenDuLieuPage() {
                     <td>{m.thang}</td>
                     <td>{m.count}</td>
                     <td>{m.uploaded_at ? new Date(m.uploaded_at).toLocaleString("vi-VN") : "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* ---- Data Cân tồn XK-NK — dời từ "Theo dõi XK-NK" sang đây, mỗi
+          THÁNG 1 bộ data riêng, up tháng nào chỉ xóa/ghi đúng tháng đó
+          (chốt 27/08 lần 5) ---- */}
+      <div className="card">
+        <div className="card-head">
+          <h3>Data Cân tồn XK-NK</h3>
+          <span className="note">{xknkMonths.length > 0 ? `${xknkMonths.length} tháng đã có data` : "Chưa có dữ liệu"}</span>
+        </div>
+        <div className="card-body" style={{ padding: "16px 20px" }}>
+          <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 12 }}>
+            File báo cáo Xuất Khác - Nhập Khác gốc (do anh Thiện xuất, dạng .csv) — dùng cho tab
+            "Theo dõi cân tồn" ở menu <strong>Theo dõi XK-NK</strong>. Mỗi tháng có 1 bộ data riêng — up cho
+            tháng nào sẽ <strong>XÓA SẠCH data cũ của ĐÚNG tháng đó</strong> rồi ghi lại data mới, các tháng
+            khác giữ nguyên không đổi.
+          </p>
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+            <div>
+              <label style={labelStyle}>Dữ liệu cho — Tháng</label>
+              <select
+                value={xknkPeriod.month}
+                onChange={(e) => setXknkPeriod({ ...xknkPeriod, month: e.target.value })}
+                style={selectStyle}
+              >
+                {MONTH_OPTIONS.map((m) => <option key={m} value={m}>Tháng {m}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Năm</label>
+              <select
+                value={xknkPeriod.year}
+                onChange={(e) => setXknkPeriod({ ...xknkPeriod, year: Number(e.target.value) })}
+                style={selectStyle}
+              >
+                {YEAR_OPTIONS.map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Chọn file XK-NK</label>
+              <input
+                ref={xknkFileInputRef}
+                type="file"
+                accept=".csv,.txt"
+                disabled={uploadingType === "xknk_can_ton"}
+                onChange={handleXknkFileChange}
+                style={{ display: "none" }}
+              />
+              <button
+                type="button"
+                className="upload-btn"
+                onClick={() => xknkFileInputRef.current?.click()}
+                disabled={uploadingType === "xknk_can_ton"}
+              >
+                📤 {uploadingType === "xknk_can_ton" ? "Đang xử lý..." : "Tải lên file XK-NK"}
+              </button>
+            </div>
+            {uploadingType === "xknk_can_ton" && <span style={{ fontSize: 12.5, color: "var(--text-400)" }}>Đang xử lý (file lớn, có thể mất chút thời gian)...</span>}
+          </div>
+          {xknkError && (
+            <div className="placeholder-box" style={{ marginTop: 14, borderColor: "var(--danger)", color: "var(--danger)" }}>
+              {xknkError}
+            </div>
+          )}
+          {xknkResult && (
+            <div style={successBoxStyle}>
+              ✅ Đã xóa data cũ của tháng <strong>{xknkResult.thang}</strong> và ghi lại{" "}
+              <strong>{xknkResult.matched_rows?.toLocaleString("vi-VN")}</strong>/
+              {xknkResult.total_rows?.toLocaleString("vi-VN")} dòng khớp "Xử lý kiểm kê tự động".
+            </div>
+          )}
+          {xknkMonths.length > 0 && (
+            <table style={{ marginTop: 16 }}>
+              <thead>
+                <tr><th>Tháng</th><th>Số dòng khớp</th><th>Up lần gần nhất</th><th>Người up</th></tr>
+              </thead>
+              <tbody>
+                {xknkMonths.map((m) => (
+                  <tr key={m.thang}>
+                    <td>{m.thang}</td>
+                    <td>{m.matched_rows?.toLocaleString("vi-VN")}/{m.total_rows?.toLocaleString("vi-VN")}</td>
+                    <td>{m.uploaded_at ? new Date(m.uploaded_at).toLocaleString("vi-VN") : "-"}</td>
+                    <td>{m.uploaded_by || "-"}</td>
                   </tr>
                 ))}
               </tbody>

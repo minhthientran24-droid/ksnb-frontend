@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import {
-  getUser, getXknkCanTon, uploadXknkCanTon, checkXknkCanTonRow, downloadXknkCanTonRow, updateXknkCanTonResult,
+  getUser, getXknkCanTon, getXknkCanTonMonths, checkXknkCanTonRow, downloadXknkCanTonRow, updateXknkCanTonResult,
 } from "../lib/api";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
@@ -177,37 +177,27 @@ function CanTonTable({ title, rows, me, isAdmin, onCheck, onDownload, onOpenResu
 }
 
 function CanTonTab({ isAdmin, me }) {
+  const [months, setMonths] = useState([]); // [{thang, matched_rows, total_rows, uploaded_at, uploaded_by, source_filename}]
+  const [thang, setThang] = useState("");
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const [uploadMsg, setUploadMsg] = useState("");
   const [busyId, setBusyId] = useState(null);
   const [resultRow, setResultRow] = useState(null); // dòng đang mở modal Cập nhật kết quả
-  const fileInputRef = useRef(null);
 
-  function load() {
-    getXknkCanTon().then(setData).catch((err) => setError(err.message));
-  }
+  useEffect(() => {
+    getXknkCanTonMonths()
+      .then((r) => {
+        const list = r.months || [];
+        setMonths(list);
+        if (list.length > 0) setThang(list[0].thang); // mặc định tháng có data gần nhất
+      })
+      .catch((err) => setError(err.message));
+  }, []);
 
-  useEffect(() => { load(); }, []);
-
-  async function handleFileChange(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setUploadMsg("");
-    setError("");
-    try {
-      const result = await uploadXknkCanTon(file);
-      setData(result);
-      setUploadMsg(`✅ Đã xử lý xong — ${result.matched_rows.toLocaleString("vi-VN")}/${result.total_rows.toLocaleString("vi-VN")} dòng khớp "Xử lý kiểm kê tự động".`);
-    } catch (err) {
-      setUploadMsg(`❌ ${err.message || "Upload thất bại"}`);
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  }
+  useEffect(() => {
+    if (!thang) return;
+    getXknkCanTon(thang).then(setData).catch((err) => setError(err.message));
+  }, [thang]);
 
   async function handleCheck(rowId) {
     setBusyId(rowId);
@@ -234,31 +224,32 @@ function CanTonTab({ isAdmin, me }) {
     setData(result);
   }
 
+  const currentMonthInfo = months.find((m) => m.thang === thang);
+
   return (
     <>
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-body" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, padding: "16px 20px" }}>
           <div>
-            {data?.uploaded_at ? (
+            {currentMonthInfo ? (
               <span className="note">
-                Cập nhật lúc {fmtDateTime(data.uploaded_at)} bởi {data.uploaded_by || "-"} · file "{data.source_filename}" ·{" "}
-                {data.matched_rows?.toLocaleString("vi-VN")}/{data.total_rows?.toLocaleString("vi-VN")} dòng khớp
+                Cập nhật lúc {fmtDateTime(currentMonthInfo.uploaded_at)} bởi {currentMonthInfo.uploaded_by || "-"} · file "{currentMonthInfo.source_filename}" ·{" "}
+                {currentMonthInfo.matched_rows?.toLocaleString("vi-VN")}/{currentMonthInfo.total_rows?.toLocaleString("vi-VN")} dòng khớp
               </span>
             ) : (
-              <span className="note">Chưa có dữ liệu — admin upload file báo cáo Xuất Khác - Nhập Khác để bắt đầu.</span>
+              <span className="note">Chưa có dữ liệu — upload file báo cáo Xuất Khác - Nhập Khác ở menu "Tải lên dữ liệu" để bắt đầu.</span>
             )}
           </div>
-          {isAdmin && (
-            <div style={{ textAlign: "right" }}>
-              <button className="upload-btn" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
-                {uploading ? "Đang xử lý..." : "📤 Upload file XK-NK"}
-              </button>
-              <input ref={fileInputRef} type="file" accept=".csv,.txt" style={{ display: "none" }} onChange={handleFileChange} />
-              {uploadMsg && (
-                <div style={{ fontSize: 12.5, marginTop: 6, color: uploadMsg.startsWith("❌") ? "var(--danger)" : "var(--text-600)" }}>
-                  {uploadMsg}
-                </div>
-              )}
+          {months.length > 0 && (
+            <div>
+              <label style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text-600)", marginRight: 8 }}>Xem tháng</label>
+              <select
+                value={thang}
+                onChange={(e) => setThang(e.target.value)}
+                style={{ padding: "8px 10px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13, background: "#FAFBFD" }}
+              >
+                {months.map((m) => <option key={m.thang} value={m.thang}>Tháng {m.thang}</option>)}
+              </select>
             </div>
           )}
         </div>
@@ -278,7 +269,7 @@ function CanTonTab({ isAdmin, me }) {
           />
         </>
       ) : (
-        !error && <div className="placeholder-box">Chưa có dữ liệu — admin upload file báo cáo Xuất Khác - Nhập Khác để bắt đầu.</div>
+        !error && <div className="placeholder-box">Chưa có dữ liệu — upload file báo cáo Xuất Khác - Nhập Khác ở menu "Tải lên dữ liệu" để bắt đầu.</div>
       )}
 
       {resultRow && (
@@ -297,7 +288,7 @@ export default function TheoDoiXknkPage() {
     <Layout crumb="Theo dõi XK-NK">
       <div className="page-head">
         <h1>Theo dõi XK-NK</h1>
-        <p>Theo dõi cân tồn và tình hình xuất sử dụng (Xuất Khác - Nhập Khác) — dữ liệu cập nhật qua file do admin upload.</p>
+        <p>Theo dõi cân tồn và tình hình xuất sử dụng (Xuất Khác - Nhập Khác) — dữ liệu cập nhật qua file upload ở menu "Tải lên dữ liệu".</p>
       </div>
 
       <div className="month-tabs">
