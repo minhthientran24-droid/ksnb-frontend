@@ -537,6 +537,21 @@ export default function TheoDoiChuDePage() {
   // Đăng job (đơn lẻ + hàng loạt bằng Excel) mở thêm cho editor (chốt
   // 24/08) — Sửa/Xóa job đã đăng vẫn chỉ admin/super_admin.
   const canUpload = isAdmin || me?.role === "editor";
+  // Tab "Đang xử lý" (chốt 27/08 lần 3): chỉ admin/editor xem được TOÀN
+  // BỘ job đang xử lý — viewer/editor_base chỉ xem đúng job của MÌNH
+  // (chính hoặc hỗ trợ). Tab "Chưa nhận"/"Hoàn tất" vẫn xem được hết,
+  // không đụng tới (ai cũng cần thấy job Chưa nhận để còn nhận job mới).
+  const canViewAllDangXuLy = canUpload;
+  function jobMatchesTab(job, tabKey) {
+    if (job.trang_thai !== tabKey) return false;
+    if (tabKey === "Đang xử lý" && !canViewAllDangXuLy) {
+      const mine = me && job.claimed_by_user_id === me.id;
+      const isSupporter = me && (job.supporters || []).some((s) => s.user_id === me.id);
+      return mine || isSupporter;
+    }
+    return true;
+  }
+  const visibleJobs = jobs.filter((job) => jobMatchesTab(job, activeTab));
 
   function closeForm() {
     setShowForm(false);
@@ -656,7 +671,7 @@ export default function TheoDoiChuDePage() {
           khỏi bảng, nằm ngay dưới khung "Cập nhập chủ đề mới". */}
       <div className="month-tabs">
         {CHU_DE_TABS.map((t) => {
-          const count = jobs.filter((j) => j.trang_thai === t.key).length;
+          const count = jobs.filter((j) => jobMatchesTab(j, t.key)).length;
           const isActive = activeTab === t.key;
           return (
             <div
@@ -697,10 +712,10 @@ export default function TheoDoiChuDePage() {
                 </tr>
               </thead>
               <tbody>
-                {jobs.filter((job) => job.trang_thai === activeTab).length === 0 && (
+                {visibleJobs.length === 0 && (
                   <tr><td colSpan={9} style={{ textAlign: "center", color: "var(--text-400)" }}>Không có job nào ở tình trạng này.</td></tr>
                 )}
-                {jobs.filter((job) => job.trang_thai === activeTab).map((job) => {
+                {visibleJobs.map((job) => {
                   const supporters = job.supporters || [];
                   const mine = me && job.claimed_by_user_id === me.id;
                   const isSupporter = me && supporters.some((s) => s.user_id === me.id);
