@@ -728,7 +728,7 @@ export default function TheoDoiKiemKePage() {
               <thead>
                 <tr>
                   <th>Vùng</th><th>Tên shop</th><th>Ngày kiểm kê</th>
-                  <th>Giá trị kiểm kê - Non CL</th><th>Cân tồn - Non CL</th>
+                  <th>Kiểm kê - Non CL</th><th>Cân tồn - Non CL</th>
                   <th>Kiểm kê - Cắt liều</th><th>Cân tồn - Cắt liều</th>
                   <th>Lũy Kế</th><th>Ước tính truy thu</th><th>Truy thu thanh lý</th>
                   <th>NV kiểm kê</th><th>Ghi chú</th>
