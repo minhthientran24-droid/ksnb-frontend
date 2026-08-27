@@ -471,18 +471,23 @@ export default function TheoDoiKiemKePage() {
     }
   }
 
+  // `label` là string (1 dòng) hoặc mảng 2 phần tử (2 dòng, chốt 27/08
+  // lần 11) — xuống dòng cho các tiêu đề dài để thu hẹp bề ngang cột.
   function SortTh({ label, sortCol }) {
     const active = sortKey === sortCol;
+    const lines = Array.isArray(label) ? label : [label];
     return (
-      <th
-        onClick={() => handleSort(sortCol)}
-        style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
-        title="Bấm để sắp xếp"
-      >
-        {label}
-        <span style={{ marginLeft: 4, color: active ? "inherit" : "var(--text-400)", opacity: active ? 1 : 0.5 }}>
-          {active ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}
-        </span>
+      <th onClick={() => handleSort(sortCol)} style={{ cursor: "pointer", userSelect: "none", lineHeight: 1.3 }} title="Bấm để sắp xếp">
+        {lines.map((line, i) => (
+          <div key={i} style={{ whiteSpace: "nowrap" }}>
+            {line}
+            {i === lines.length - 1 && (
+              <span style={{ marginLeft: 4, color: active ? "inherit" : "var(--text-400)", opacity: active ? 1 : 0.5 }}>
+                {active ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}
+              </span>
+            )}
+          </div>
+        ))}
       </th>
     );
   }
@@ -793,13 +798,13 @@ export default function TheoDoiKiemKePage() {
                   <SortTh label="Vùng" sortCol="vung" />
                   <SortTh label="Tên shop" sortCol="ten_shop" />
                   <SortTh label="Ngày kiểm kê" sortCol="ngay_kiem_ke" />
-                  <SortTh label="Kiểm kê - Non CL" sortCol="gia_tri_non_cl" />
-                  <SortTh label="Cân tồn - Non CL" sortCol="can_ton_non_cl" />
-                  <SortTh label="Kiểm kê - Cắt liều" sortCol="gia_tri_cat_lieu" />
-                  <SortTh label="Cân tồn - Cắt liều" sortCol="can_ton_cat_lieu" />
+                  <SortTh label={["Kiểm kê", "Non CL"]} sortCol="gia_tri_non_cl" />
+                  <SortTh label={["Cân tồn", "Non CL"]} sortCol="can_ton_non_cl" />
+                  <SortTh label={["Kiểm kê", "Cắt liều"]} sortCol="gia_tri_cat_lieu" />
+                  <SortTh label={["Cân tồn", "Cắt liều"]} sortCol="can_ton_cat_lieu" />
                   <SortTh label="Lũy Kế" sortCol="luy_ke" />
-                  <SortTh label="Ước tính truy thu" sortCol="uoc_tinh_truy_thu" />
-                  <SortTh label="Truy thu thanh lý" sortCol="truy_thu_thanh_ly" />
+                  <SortTh label={["Ước tính", "truy thu"]} sortCol="uoc_tinh_truy_thu" />
+                  <SortTh label={["Truy thu", "thanh lý"]} sortCol="truy_thu_thanh_ly" />
                   <SortTh label="NV kiểm kê" sortCol="nv_kiem_ke" />
                 </tr>
               </thead>
