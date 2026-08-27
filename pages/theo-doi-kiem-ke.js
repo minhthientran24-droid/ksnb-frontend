@@ -33,7 +33,9 @@ function Modal({ title, subtitle, onClose, children }) {
 
 function fmtMoney(n) {
   if (n === undefined || n === null) return "-";
-  return n.toLocaleString("vi-VN");
+  // Chỉ lấy phần đơn vị, bỏ phần thập phân (chốt 27/08) — áp dụng chung
+  // cho mọi cột tiền, kể cả "Lũy Kế" (Float, có sẵn phần lẻ từ nguồn).
+  return Math.round(n).toLocaleString("vi-VN");
 }
 
 const STATUS_LABELS = {
