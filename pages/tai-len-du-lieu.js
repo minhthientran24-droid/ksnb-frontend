@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
-import { listPendingUploads, uploadPendingFile, deletePendingUpload, uploadKiemKeThangReport, getUser } from "../lib/api";
+import { listPendingUploads, uploadPendingFile, deletePendingUpload, uploadKiemKeThangReport, getUser, getLuyKeStatus, uploadLuyKe } from "../lib/api";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
 
@@ -20,6 +20,7 @@ export default function TaiLenDuLieuPage() {
   const [uploadingType, setUploadingType] = useState(null);
   const kiemKeFileInputRef = useRef(null);
   const chuDeFileInputRef = useRef(null);
+  const luyKeFileInputRef = useRef(null);
 
   // Báo cáo kiểm kê (tháng) — xử lý NGAY, không qua hàng chờ PC
   const [kiemKePeriod, setKiemKePeriod] = useState({ month: CURRENT_MONTH, year: CURRENT_YEAR });
@@ -29,6 +30,11 @@ export default function TaiLenDuLieuPage() {
   // Báo cáo kiểm soát chủ đề (tháng) — vẫn theo luồng cũ: up tạm, chờ PC xử lý
   const [chuDePeriod, setChuDePeriod] = useState({ month: CURRENT_MONTH, year: CURRENT_YEAR });
 
+  // Dữ liệu Lũy Kế (chốt 27/08) — up là XÓA SẠCH data cũ, ghi data mới ngay
+  const [luyKeStatus, setLuyKeStatus] = useState(null); // {count, uploaded_at}
+  const [luyKeResult, setLuyKeResult] = useState(null);
+  const [luyKeError, setLuyKeError] = useState("");
+
   useEffect(() => {
     const user = getUser();
     if (!user || !ADMIN_ROLES.includes(user.role)) {
@@ -37,10 +43,33 @@ export default function TaiLenDuLieuPage() {
     }
     setChecked(true);
     load();
+    getLuyKeStatus().then(setLuyKeStatus).catch(() => {});
   }, []);
 
   function load() {
     listPendingUploads().then(setRows).catch((err) => setError(err.message));
+  }
+
+  async function handleLuyKeFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!confirm("Upload file này sẽ XÓA SẠCH toàn bộ dữ liệu Lũy Kế hiện có rồi ghi lại từ đầu — không dùng lại được data cũ. Tiếp tục?")) {
+      e.target.value = "";
+      return;
+    }
+    setUploadingType("luy_ke");
+    setLuyKeError("");
+    setLuyKeResult(null);
+    try {
+      const res = await uploadLuyKe(file);
+      setLuyKeResult({ count: res.count });
+      e.target.value = "";
+      getLuyKeStatus().then(setLuyKeStatus).catch(() => {});
+    } catch (err) {
+      setLuyKeError(err.message || "Upload thất bại");
+    } finally {
+      setUploadingType(null);
+    }
   }
 
   async function handleKiemKeFileChange(e) {
@@ -246,6 +275,54 @@ export default function TaiLenDuLieuPage() {
                 ))}
               </tbody>
             </table>
+          )}
+        </div>
+      </div>
+
+      {/* ---- Dữ liệu Lũy Kế — up là XÓA SẠCH data cũ, ghi data mới ngay (chốt 27/08) ---- */}
+      <div className="card">
+        <div className="card-head">
+          <h3>Dữ liệu Lũy Kế</h3>
+          <span className="note">
+            {luyKeStatus?.count > 0
+              ? `Đang có ${luyKeStatus.count} dòng${luyKeStatus.uploaded_at ? ` — up lần gần nhất ${new Date(luyKeStatus.uploaded_at).toLocaleString("vi-VN")}` : ""}`
+              : "Chưa có dữ liệu"}
+          </span>
+        </div>
+        <div className="card-body" style={{ padding: "16px 20px" }}>
+          <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 12 }}>
+            File đúng mẫu cột: <strong>Mã Long Châu | Tên Long Châu | Luỹ kế được giữ lại</strong>.
+            Mỗi lần upload sẽ <strong>XÓA SẠCH toàn bộ dữ liệu Lũy Kế cũ</strong> rồi ghi lại data mới từ đầu —
+            không giữ lại/dùng lại data cũ.
+          </p>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <input
+              ref={luyKeFileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              disabled={uploadingType === "luy_ke"}
+              onChange={handleLuyKeFileChange}
+              style={{ display: "none" }}
+            />
+            <button
+              type="button"
+              className="upload-btn"
+              onClick={() => luyKeFileInputRef.current?.click()}
+              disabled={uploadingType === "luy_ke"}
+            >
+              📤 {uploadingType === "luy_ke" ? "Đang xử lý..." : "Tải lên file Lũy Kế"}
+            </button>
+            {uploadingType === "luy_ke" && <span style={{ fontSize: 12.5, color: "var(--text-400)" }}>Đang xử lý...</span>}
+          </div>
+          {luyKeError && (
+            <div className="placeholder-box" style={{ marginTop: 14, borderColor: "var(--danger)", color: "var(--danger)" }}>
+              {luyKeError}
+            </div>
+          )}
+          {luyKeResult && (
+            <div style={successBoxStyle}>
+              ✅ Đã xóa data cũ và ghi lại <strong>{luyKeResult.count}</strong> dòng dữ liệu Lũy Kế mới.
+            </div>
           )}
         </div>
       </div>
