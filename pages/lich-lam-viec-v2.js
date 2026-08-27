@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
-import { getUser, listKiemKeStaff, getLlvThongKeThang } from "../lib/api";
+import { getUser, listKiemKeStaff, getLlvThongKeThang, downloadLlvThongKeThang } from "../lib/api";
 import {
   llv2BridgeLogin,
   llv2GetShops, llv2GetCandidates, llv2GetScheduledToday,
@@ -203,7 +203,7 @@ export default function LichLamViecV2Page() {
         {loading && <div style={{ fontSize: 13, color: "var(--text-600)", marginBottom: 12 }}><span className="tiny-spinner" /> Đang tải...</div>}
 
         {view === "thong_ke" && (
-          <ThongKeThangView data={thongKeData} month={thongKeMonth} onMonthChange={setThongKeMonth} />
+          <ThongKeThangView data={thongKeData} month={thongKeMonth} onMonthChange={setThongKeMonth} group={group} />
         )}
         {view === "list" && shops && <ShopListView data={shops} onReload={reload} />}
         {view === "schedule" && candidates && <ScheduleView data={candidates} group={group} onDone={reload} />}
@@ -275,14 +275,29 @@ function Modal({ title, subtitle, onClose, children }) {
 // kiểm/đã chia lịch+đang kiểm/còn lại trong 1 tháng bất kỳ (quá khứ/hiện
 // tại/tương lai), theo đúng "Mẫu thống kê.xlsx" anh Thiện gửi. Xem cả
 // admin/super_admin/editor (tab duy nhất Editor xem được ở menu này).
-function ThongKeThangView({ data, month, onMonthChange }) {
+function ThongKeThangView({ data, month, onMonthChange, group }) {
   const rows = data?.rows || [];
+  const detailRows = data?.detail_rows || [];
   const total = data?.total || { can_kiem: 0, da_kiem: 0, da_chia_dang_kiem: 0, con_lai: 0 };
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
+
+  async function handleDownload() {
+    setDownloading(true);
+    setDownloadError("");
+    try {
+      await downloadLlvThongKeThang(group, month);
+    } catch (e) {
+      setDownloadError(e.message || "Tải file thất bại");
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   return (
     <>
       <div className="card" style={{ marginBottom: 14 }}>
-        <div className="card-body" style={{ display: "flex", gap: 10, alignItems: "center", padding: "14px 18px" }}>
+        <div className="card-body" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "14px 18px" }}>
           <label style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-600)" }}>Chọn tháng:</label>
           <input
             type="month"
@@ -290,6 +305,13 @@ function ThongKeThangView({ data, month, onMonthChange }) {
             onChange={(e) => onMonthChange(e.target.value)}
             style={{ padding: "7px 10px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13.5 }}
           />
+          <button
+            className="fbtn" disabled={downloading} onClick={handleDownload}
+            style={{ background: "#EAF6E5", borderColor: "#4C9A2A", color: "#3E7A2A" }}
+          >
+            {downloading ? "Đang tải..." : "📥 Tải về (2 sheet)"}
+          </button>
+          {downloadError && <div style={{ fontSize: 12, color: "var(--danger)" }}>{downloadError}</div>}
         </div>
       </div>
 
@@ -300,7 +322,7 @@ function ThongKeThangView({ data, month, onMonthChange }) {
         <div className="kpi-card"><div className="accent r" /><span className="tag">SL shop còn lại</span><div className="val">{total.con_lai}</div></div>
       </div>
 
-      <div className="card">
+      <div className="card" style={{ marginBottom: 14 }}>
         <div className="card-head">
           <h3>Thống kê theo Vùng — tháng {month}</h3>
         </div>
@@ -340,6 +362,45 @@ function ThongKeThangView({ data, month, onMonthChange }) {
                 </tr>
               </tfoot>
             )}
+          </table>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-head">
+          <h3>Thống kê chi tiết shop ({detailRows.length})</h3>
+        </div>
+        <div className="card-body llv-scroll" style={{ padding: 0 }}>
+          <table>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left" }}>Vùng</th>
+                <th>Mã Shop</th>
+                <th style={{ textAlign: "left" }}>Tên Shop</th>
+                <th>Ngày cần kiểm</th>
+                <th>Ngày thực tế kiểm</th>
+                <th>Ngày gửi mail</th>
+                <th>Hình thức kiểm kê</th>
+                <th>KSNB phụ trách</th>
+              </tr>
+            </thead>
+            <tbody>
+              {detailRows.map((r) => (
+                <tr key={r.ma_shop}>
+                  <td style={{ textAlign: "left" }}>{r.vung}</td>
+                  <td>{r.ma_shop}</td>
+                  <td style={{ textAlign: "left" }}>{r.ten_shop || "-"}</td>
+                  <td>{r.ngay_can_kiem || "-"}</td>
+                  <td>{r.ngay_thuc_te_kiem || "-"}</td>
+                  <td>{r.ngay_gui_mail || "-"}</td>
+                  <td>{r.hinh_thuc || "-"}</td>
+                  <td>{r.ksnb_phu_trach || "-"}</td>
+                </tr>
+              ))}
+              {detailRows.length === 0 && (
+                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-400)" }}>Chưa có dữ liệu shop cho tháng này.</td></tr>
+              )}
+            </tbody>
           </table>
         </div>
       </div>
