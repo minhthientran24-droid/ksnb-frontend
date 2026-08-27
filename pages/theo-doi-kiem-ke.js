@@ -743,9 +743,9 @@ export default function TheoDoiKiemKePage() {
                     <td style={{ textAlign: "left" }}>{r.ma_shop}{r.ten_shop ? ` - ${r.ten_shop}` : ""}</td>
                     <td>{r.ngay_kiem_ke || "-"}</td>
                     <td className="num neg">{fmtMoney(r.gia_tri_non_cl)}</td>
-                    <td className="num">-</td>
+                    <td className="num">{fmtMoney(r.can_ton_non_cl)}</td>
                     <td className="num neg">{fmtMoney(r.gia_tri_cat_lieu)}</td>
-                    <td className="num">-</td>
+                    <td className="num">{fmtMoney(r.can_ton_cat_lieu)}</td>
                     <td className="num">{fmtMoney(r.luy_ke)}</td>
                     <td className="num">-</td>
                     <td className="num">{fmtMoney(r.truy_thu_thanh_ly)}</td>
