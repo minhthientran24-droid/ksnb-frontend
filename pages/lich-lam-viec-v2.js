@@ -179,10 +179,6 @@ export default function LichLamViecV2Page() {
       <div className="llv-page">
         <div className="page-head">
           <h1>Phân công KSNB kiểm kê — Chia lịch / Dời lịch / Phân loại shop</h1>
-          <p>
-            Đang migrate từ hệ cũ (Cloudflare Worker) — chỉ admin xem được các tab Chia lịch/Dời lịch/Phân loại shop.
-            {!isAdminRole && " Tài khoản Editor chỉ xem được tab Thống kê."}
-          </p>
         </div>
 
         {isAdminRole && <UploadDanhSachBar onDone={reload} />}
