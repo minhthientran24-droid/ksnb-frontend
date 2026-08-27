@@ -294,9 +294,6 @@ function ThongKeThangView({ data, month, onMonthChange }) {
             onChange={(e) => onMonthChange(e.target.value)}
             style={{ padding: "7px 10px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13.5 }}
           />
-          <span style={{ fontSize: 11.5, color: "var(--text-400)" }}>
-            Xem được cả tháng quá khứ lẫn các tháng sắp tới, không giới hạn tháng hiện tại.
-          </span>
         </div>
       </div>
 
