@@ -473,12 +473,12 @@ export default function TheoDoiKiemKePage() {
 
   // `label` là string (1 dòng) hoặc mảng 2 phần tử (2 dòng, chốt 27/08
   // lần 11) — xuống dòng cho các tiêu đề dài để thu hẹp bề ngang cột.
-  // Cột đang active tô nền: xanh dương nhạt = A→Z/tăng dần, cam nhạt =
-  // Z→A/giảm dần (chốt 27/08 lần 12).
+  // Cột đang active tô nền: xanh lá nhạt = A→Z/tăng dần, cam nhạt =
+  // Z→A/giảm dần (chốt 27/08 lần 12, đổi xanh dương -> xanh lá lần 13).
   function SortTh({ label, sortCol }) {
     const active = sortKey === sortCol;
     const lines = Array.isArray(label) ? label : [label];
-    const activeBg = active ? (sortDir === "asc" ? "#E8EFFC" : "#FFF1E1") : undefined;
+    const activeBg = active ? (sortDir === "asc" ? "#EAF6E5" : "#FFF1E1") : undefined;
     return (
       <th onClick={() => handleSort(sortCol)} style={{ cursor: "pointer", userSelect: "none", lineHeight: 1.3, background: activeBg }} title="Bấm để sắp xếp">
         {lines.map((line, i) => (
