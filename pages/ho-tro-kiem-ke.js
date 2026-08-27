@@ -643,7 +643,7 @@ export default function HoTroKiemKePage() {
               ⚠️ Chú Ý
             </div>
             <p style={{ fontSize: 13.5, color: "#D6362F", lineHeight: 1.6, marginBottom: 18 }}>
-              Có 2 file Cần thực hiện import trên EHO đối với TTTC này, Bạn Đừng Bỏ Sót nhes^^
+              Có 2 file Cần thực hiện import trên EHO đối với TTTC này, Bạn Đừng Bỏ Sót nhé ^^
             </p>
             <button
               className="login-btn"
