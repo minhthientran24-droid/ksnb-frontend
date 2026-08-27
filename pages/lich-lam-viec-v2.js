@@ -275,12 +275,44 @@ function Modal({ title, subtitle, onClose, children }) {
 // kiểm/đã chia lịch+đang kiểm/còn lại trong 1 tháng bất kỳ (quá khứ/hiện
 // tại/tương lai), theo đúng "Mẫu thống kê.xlsx" anh Thiện gửi. Xem cả
 // admin/super_admin/editor (tab duy nhất Editor xem được ở menu này).
+// 4 ô KPI phía trên "Thống kê chi tiết shop" bấm được để lọc (chốt 27/08
+// lần 3) — mỗi ô ứng đúng 1 cờ is_* đã tính sẵn ở backend (khớp 100% với
+// số đang hiển thị ở bảng theo Vùng, xem api_llv_v2_thong_ke_thang). Bấm
+// lại ô đang chọn -> bỏ lọc, về lại xem tất cả shop.
+const KPI_FILTER_FLAG = {
+  can_kiem: "is_can_kiem",
+  da_kiem: "is_da_kiem",
+  da_chia_dang_kiem: "is_da_chia_dang_kiem",
+  con_lai: "is_con_lai",
+};
+const KPI_FILTER_LABEL = {
+  can_kiem: "SL Shop cần kiểm trong tháng",
+  da_kiem: "SL shop đã kiểm",
+  da_chia_dang_kiem: "SL shop đã chia lịch + đang kiểm",
+  con_lai: "SL shop còn lại",
+};
+
 function ThongKeThangView({ data, month, onMonthChange, group }) {
   const rows = data?.rows || [];
-  const detailRows = data?.detail_rows || [];
+  const allDetailRows = data?.detail_rows || [];
   const total = data?.total || { can_kiem: 0, da_kiem: 0, da_chia_dang_kiem: 0, con_lai: 0 };
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState("");
+  const [activeFilter, setActiveFilter] = useState(null); // null | "can_kiem" | "da_kiem" | "da_chia_dang_kiem" | "con_lai"
+
+  // Đổi tháng/nhóm -> về lại xem tất cả shop, tránh giữ lọc cũ nhìn nhầm
+  // sang dữ liệu tháng khác.
+  useEffect(() => {
+    setActiveFilter(null);
+  }, [data]);
+
+  const detailRows = activeFilter
+    ? allDetailRows.filter((r) => r[KPI_FILTER_FLAG[activeFilter]])
+    : allDetailRows;
+
+  function toggleFilter(key) {
+    setActiveFilter((cur) => (cur === key ? null : key));
+  }
 
   async function handleDownload() {
     setDownloading(true);
@@ -292,6 +324,12 @@ function ThongKeThangView({ data, month, onMonthChange, group }) {
     } finally {
       setDownloading(false);
     }
+  }
+
+  function kpiStyle(key) {
+    return activeFilter === key
+      ? { cursor: "pointer", background: "#E8F3FF", borderColor: "var(--blue-accent, #1976d2)" }
+      : { cursor: "pointer" };
   }
 
   return (
@@ -316,10 +354,18 @@ function ThongKeThangView({ data, month, onMonthChange, group }) {
       </div>
 
       <div className="kpi-grid">
-        <div className="kpi-card"><div className="accent b" /><span className="tag">SL Shop cần kiểm trong tháng</span><div className="val">{total.can_kiem}</div></div>
-        <div className="kpi-card"><div className="accent g" /><span className="tag">SL shop đã kiểm</span><div className="val">{total.da_kiem}</div></div>
-        <div className="kpi-card"><div className="accent o" /><span className="tag">SL shop đã chia lịch + đang kiểm</span><div className="val">{total.da_chia_dang_kiem}</div></div>
-        <div className="kpi-card"><div className="accent r" /><span className="tag">SL shop còn lại</span><div className="val">{total.con_lai}</div></div>
+        <div className="kpi-card" style={kpiStyle("can_kiem")} onClick={() => toggleFilter("can_kiem")}>
+          <div className="accent b" /><span className="tag">SL Shop cần kiểm trong tháng</span><div className="val">{total.can_kiem}</div>
+        </div>
+        <div className="kpi-card" style={kpiStyle("da_kiem")} onClick={() => toggleFilter("da_kiem")}>
+          <div className="accent g" /><span className="tag">SL shop đã kiểm</span><div className="val">{total.da_kiem}</div>
+        </div>
+        <div className="kpi-card" style={kpiStyle("da_chia_dang_kiem")} onClick={() => toggleFilter("da_chia_dang_kiem")}>
+          <div className="accent o" /><span className="tag">SL shop đã chia lịch + đang kiểm</span><div className="val">{total.da_chia_dang_kiem}</div>
+        </div>
+        <div className="kpi-card" style={kpiStyle("con_lai")} onClick={() => toggleFilter("con_lai")}>
+          <div className="accent r" /><span className="tag">SL shop còn lại</span><div className="val">{total.con_lai}</div>
+        </div>
       </div>
 
       <div className="card" style={{ marginBottom: 14 }}>
@@ -368,7 +414,15 @@ function ThongKeThangView({ data, month, onMonthChange, group }) {
 
       <div className="card">
         <div className="card-head">
-          <h3>Thống kê chi tiết shop ({detailRows.length})</h3>
+          <h3>
+            Thống kê chi tiết shop ({detailRows.length})
+            {activeFilter && <span style={{ fontWeight: 400, fontSize: 12.5, color: "var(--blue-accent, #1976d2)", marginLeft: 8 }}>
+              — đang lọc: {KPI_FILTER_LABEL[activeFilter]}
+            </span>}
+          </h3>
+          {activeFilter && (
+            <button className="fbtn" onClick={() => setActiveFilter(null)}>Xem tất cả shop</button>
+          )}
         </div>
         <div className="card-body llv-scroll" style={{ padding: 0 }}>
           <table>
