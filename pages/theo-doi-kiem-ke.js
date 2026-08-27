@@ -744,7 +744,7 @@ export default function TheoDoiKiemKePage() {
                     <td className="num">-</td>
                     <td className="num neg">{fmtMoney(r.gia_tri_cat_lieu)}</td>
                     <td className="num">-</td>
-                    <td className="num">-</td>
+                    <td className="num">{fmtMoney(r.luy_ke)}</td>
                     <td className="num">-</td>
                     <td className="num">{fmtMoney(r.truy_thu_thanh_ly)}</td>
                     <td>{r.nv_kiem_ke || "-"}</td>
