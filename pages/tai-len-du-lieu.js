@@ -30,8 +30,10 @@ export default function TaiLenDuLieuPage() {
   // Báo cáo kiểm soát chủ đề (tháng) — vẫn theo luồng cũ: up tạm, chờ PC xử lý
   const [chuDePeriod, setChuDePeriod] = useState({ month: CURRENT_MONTH, year: CURRENT_YEAR });
 
-  // Dữ liệu Lũy Kế (chốt 27/08) — up là XÓA SẠCH data cũ, ghi data mới ngay
-  const [luyKeStatus, setLuyKeStatus] = useState(null); // {count, uploaded_at}
+  // Dữ liệu Lũy Kế (chốt 27/08, thêm chiều tháng lần 2) — mỗi tháng 1 bộ
+  // data riêng, up tháng nào chỉ xóa/ghi đúng tháng đó.
+  const [luyKePeriod, setLuyKePeriod] = useState({ month: CURRENT_MONTH, year: CURRENT_YEAR });
+  const [luyKeMonths, setLuyKeMonths] = useState([]); // [{thang, count, uploaded_at}]
   const [luyKeResult, setLuyKeResult] = useState(null);
   const [luyKeError, setLuyKeError] = useState("");
 
@@ -43,17 +45,22 @@ export default function TaiLenDuLieuPage() {
     }
     setChecked(true);
     load();
-    getLuyKeStatus().then(setLuyKeStatus).catch(() => {});
+    reloadLuyKeStatus();
   }, []);
 
   function load() {
     listPendingUploads().then(setRows).catch((err) => setError(err.message));
   }
 
+  function reloadLuyKeStatus() {
+    getLuyKeStatus().then((r) => setLuyKeMonths(r.months || [])).catch(() => {});
+  }
+
   async function handleLuyKeFileChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!confirm("Upload file này sẽ XÓA SẠCH toàn bộ dữ liệu Lũy Kế hiện có rồi ghi lại từ đầu — không dùng lại được data cũ. Tiếp tục?")) {
+    const thang = `${luyKePeriod.year}-${luyKePeriod.month}`;
+    if (!confirm(`Upload file này sẽ XÓA SẠCH dữ liệu Lũy Kế của THÁNG ${thang} hiện có (nếu có) rồi ghi lại từ đầu — không dùng lại data cũ của tháng này. Các tháng khác không bị ảnh hưởng. Tiếp tục?`)) {
       e.target.value = "";
       return;
     }
@@ -61,10 +68,10 @@ export default function TaiLenDuLieuPage() {
     setLuyKeError("");
     setLuyKeResult(null);
     try {
-      const res = await uploadLuyKe(file);
-      setLuyKeResult({ count: res.count });
+      const res = await uploadLuyKe(thang, file);
+      setLuyKeResult({ count: res.count, thang: res.thang });
       e.target.value = "";
-      getLuyKeStatus().then(setLuyKeStatus).catch(() => {});
+      reloadLuyKeStatus();
     } catch (err) {
       setLuyKeError(err.message || "Upload thất bại");
     } finally {
@@ -279,39 +286,59 @@ export default function TaiLenDuLieuPage() {
         </div>
       </div>
 
-      {/* ---- Dữ liệu Lũy Kế — up là XÓA SẠCH data cũ, ghi data mới ngay (chốt 27/08) ---- */}
+      {/* ---- Dữ liệu Lũy Kế — mỗi THÁNG 1 bộ data riêng, up tháng nào chỉ
+          xóa/ghi đúng tháng đó, không đụng các tháng khác (chốt 27/08 lần 2) ---- */}
       <div className="card">
         <div className="card-head">
           <h3>Dữ liệu Lũy Kế</h3>
-          <span className="note">
-            {luyKeStatus?.count > 0
-              ? `Đang có ${luyKeStatus.count} dòng${luyKeStatus.uploaded_at ? ` — up lần gần nhất ${new Date(luyKeStatus.uploaded_at).toLocaleString("vi-VN")}` : ""}`
-              : "Chưa có dữ liệu"}
-          </span>
+          <span className="note">{luyKeMonths.length > 0 ? `${luyKeMonths.length} tháng đã có data` : "Chưa có dữ liệu"}</span>
         </div>
         <div className="card-body" style={{ padding: "16px 20px" }}>
           <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 12 }}>
             File đúng mẫu cột: <strong>Mã Long Châu | Tên Long Châu | Luỹ kế được giữ lại</strong>.
-            Mỗi lần upload sẽ <strong>XÓA SẠCH toàn bộ dữ liệu Lũy Kế cũ</strong> rồi ghi lại data mới từ đầu —
-            không giữ lại/dùng lại data cũ.
+            Mỗi tháng có 1 bộ data riêng — up cho tháng nào sẽ <strong>XÓA SẠCH data cũ của ĐÚNG tháng đó</strong> rồi
+            ghi lại data mới, các tháng khác giữ nguyên không đổi.
           </p>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <input
-              ref={luyKeFileInputRef}
-              type="file"
-              accept=".xlsx,.xls"
-              disabled={uploadingType === "luy_ke"}
-              onChange={handleLuyKeFileChange}
-              style={{ display: "none" }}
-            />
-            <button
-              type="button"
-              className="upload-btn"
-              onClick={() => luyKeFileInputRef.current?.click()}
-              disabled={uploadingType === "luy_ke"}
-            >
-              📤 {uploadingType === "luy_ke" ? "Đang xử lý..." : "Tải lên file Lũy Kế"}
-            </button>
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+            <div>
+              <label style={labelStyle}>Dữ liệu cho — Tháng</label>
+              <select
+                value={luyKePeriod.month}
+                onChange={(e) => setLuyKePeriod({ ...luyKePeriod, month: e.target.value })}
+                style={selectStyle}
+              >
+                {MONTH_OPTIONS.map((m) => <option key={m} value={m}>Tháng {m}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Năm</label>
+              <select
+                value={luyKePeriod.year}
+                onChange={(e) => setLuyKePeriod({ ...luyKePeriod, year: Number(e.target.value) })}
+                style={selectStyle}
+              >
+                {YEAR_OPTIONS.map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Chọn file Excel</label>
+              <input
+                ref={luyKeFileInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                disabled={uploadingType === "luy_ke"}
+                onChange={handleLuyKeFileChange}
+                style={{ display: "none" }}
+              />
+              <button
+                type="button"
+                className="upload-btn"
+                onClick={() => luyKeFileInputRef.current?.click()}
+                disabled={uploadingType === "luy_ke"}
+              >
+                📤 {uploadingType === "luy_ke" ? "Đang xử lý..." : "Tải lên file Lũy Kế"}
+              </button>
+            </div>
             {uploadingType === "luy_ke" && <span style={{ fontSize: 12.5, color: "var(--text-400)" }}>Đang xử lý...</span>}
           </div>
           {luyKeError && (
@@ -321,8 +348,24 @@ export default function TaiLenDuLieuPage() {
           )}
           {luyKeResult && (
             <div style={successBoxStyle}>
-              ✅ Đã xóa data cũ và ghi lại <strong>{luyKeResult.count}</strong> dòng dữ liệu Lũy Kế mới.
+              ✅ Đã xóa data cũ của tháng <strong>{luyKeResult.thang}</strong> và ghi lại <strong>{luyKeResult.count}</strong> dòng dữ liệu mới.
             </div>
+          )}
+          {luyKeMonths.length > 0 && (
+            <table style={{ marginTop: 16 }}>
+              <thead>
+                <tr><th>Tháng</th><th>Số dòng</th><th>Up lần gần nhất</th></tr>
+              </thead>
+              <tbody>
+                {luyKeMonths.map((m) => (
+                  <tr key={m.thang}>
+                    <td>{m.thang}</td>
+                    <td>{m.count}</td>
+                    <td>{m.uploaded_at ? new Date(m.uploaded_at).toLocaleString("vi-VN") : "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       </div>
