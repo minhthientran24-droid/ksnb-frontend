@@ -5,7 +5,7 @@ import Layout from "../components/Layout";
 import ReferenceFilesPanel, { REFERENCE_ITEMS } from "../components/ReferenceFilesPanel";
 import {
   listPendingUploads, uploadPendingFile, deletePendingUpload, uploadKiemKeThangReport, getUser,
-  getLuyKeStatus, uploadLuyKe, getXknkCanTonMonths, uploadXknkCanTon,
+  getLuyKeStatus, uploadLuyKe, getXknkCanTonMonths, uploadXknkCanTon, downloadReferenceFilesTemplate,
 } from "../lib/api";
 import { llv2BridgeLogin, llv2UploadDanhSach, llv2DownloadDanhSachUrl } from "../lib/llv2Api";
 
@@ -53,6 +53,19 @@ export default function TaiLenDuLieuPage() {
   const chuDeFileInputRef = useRef(null);
   const luyKeFileInputRef = useRef(null);
   const xknkFileInputRef = useRef(null);
+
+  // Tải template 10 sheet cho khối "Dữ liệu tham chiếu" (chốt 27/08 lần 24)
+  const [refTemplateBusy, setRefTemplateBusy] = useState(false);
+  async function handleDownloadRefTemplate() {
+    setRefTemplateBusy(true);
+    try {
+      await downloadReferenceFilesTemplate();
+    } catch (err) {
+      alert(err.message || "Tải template thất bại");
+    } finally {
+      setRefTemplateBusy(false);
+    }
+  }
 
   // Báo cáo kiểm kê (tháng) — xử lý NGAY, không qua hàng chờ PC
   const [kiemKePeriod, setKiemKePeriod] = useState({ month: CURRENT_MONTH, year: CURRENT_YEAR });
@@ -214,7 +227,12 @@ export default function TaiLenDuLieuPage() {
           riêng từng nhóm (chốt 27/08 lần 23 — trước đó mỗi nhóm 1 khối
           tiêu đề riêng bên trong). ---- */}
       <div className="card">
-        <div className="card-head"><h3>🗂️ Dữ liệu tham chiếu</h3></div>
+        <div className="card-head">
+          <h3>🗂️ Dữ liệu tham chiếu</h3>
+          <button className="fbtn" disabled={refTemplateBusy} onClick={handleDownloadRefTemplate}>
+            {refTemplateBusy ? "Đang tải..." : "📥 Tải template (10 sheet)"}
+          </button>
+        </div>
         <div className="card-body">
           <ReferenceFilesPanel bare hideHeader items={ALL_REFERENCE_ITEMS} />
         </div>
