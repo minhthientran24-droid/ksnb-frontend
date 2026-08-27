@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
-import { getUser, listKiemKeStaff } from "../lib/api";
+import { getUser, listKiemKeStaff, getLlvThongKeThang } from "../lib/api";
 import {
   llv2BridgeLogin,
   llv2GetShops, llv2GetCandidates, llv2GetScheduledToday,
@@ -11,6 +11,15 @@ import {
 } from "../lib/llv2Api";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
+// Tab "Thống kê" (chốt 27/08) — mở thêm cho "editor", KHÔNG qua bridge
+// app1_ (chỉ admin/super_admin bridge được, xem llv2Api.js) nên các tab
+// còn lại (Danh sách shop/Cần chia lịch/Shop được chia) vẫn CHỈ admin.
+const THONG_KE_ROLES = ["admin", "super_admin", "editor"];
+
+function currentMonthStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
 
 const PHAN_LOAI_PILL = {
   "Xin kiểm kê": "danger",
@@ -101,21 +110,35 @@ export default function LichLamViecV2Page() {
   const router = useRouter();
   const [checked, setChecked] = useState(false);
   const [bridgeError, setBridgeError] = useState("");
+  const [myRole, setMyRole] = useState(null);
+  const isAdminRole = ADMIN_ROLES.includes(myRole);
 
   const [group, setGroup] = useState("long_chau");
-  const [view, setView] = useState("schedule"); // list | schedule | today
+  const [view, setView] = useState("schedule"); // thong_ke | list | schedule | today
   const [shops, setShops] = useState(null);
   const [candidates, setCandidates] = useState(null);
   const [scheduledToday, setScheduledToday] = useState(null);
+  const [thongKeMonth, setThongKeMonth] = useState(currentMonthStr());
+  const [thongKeData, setThongKeData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Không tự đăng nhập riêng — dùng chung phiên web, chỉ admin/super_admin
-  // mới được bridge sang tài khoản app1_ nội bộ để gọi API Phân công KSNB kiểm kê.
+  // Không tự đăng nhập riêng — dùng chung phiên web. CHỐT 27/08: tab
+  // "Thống kê" mở thêm cho "editor" nhưng KHÔNG bridge sang app1_ (chỉ
+  // admin/super_admin bridge được — bridge tạo AppUser role="admin" tức
+  // toàn quyền hệ Phân công & Quản lý, cấp cho editor là sai hẳn ý định
+  // "chỉ xem 1 tab thống kê"). Editor bỏ qua bridge, chỉ dùng được tab
+  // "Thống kê" (gọi thẳng JWT web, xem getLlvThongKeThang).
   useEffect(() => {
     const me = getUser();
-    if (!me || !ADMIN_ROLES.includes(me.role)) {
+    if (!me || !THONG_KE_ROLES.includes(me.role)) {
       router.replace("/");
+      return;
+    }
+    setMyRole(me.role);
+    if (!ADMIN_ROLES.includes(me.role)) {
+      setView("thong_ke");
+      setChecked(true);
       return;
     }
     llv2BridgeLogin()
@@ -125,13 +148,15 @@ export default function LichLamViecV2Page() {
 
   useEffect(() => {
     if (checked) reload();
-  }, [checked, group, view]);
+  }, [checked, group, view, thongKeMonth]);
 
   function reload() {
     setLoading(true);
     setError("");
     const done = () => setLoading(false);
-    if (view === "list") {
+    if (view === "thong_ke") {
+      getLlvThongKeThang(group, thongKeMonth).then(setThongKeData).catch((e) => setError(e.message)).finally(done);
+    } else if (view === "list") {
       llv2GetShops(group).then(setShops).catch((e) => setError(e.message)).finally(done);
     } else if (view === "schedule") {
       llv2GetCandidates(group).then(setCandidates).catch((e) => setError(e.message)).finally(done);
@@ -154,10 +179,13 @@ export default function LichLamViecV2Page() {
       <div className="llv-page">
         <div className="page-head">
           <h1>Phân công KSNB kiểm kê — Chia lịch / Dời lịch / Phân loại shop</h1>
-          <p>Đang migrate từ hệ cũ (Cloudflare Worker) — chỉ admin xem được mục này.</p>
+          <p>
+            Đang migrate từ hệ cũ (Cloudflare Worker) — chỉ admin xem được các tab Chia lịch/Dời lịch/Phân loại shop.
+            {!isAdminRole && " Tài khoản Editor chỉ xem được tab Thống kê."}
+          </p>
         </div>
 
-        <UploadDanhSachBar onDone={reload} />
+        {isAdminRole && <UploadDanhSachBar onDone={reload} />}
 
         <div className="month-tabs">
           <div className={`month-tab ${group === "long_chau" ? "active" : ""}`} onClick={() => setGroup("long_chau")}>Long Châu</div>
@@ -165,14 +193,22 @@ export default function LichLamViecV2Page() {
         </div>
 
         <div className="month-tabs">
-          <div className={`month-tab ${view === "list" ? "active" : ""}`} onClick={() => setView("list")}>📋 Danh sách shop</div>
-          <div className={`month-tab ${view === "schedule" ? "active" : ""}`} onClick={() => setView("schedule")}>🗓️ Cần chia lịch</div>
-          <div className={`month-tab ${view === "today" ? "active" : ""}`} onClick={() => setView("today")}>📌 Shop được chia - Chuẩn bị kiểm kê</div>
+          <div className={`month-tab ${view === "thong_ke" ? "active" : ""}`} onClick={() => setView("thong_ke")}>📊 Thống kê</div>
+          {isAdminRole && (
+            <>
+              <div className={`month-tab ${view === "list" ? "active" : ""}`} onClick={() => setView("list")}>📋 Danh sách shop</div>
+              <div className={`month-tab ${view === "schedule" ? "active" : ""}`} onClick={() => setView("schedule")}>🗓️ Cần chia lịch</div>
+              <div className={`month-tab ${view === "today" ? "active" : ""}`} onClick={() => setView("today")}>📌 Shop được chia - Chuẩn bị kiểm kê</div>
+            </>
+          )}
         </div>
 
         {error && <div className="placeholder-box" style={{ marginBottom: 16 }}>Lỗi: {error}</div>}
         {loading && <div style={{ fontSize: 13, color: "var(--text-600)", marginBottom: 12 }}><span className="tiny-spinner" /> Đang tải...</div>}
 
+        {view === "thong_ke" && (
+          <ThongKeThangView data={thongKeData} month={thongKeMonth} onMonthChange={setThongKeMonth} />
+        )}
         {view === "list" && shops && <ShopListView data={shops} onReload={reload} />}
         {view === "schedule" && candidates && <ScheduleView data={candidates} group={group} onDone={reload} />}
         {view === "today" && scheduledToday && <TodayScheduledView data={scheduledToday} group={group} onDone={reload} />}
@@ -236,6 +272,85 @@ function Modal({ title, subtitle, onClose, children }) {
         <div className="llv-modal-body">{children}</div>
       </div>
     </div>
+  );
+}
+
+// Tab "Thống kê" (chốt 27/08) — tổng hợp theo Vùng số shop cần kiểm/đã
+// kiểm/đã chia lịch+đang kiểm/còn lại trong 1 tháng bất kỳ (quá khứ/hiện
+// tại/tương lai), theo đúng "Mẫu thống kê.xlsx" anh Thiện gửi. Xem cả
+// admin/super_admin/editor (tab duy nhất Editor xem được ở menu này).
+function ThongKeThangView({ data, month, onMonthChange }) {
+  const rows = data?.rows || [];
+  const total = data?.total || { can_kiem: 0, da_kiem: 0, da_chia_dang_kiem: 0, con_lai: 0 };
+
+  return (
+    <>
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div className="card-body" style={{ display: "flex", gap: 10, alignItems: "center", padding: "14px 18px" }}>
+          <label style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-600)" }}>Chọn tháng:</label>
+          <input
+            type="month"
+            value={month}
+            onChange={(e) => onMonthChange(e.target.value)}
+            style={{ padding: "7px 10px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13.5 }}
+          />
+          <span style={{ fontSize: 11.5, color: "var(--text-400)" }}>
+            Xem được cả tháng quá khứ lẫn các tháng sắp tới, không giới hạn tháng hiện tại.
+          </span>
+        </div>
+      </div>
+
+      <div className="kpi-grid">
+        <div className="kpi-card"><div className="accent b" /><span className="tag">SL Shop cần kiểm trong tháng</span><div className="val">{total.can_kiem}</div></div>
+        <div className="kpi-card"><div className="accent g" /><span className="tag">SL shop đã kiểm</span><div className="val">{total.da_kiem}</div></div>
+        <div className="kpi-card"><div className="accent o" /><span className="tag">SL shop đã chia lịch + đang kiểm</span><div className="val">{total.da_chia_dang_kiem}</div></div>
+        <div className="kpi-card"><div className="accent r" /><span className="tag">SL shop còn lại</span><div className="val">{total.con_lai}</div></div>
+      </div>
+
+      <div className="card">
+        <div className="card-head">
+          <h3>Thống kê theo Vùng — tháng {month}</h3>
+        </div>
+        <div className="card-body llv-scroll" style={{ padding: 0 }}>
+          <table>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left" }}>Vùng</th>
+                <th>SL Shop cần kiểm trong tháng</th>
+                <th>SL shop đã kiểm</th>
+                <th>SL shop đã chia lịch + đang kiểm</th>
+                <th>SL shop còn lại</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.vung}>
+                  <td style={{ textAlign: "left" }}>{r.vung}</td>
+                  <td>{r.can_kiem}</td>
+                  <td>{r.da_kiem}</td>
+                  <td>{r.da_chia_dang_kiem}</td>
+                  <td style={{ color: r.con_lai < 0 ? "var(--danger)" : undefined, fontWeight: 700 }}>{r.con_lai}</td>
+                </tr>
+              ))}
+              {rows.length === 0 && (
+                <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--text-400)" }}>Chưa có dữ liệu shop cho tháng này.</td></tr>
+              )}
+            </tbody>
+            {rows.length > 0 && (
+              <tfoot>
+                <tr style={{ fontWeight: 700 }}>
+                  <td style={{ textAlign: "left" }}>Total</td>
+                  <td>{total.can_kiem}</td>
+                  <td>{total.da_kiem}</td>
+                  <td>{total.da_chia_dang_kiem}</td>
+                  <td style={{ color: total.con_lai < 0 ? "var(--danger)" : undefined }}>{total.con_lai}</td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </div>
+    </>
   );
 }
 

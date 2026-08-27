@@ -16,13 +16,16 @@ const NAV_ITEMS = [
   { href: "/ghi-nhan-case", icon: "📝", label: "Ghi nhận case vi phạm" },
   { href: "/nhan-su", icon: "◈", label: "Giới thiệu nhân sự KSNB" },
   { href: "/hoat-dong", icon: "☺", label: "Hoạt động phòng ban" },
+  // Trang tự giới hạn nội dung theo role (chỉ admin/super_admin thấy 3 tab
+  // Chia lịch/Dời lịch/Phân loại shop, "editor" chỉ thấy tab "Thống kê" —
+  // chốt 27/08) — để ở NAV_ITEMS (không phải ADMIN_ITEMS) để hiện được cho editor.
+  { href: "/lich-lam-viec-v2", icon: "🗓️", label: "Phân công KSNB kiểm kê", hideForRoles: ["viewer", "editor_base"] },
 ];
 
 const ADMIN_ITEMS = [
   { href: "/tai-len-du-lieu", icon: "⬆️", label: "Tải lên dữ liệu" },
   { href: "/quan-ly-tai-khoan", icon: "🔑", label: "Quản lý tài khoản" },
   { href: "/nhat-ky-hoat-dong", icon: "📊", label: "Nhật ký hoạt động" },
-  { href: "/lich-lam-viec-v2", icon: "🗓️", label: "Phân công KSNB kiểm kê" },
 ];
 const ADMIN_ROLES = ["admin", "super_admin"];
 const STORAGE_KEY = "ksnb_sidebar_collapsed";
