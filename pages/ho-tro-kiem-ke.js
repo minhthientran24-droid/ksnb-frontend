@@ -1,22 +1,13 @@
 import { useRef, useState } from "react";
 import Layout from "../components/Layout";
-import ReferenceFilesPanel from "../components/ReferenceFilesPanel";
 import {
   checkKiemKeCanDate, capNhatKetQuaKiemKe, tongHopBcksFromXknk, processHoTroVx, tongHopBcksTttc,
   getUser,
 } from "../lib/api";
 
-// "Dữ liệu tham chiếu (Admin)" mặc định (Nganh_Loai/GiaBan/...) đã dời
-// sang menu "Tải lên dữ liệu" (chốt 27/08 lần 18) — xem
-// components/ReferenceFilesPanel.js. 2 bộ tham chiếu riêng của Cắt liều
-// và VX bên dưới vẫn giữ nguyên tại đây.
-const CAT_LIEU_REFERENCE_ITEMS = [
-  { key: "dmsp_cat_lieu", label: "DM sản phẩm cắt liều (DMSP_CatLieu)" },
-];
-
-const VX_REFERENCE_ITEMS = [
-  { key: "msp_loai_tru_vx", label: "MSP loại trừ xử lý tồn kho VX (MSP_LoaiTru_VX)" },
-];
+// TOÀN BỘ "Dữ liệu tham chiếu (Admin)" (mặc định + Cắt liều + VX) đã dời
+// sang menu "Tải lên dữ liệu" (chốt 27/08 lần 18-20) — xem
+// components/ReferenceFilesPanel.js.
 
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -36,7 +27,6 @@ export default function HoTroKiemKePage() {
   const [error, setError] = useState("");
   const fileInputRef = useRef(null);
   const me = getUser();
-  const isAdmin = ["admin", "super_admin"].includes(me?.role);
   // Tải lên kết quả kiểm kê thanh lý: mọi role được dùng, trừ viewer.
   const canUploadKetQua = me?.role && me.role !== "viewer";
   // Cập nhật kết quả kiểm kê thanh lý -> xuất file Xuất Khác Tính Giá Trị
@@ -365,13 +355,6 @@ export default function HoTroKiemKePage() {
 
       {tab === "khac" && (
         <>
-          {isAdmin && (
-            <ReferenceFilesPanel
-              items={CAT_LIEU_REFERENCE_ITEMS}
-              title="⚙️ Danh mục SP cắt liều (Admin)"
-              subtitle='Dùng để điền cột "Thuộc tính SP" ở sheet KIEM KE — cập nhật khi danh mục thay đổi'
-            />
-          )}
           <div className="card">
           <div className="card-head"><h3>🛠️ Tổng hợp Báo cáo Kiểm Soát Sau Kiểm Kê</h3></div>
           <div className="card-body">
@@ -467,13 +450,6 @@ export default function HoTroKiemKePage() {
 
       {tab === "vx" && (
         <>
-          {isAdmin && (
-            <ReferenceFilesPanel
-              items={VX_REFERENCE_ITEMS}
-              title="⚙️ Danh mục tham chiếu xử lý VX (Admin)"
-              subtitle='MSP loại trừ: áp dụng sheet "Kiểm Kê VPKM" + "Kiểm kê VTYT". VTYT tiêu hao: áp dụng riêng sheet "Kiểm kê VTYT" (điền cột Ghi chú) — cập nhật khi danh mục thay đổi'
-            />
-          )}
           <div className="grid-2" style={{ gap: 18, alignItems: "start" }}>
           <div className="card">
             <div className="card-head"><h3>💉 Hỗ trợ kiểm kê shop VX</h3></div>

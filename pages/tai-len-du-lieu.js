@@ -19,6 +19,16 @@ const GUI_MAIL_REFERENCE_ITEMS = [
   { key: "cc_by_vung", label: "CC theo vùng" },
 ];
 
+// Dữ liệu tham chiếu riêng cho "Hỗ Trợ Kiểm Kê" (chốt 27/08 lần 20, dời
+// từ 2 tab "Tổng hợp Báo cáo Kiểm Soát Sau Kiểm Kê" + "Hỗ trợ kiểm kê
+// shop VX" sang đây).
+const CAT_LIEU_REFERENCE_ITEMS = [
+  { key: "dmsp_cat_lieu", label: "DM sản phẩm cắt liều (DMSP_CatLieu)" },
+];
+const VX_REFERENCE_ITEMS = [
+  { key: "msp_loai_tru_vx", label: "MSP loại trừ xử lý tồn kho VX (MSP_LoaiTru_VX)" },
+];
+
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
 const now = new Date();
 const CURRENT_MONTH = String(now.getMonth() + 1).padStart(2, "0");
@@ -197,6 +207,20 @@ export default function TaiLenDuLieuPage() {
         items={GUI_MAIL_REFERENCE_ITEMS}
         title="⚙️ Dữ liệu tham chiếu — Gửi mail BCKS (Admin)"
         subtitle="Cập nhật ở đây — mọi NV KSNB dùng chung khi gửi mail báo cáo"
+      />
+
+      {/* ---- Dữ liệu tham chiếu (Admin) — Hỗ Trợ Kiểm Kê (Cắt liều + VX)
+          — dời từ 2 tab "Tổng hợp Báo cáo Kiểm Soát Sau Kiểm Kê" và "Hỗ
+          trợ kiểm kê shop VX" sang đây (chốt 27/08 lần 20). ---- */}
+      <ReferenceFilesPanel
+        items={CAT_LIEU_REFERENCE_ITEMS}
+        title="⚙️ Danh mục SP cắt liều (Admin)"
+        subtitle='Dùng để điền cột "Thuộc tính SP" ở sheet KIEM KE — cập nhật khi danh mục thay đổi'
+      />
+      <ReferenceFilesPanel
+        items={VX_REFERENCE_ITEMS}
+        title="⚙️ Danh mục tham chiếu xử lý VX (Admin)"
+        subtitle='MSP loại trừ: áp dụng sheet "Kiểm Kê VPKM" + "Kiểm kê VTYT". VTYT tiêu hao: áp dụng riêng sheet "Kiểm kê VTYT" (điền cột Ghi chú) — cập nhật khi danh mục thay đổi'
       />
 
       {/* ---- Báo cáo kiểm kê (tháng) — xử lý ngay ---- */}
