@@ -528,12 +528,19 @@ export default function TheoDoiKiemKePage() {
               : "Cột Ghi chú do NV KSNB tự cập nhật."}
           </p>
         </div>
-        {canLcnb && loai === "da_kiem" && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+      </div>
+
+      {/* Bộ tải file báo cáo (chốt 27/08 lần 15 — gom lại thành 1 khối card
+          riêng, dùng grid cho các dòng thẳng hàng, thay vì 4 dòng rời rạc
+          trôi nổi ở góc phải như trước). */}
+      {canLcnb && loai === "da_kiem" && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div className="card-head"><h3>📁 Tải file báo cáo</h3></div>
+          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {isAdmin && (
               <>
-                {/* Line 1: chọn tháng - Tải file kết quả kiểm kê */}
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
+                <div className="report-download-row">
+                  <span className="report-download-label">Kết quả kiểm kê — Long Châu</span>
                   <select
                     className="month-select"
                     value={ketQuaLogThang} onChange={(e) => setKetQuaLogThang(e.target.value)}
@@ -546,13 +553,13 @@ export default function TheoDoiKiemKePage() {
                     className="fbtn" disabled={ketQuaLogBusy} onClick={handleDownloadKetQuaLog}
                     style={{ background: "#FFF1E1", borderColor: "var(--orange)", color: "var(--orange)" }}
                   >
-                    {ketQuaLogBusy ? "Đang tải..." : "📥 Tải file kết quả kiểm kê (gửi mail)"}
+                    {ketQuaLogBusy ? "Đang tải..." : "📥 Tải file"}
                   </button>
-                  {ketQuaLogMsg && <div style={{ fontSize: 12, color: "var(--danger)" }}>{ketQuaLogMsg}</div>}
+                  {ketQuaLogMsg && <span className="report-download-msg" style={{ color: "var(--danger)" }}>{ketQuaLogMsg}</span>}
                 </div>
 
-                {/* Line 1b: chọn tháng - Tải file kết quả kiểm kê Vaccine (chốt 26/08 lần 7) */}
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
+                <div className="report-download-row">
+                  <span className="report-download-label">Kết quả kiểm kê — Vaccine</span>
                   <select
                     className="month-select"
                     value={ketQuaLogVacThang} onChange={(e) => setKetQuaLogVacThang(e.target.value)}
@@ -565,15 +572,15 @@ export default function TheoDoiKiemKePage() {
                     className="fbtn" disabled={ketQuaLogVacBusy} onClick={handleDownloadKetQuaLogVaccine}
                     style={{ background: "#E8F3FF", borderColor: "var(--blue, #1976d2)", color: "var(--blue, #1976d2)" }}
                   >
-                    {ketQuaLogVacBusy ? "Đang tải..." : "📥 Tải file kết quả kiểm kê Vaccine (gửi mail)"}
+                    {ketQuaLogVacBusy ? "Đang tải..." : "📥 Tải file"}
                   </button>
-                  {ketQuaLogVacMsg && <div style={{ fontSize: 12, color: "var(--danger)" }}>{ketQuaLogVacMsg}</div>}
+                  {ketQuaLogVacMsg && <span className="report-download-msg" style={{ color: "var(--danger)" }}>{ketQuaLogVacMsg}</span>}
                 </div>
               </>
             )}
 
-            {/* Line 2: chọn tháng - LCNB Thanh Lý HCM (admin + editor, chốt 26/08 lần 9) */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
+            <div className="report-download-row">
+              <span className="report-download-label">LCNB Thanh Lý — HCM</span>
               <select
                 className="month-select"
                 value={lcnbThang.hcm} onChange={(e) => setLcnbThang((s) => ({ ...s, hcm: e.target.value }))}
@@ -586,13 +593,13 @@ export default function TheoDoiKiemKePage() {
                 className="fbtn" disabled={lcnbBusy.hcm} onClick={() => handleDownloadLcnb("hcm")}
                 style={{ background: "#FFF1E1", borderColor: "var(--orange)", color: "var(--orange)" }}
               >
-                {lcnbBusy.hcm ? "Đang tải..." : "📥 LCNB Thanh Lý HCM"}
+                {lcnbBusy.hcm ? "Đang tải..." : "📥 Tải file"}
               </button>
-              {lcnbMsg.hcm && <div style={{ fontSize: 12, color: lcnbMsg.hcm.startsWith("❌") ? "var(--danger)" : "var(--text-600)" }}>{lcnbMsg.hcm}</div>}
+              {lcnbMsg.hcm && <span className="report-download-msg" style={{ color: lcnbMsg.hcm.startsWith("❌") ? "var(--danger)" : "var(--text-600)" }}>{lcnbMsg.hcm}</span>}
             </div>
 
-            {/* Line 3: chọn tháng - LCNB Thanh Lý HNI */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
+            <div className="report-download-row">
+              <span className="report-download-label">LCNB Thanh Lý — HNI</span>
               <select
                 className="month-select"
                 value={lcnbThang.hni} onChange={(e) => setLcnbThang((s) => ({ ...s, hni: e.target.value }))}
@@ -605,13 +612,13 @@ export default function TheoDoiKiemKePage() {
                 className="fbtn" disabled={lcnbBusy.hni} onClick={() => handleDownloadLcnb("hni")}
                 style={{ background: "#FFF1E1", borderColor: "var(--orange)", color: "var(--orange)" }}
               >
-                {lcnbBusy.hni ? "Đang tải..." : "📥 LCNB Thanh Lý HNI"}
+                {lcnbBusy.hni ? "Đang tải..." : "📥 Tải file"}
               </button>
-              {lcnbMsg.hni && <div style={{ fontSize: 12, color: lcnbMsg.hni.startsWith("❌") ? "var(--danger)" : "var(--text-600)" }}>{lcnbMsg.hni}</div>}
+              {lcnbMsg.hni && <span className="report-download-msg" style={{ color: lcnbMsg.hni.startsWith("❌") ? "var(--danger)" : "var(--text-600)" }}>{lcnbMsg.hni}</span>}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Tab chọn Shop được chia hôm nay / Đang kiểm / Đã kiểm (chốt 22/08) */}
       <div className="month-tabs">
@@ -626,20 +633,31 @@ export default function TheoDoiKiemKePage() {
         </div>
       </div>
 
-      {/* Tab "Đã kiểm" — tách riêng Long Châu/Vaccine (chốt 26/08 lần 12),
-          2 nút loại trừ lẫn nhau, không cho chọn đồng thời cả 2. */}
+      {/* Tab "Đã kiểm" — nhóm shop (Long Châu/Vaccine, loại trừ lẫn nhau)
+          + chọn kỳ (tháng) đặt CHUNG 1 hàng, ngăn cách bằng dấu gạch đứng
+          (chốt 27/08 lần 15 — trước đây tách 2-3 hàng riêng, nhìn rời rạc). */}
       {loai === "da_kiem" && (
-        <div className="month-tabs">
+        <div className="month-tabs" style={{ alignItems: "center" }}>
           <div className={`month-tab ${nhom === "long_chau" ? "active" : ""}`} onClick={() => setNhom("long_chau")}>
             🏥 Long Châu
           </div>
           <div className={`month-tab ${nhom === "vaccine" ? "active" : ""}`} onClick={() => setNhom("vaccine")}>
             💉 Vaccine
           </div>
+          {periods.length > 0 && (
+            <>
+              <span style={{ width: 1, alignSelf: "stretch", background: "var(--border)", margin: "0 2px" }} />
+              {periods.map((p) => (
+                <div key={p} className={`month-tab ${p === period ? "active" : ""}`} onClick={() => setPeriod(p)}>
+                  🗓️ {p}
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
 
-      {!isLlvTab && periods.length > 0 && (
+      {!isLlvTab && loai !== "da_kiem" && periods.length > 0 && (
         <div className="month-tabs">
           {periods.map((p) => (
             <div key={p} className={`month-tab ${p === period ? "active" : ""}`} onClick={() => setPeriod(p)}>
