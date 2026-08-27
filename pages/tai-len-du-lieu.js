@@ -10,6 +10,15 @@ import {
 
 const ADMIN_ROLES = ["admin", "super_admin"];
 
+// Dữ liệu tham chiếu riêng cho "Gửi mail BCKS" (chốt 27/08 lần 19, dời từ
+// trang đó sang đây) — Giá bán/Danh sách nhân viên/DM cắt liều không cần
+// ở đây (Giá bán không cần nữa; Danh sách nhân viên dùng chung với Hỗ Trợ
+// Kiểm Kê; DM cắt liều xử lý sẵn trong chính file báo cáo bên đó rồi).
+const GUI_MAIL_REFERENCE_ITEMS = [
+  { key: "shopinfo", label: "ShopInfo (email ASM + Vùng)" },
+  { key: "cc_by_vung", label: "CC theo vùng" },
+];
+
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
 const now = new Date();
 const CURRENT_MONTH = String(now.getMonth() + 1).padStart(2, "0");
@@ -180,6 +189,15 @@ export default function TaiLenDuLieuPage() {
           đây (chốt 27/08 lần 18), dùng chung component với 2 bộ tham
           chiếu riêng (Cắt liều/VX) vẫn còn ở "Hỗ Trợ Kiểm Kê". ---- */}
       <ReferenceFilesPanel />
+
+      {/* ---- Dữ liệu tham chiếu (Admin) — Gửi mail BCKS (ShopInfo/CC theo
+          vùng) — dời từ "Gửi mail BCKS" sang đây (chốt 27/08 lần 19). Dùng
+          chung 1 kho key-value với bộ ở trên, chỉ khác items hiển thị. ---- */}
+      <ReferenceFilesPanel
+        items={GUI_MAIL_REFERENCE_ITEMS}
+        title="⚙️ Dữ liệu tham chiếu — Gửi mail BCKS (Admin)"
+        subtitle="Cập nhật ở đây — mọi NV KSNB dùng chung khi gửi mail báo cáo"
+      />
 
       {/* ---- Báo cáo kiểm kê (tháng) — xử lý ngay ---- */}
       <div className="card">

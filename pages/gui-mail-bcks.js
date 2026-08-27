@@ -2,85 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
 import SignatureEditor, { GREETING_FONT_SIZES } from "../components/SignatureEditor";
 import {
-  getUser, getKiemKeThanhLyReferenceFiles, uploadKiemKeThanhLyReferenceFile,
+  getUser,
   previewGuiMailBcks, sendGuiMailBcks, getMySmtpCredential, saveMySmtpCredential,
 } from "../lib/api";
 
-// Chỉ còn 2 file tham chiếu cho "Gửi mail BCKS" — Giá bán/Danh sách nhân
-// viên/DM cắt liều đã bỏ khỏi màn hình này (Giá bán không cần nữa; Danh
-// sách nhân viên dùng chung với Hỗ Trợ Kiểm Kê nên không cần upload lại;
-// DM cắt liều đã xử lý sẵn trong chính file báo cáo bên đó rồi).
-const REFERENCE_ITEMS = [
-  { key: "shopinfo", label: "ShopInfo (email ASM + Vùng)" },
-  { key: "cc_by_vung", label: "CC theo vùng" },
-];
-
-function ReferenceFilesPanel() {
-  const [status, setStatus] = useState(null);
-  const [error, setError] = useState("");
-  const [uploadingKey, setUploadingKey] = useState(null);
-  const fileInputRefs = useRef({});
-
-  function load() {
-    getKiemKeThanhLyReferenceFiles().then(setStatus).catch((err) => setError(err.message));
-  }
-  useEffect(load, []);
-
-  async function handleUpload(key, e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingKey(key);
-    setError("");
-    try {
-      const updated = await uploadKiemKeThanhLyReferenceFile(key, file);
-      setStatus(updated);
-    } catch (err) {
-      setError(err.message || "Upload thất bại");
-    } finally {
-      setUploadingKey(null);
-      if (fileInputRefs.current[key]) fileInputRefs.current[key].value = "";
-    }
-  }
-
-  return (
-    <div className="card">
-      <div className="card-head">
-        <h3>⚙️ Dữ liệu tham chiếu (Admin)</h3>
-        <span className="note">Cập nhật ở đây — mọi NV KSNB dùng chung khi gửi mail báo cáo</span>
-      </div>
-      <div className="card-body">
-        {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 10 }}>{error}</div>}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 12 }}>
-          {REFERENCE_ITEMS.map((item) => {
-            const info = status?.[item.key];
-            const uploading = uploadingKey === item.key;
-            return (
-              <div key={item.key} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "12px 14px" }}>
-                <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--navy-900)", marginBottom: 6 }}>{item.label}</div>
-                {info?.uploaded ? (
-                  <div style={{ fontSize: 11, color: "#4C9A2A", marginBottom: 8 }}>
-                    ✅ Đã có — cập nhật {new Date(info.updated_at).toLocaleString("vi-VN")}
-                  </div>
-                ) : (
-                  <div style={{ fontSize: 11, color: "var(--text-400)", marginBottom: 8 }}>Chưa có file</div>
-                )}
-                <input
-                  ref={(el) => (fileInputRefs.current[item.key] = el)}
-                  type="file"
-                  style={{ display: "none" }}
-                  onChange={(e) => handleUpload(item.key, e)}
-                />
-                <button className="upload-btn" disabled={uploading} onClick={() => fileInputRefs.current[item.key]?.click()}>
-                  {uploading ? "Đang tải lên..." : info?.uploaded ? "Thay file mới" : "Tải file lên"}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
+// "Dữ liệu tham chiếu (Admin)" (ShopInfo/CC theo vùng) đã dời sang menu
+// "Tải lên dữ liệu" (chốt 27/08 lần 19) — xem components/ReferenceFilesPanel.js.
 
 const fieldBoxStyle = {
   border: "1px solid var(--border)", borderRadius: 8, padding: "12px 14px", marginBottom: 12,
@@ -414,7 +341,6 @@ function SelfServicePanel({ smtpConfigured }) {
 
 export default function GuiMailBcksPage() {
   const me = getUser();
-  const isAdmin = ["admin", "super_admin"].includes(me?.role);
   const [smtpConfigured, setSmtpConfigured] = useState(false);
 
   return (
@@ -426,12 +352,6 @@ export default function GuiMailBcksPage() {
           (ASM) và CC theo vùng — không cần thao tác tay qua Outlook.
         </p>
       </div>
-
-      {isAdmin && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 14 }}>
-          <ReferenceFilesPanel />
-        </div>
-      )}
 
       <div style={{ marginBottom: 14 }}>
         <SmtpCredentialPanel onConfigured={(s) => setSmtpConfigured(s.configured)} />
