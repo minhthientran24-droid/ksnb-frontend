@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
+import ReferenceFilesPanel from "../components/ReferenceFilesPanel";
 import {
   listPendingUploads, uploadPendingFile, deletePendingUpload, uploadKiemKeThangReport, getUser,
   getLuyKeStatus, uploadLuyKe, getXknkCanTonMonths, uploadXknkCanTon,
@@ -174,6 +175,11 @@ export default function TaiLenDuLieuPage() {
         <h1>Tải lên dữ liệu</h1>
         <p>Báo cáo kiểm kê tháng xử lý ngay khi upload. Báo cáo chủ đề tháng và dữ liệu khác vẫn qua PC riêng xử lý.</p>
       </div>
+
+      {/* ---- Dữ liệu tham chiếu (Admin) — dời từ "Hỗ Trợ Kiểm Kê" sang
+          đây (chốt 27/08 lần 18), dùng chung component với 2 bộ tham
+          chiếu riêng (Cắt liều/VX) vẫn còn ở "Hỗ Trợ Kiểm Kê". ---- */}
+      <ReferenceFilesPanel />
 
       {/* ---- Báo cáo kiểm kê (tháng) — xử lý ngay ---- */}
       <div className="card">
