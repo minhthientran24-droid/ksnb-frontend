@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import {
-  getKiemKePeriods, listKiemKe, updateKiemKeGhiChu,
+  getKiemKePeriods, listKiemKe,
   getShopChiaHomNay, getDangKiem, doiLichShopChiaHomNay, huyDangKiem, getUser,
   downloadKetQuaKiemKeGuiMail, getKetQuaKiemKeGuiMailMonths,
   downloadKetQuaKiemKeGuiMailVaccine, getKetQuaKiemKeGuiMailVaccineMonths,
@@ -197,8 +197,6 @@ export default function TheoDoiKiemKePage() {
   const [shopHomNay, setShopHomNay] = useState(null); // { date, rows }
   const [dangKiemData, setDangKiemData] = useState(null); // { date, rows }
   const [error, setError] = useState("");
-  const [editingId, setEditingId] = useState(null);
-  const [noteDraft, setNoteDraft] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const me = getUser();
@@ -414,21 +412,6 @@ export default function TheoDoiKiemKePage() {
     }
   }, [loai]);
 
-  function startEditNote(row) {
-    setEditingId(row.id);
-    setNoteDraft(row.ghi_chu || "");
-  }
-
-  async function saveNote(id) {
-    try {
-      const updated = await updateKiemKeGhiChu(id, noteDraft);
-      setRows(rows.map((r) => (r.id === id ? updated : r)));
-      setEditingId(null);
-    } catch (err) {
-      alert(err.message || "Lưu ghi chú thất bại");
-    }
-  }
-
   function handleSearch() {
     setSearchQuery(searchInput.trim().toLowerCase());
   }
@@ -438,8 +421,8 @@ export default function TheoDoiKiemKePage() {
     setSearchQuery("");
   }
 
-  // Lọc theo mã shop/tên shop, rồi sắp xếp theo |giá trị thất thoát| giảm dần
-  // (dư cũng là nguy cơ, thiếu cũng là nguy cơ — lệch càng nhiều càng lên đầu)
+  // Lọc theo mã shop/tên shop, rồi sắp xếp theo "Ước tính truy thu" tăng
+  // dần (chốt 27/08 lần 9 — trước đây sắp theo |giá trị kiểm kê| giảm dần).
   const displayRows = rows
     .filter((r) => {
       if (!searchQuery) return true;
@@ -448,10 +431,7 @@ export default function TheoDoiKiemKePage() {
         (r.ten_shop || "").toLowerCase().includes(searchQuery)
       );
     })
-    .sort((a, b) =>
-      (Math.abs(b.gia_tri_non_cl || 0) + Math.abs(b.gia_tri_cat_lieu || 0)) -
-      (Math.abs(a.gia_tri_non_cl || 0) + Math.abs(a.gia_tri_cat_lieu || 0))
-    );
+    .sort((a, b) => tinhUocTinhTruyThu(a) - tinhUocTinhTruyThu(b));
 
   return (
     <Layout crumb="Theo dõi kiểm kê">
@@ -460,7 +440,7 @@ export default function TheoDoiKiemKePage() {
           <h1>Theo dõi kiểm kê</h1>
           <p>
             {loai === "da_kiem"
-              ? "Tự động cập nhật khi gửi mail BCKS (shop rời \"Đang kiểm\" chuyển sang đây). Cột Ghi chú do NV KSNB tự cập nhật."
+              ? "Tự động cập nhật khi gửi mail BCKS (shop rời \"Đang kiểm\" chuyển sang đây)."
               : "Cột Ghi chú do NV KSNB tự cập nhật."}
           </p>
         </div>
@@ -736,7 +716,7 @@ export default function TheoDoiKiemKePage() {
             <h3>Kỳ {period}</h3>
             <span className="note">
               {searchQuery ? `${displayRows.length}/${rows.length} shop (đang lọc)` : `${rows.length} shop`}
-              {" · sắp xếp theo giá trị kiểm kê (lệch nhiều nhất lên đầu)"}
+              {" · sắp xếp theo Ước tính truy thu (thấp đến cao)"}
             </span>
           </div>
           <div className="card-body">
@@ -747,7 +727,7 @@ export default function TheoDoiKiemKePage() {
                   <th>Kiểm kê - Non CL</th><th>Cân tồn - Non CL</th>
                   <th>Kiểm kê - Cắt liều</th><th>Cân tồn - Cắt liều</th>
                   <th>Lũy Kế</th><th>Ước tính truy thu</th><th>Truy thu thanh lý</th>
-                  <th>NV kiểm kê</th><th>Ghi chú</th>
+                  <th>NV kiểm kê</th>
                 </tr>
               </thead>
               <tbody>
@@ -764,28 +744,10 @@ export default function TheoDoiKiemKePage() {
                     <td className="num">{nhom === "long_chau" ? fmtMoney(tinhUocTinhTruyThu(r)) : "-"}</td>
                     <td className="num">{fmtMoney(r.truy_thu_thanh_ly)}</td>
                     <td>{r.nv_kiem_ke || "-"}</td>
-                    <td style={{ minWidth: 200 }}>
-                      {editingId === r.id ? (
-                        <div style={{ display: "flex", gap: 6 }}>
-                          <input
-                            style={{ flex: 1, padding: "6px 8px", border: "1.5px solid var(--border)", borderRadius: 6, fontSize: 12.5 }}
-                            value={noteDraft}
-                            onChange={(e) => setNoteDraft(e.target.value)}
-                            autoFocus
-                          />
-                          <button onClick={() => saveNote(r.id)} style={saveBtnStyle}>Lưu</button>
-                        </div>
-                      ) : (
-                        <div style={{ cursor: "pointer", color: r.ghi_chu ? "var(--text-900)" : "var(--text-400)" }}
-                          onClick={() => startEditNote(r)}>
-                          {r.ghi_chu || "+ Thêm ghi chú"}
-                        </div>
-                      )}
-                    </td>
                   </tr>
                 ))}
                 {displayRows.length === 0 && (
-                  <tr><td colSpan={12} style={{ textAlign: "center", color: "var(--text-400)" }}>
+                  <tr><td colSpan={11} style={{ textAlign: "center", color: "var(--text-400)" }}>
                     {searchQuery ? "Không tìm thấy shop nào khớp" : "Không có shop nào trong tháng này"}
                   </td></tr>
                 )}
@@ -797,11 +759,6 @@ export default function TheoDoiKiemKePage() {
     </Layout>
   );
 }
-
-const saveBtnStyle = {
-  padding: "6px 12px", borderRadius: 6, border: "none",
-  background: "var(--navy-800)", color: "#fff", fontSize: 12, cursor: "pointer",
-};
 
 const syncBtnStyle = {
   padding: "9px 16px", borderRadius: 8, border: "none",
