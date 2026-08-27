@@ -5,6 +5,7 @@ import {
   claimChuDeJob, unclaimChuDeJob, addChuDeJobSupporters, listKsnbForChuDe,
   completeChuDeJob, downloadChuDeJobFile, downloadChuDeJobResultFile,
   bulkUploadChuDeJobs, downloadChuDeJobBulkUploadTemplate, lookupChuDeShop,
+  getChuDeJobMonths, exportChuDeJobs,
 } from "../lib/api";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
@@ -487,10 +488,15 @@ export default function TheoDoiChuDePage() {
   const [completingJob, setCompletingJob] = useState(null);
   const [claimingJob, setClaimingJob] = useState(null);
   const [addingSupportersJob, setAddingSupportersJob] = useState(null);
+  // Bộ chọn tháng + xuất data (chốt 27/08).
+  const [thang, setThang] = useState("");
+  const [months, setMonths] = useState([]);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
 
-  function load() {
+  function load(thangFilter = thang) {
     setLoading(true);
-    listChuDeJobs()
+    listChuDeJobs(thangFilter || undefined)
       .then(setJobs)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -498,8 +504,25 @@ export default function TheoDoiChuDePage() {
 
   useEffect(() => {
     setMe(getUser());
-    load();
+    getChuDeJobMonths().then(setMonths).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    load(thang);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [thang]);
+
+  async function handleExport() {
+    setExporting(true);
+    setExportError("");
+    try {
+      await exportChuDeJobs(thang || undefined);
+    } catch (err) {
+      setExportError(err.message || "Xuất data thất bại");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const isAdmin = me && ADMIN_ROLES.includes(me.role);
   // Đăng job (đơn lẻ + hàng loạt bằng Excel) mở thêm cho editor (chốt
@@ -581,6 +604,26 @@ export default function TheoDoiChuDePage() {
             ? "Đăng job chủ đề cần kiểm tra lên đây — NV KSNB tự bấm \"Nhận Job\" để nhận xử lý."
             : "Bấm \"Nhận Job\" để nhận xử lý — job có file data check sẽ hiện nút tải về."}
         </p>
+      </div>
+
+      {/* Bộ chọn tháng + Xuất data (chốt 27/08) — chọn tháng lọc theo Ngày
+          Upload, "Tất cả các tháng" = không lọc. Nút Xuất data chỉ admin/editor. */}
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div className="card-body" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "14px 18px" }}>
+          <select className="month-select" value={thang} onChange={(e) => setThang(e.target.value)}>
+            <option value="">Tất cả các tháng</option>
+            {months.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+          {canUpload && (
+            <button
+              className="fbtn" disabled={exporting} onClick={handleExport}
+              style={{ background: "#EAF6E5", borderColor: "#4C9A2A", color: "#3E7A2A" }}
+            >
+              {exporting ? "Đang xuất..." : "📤 Xuất data"}
+            </button>
+          )}
+          {exportError && <div style={{ fontSize: 12, color: "var(--danger)" }}>{exportError}</div>}
+        </div>
       </div>
 
       {canUpload && !showForm && <BulkUploadCard onDone={load} onOpenForm={() => setShowForm(true)} />}
