@@ -18,19 +18,6 @@ function shopDisplay(job) {
   return job.ma_shop || job.ten_shop || "-";
 }
 
-const STATUS_STYLE = {
-  "Chưa nhận": { background: "#FFF1E1", color: "var(--orange)" },
-  "Đang xử lý": { background: "#E8EFFC", color: "var(--blue-accent)" },
-  "Hoàn tất": { background: "#EAF6E5", color: "#4C9A2A" },
-};
-function statusPill(trangThai) {
-  const style = STATUS_STYLE[trangThai] || { background: "var(--bg)", color: "var(--text-600)" };
-  return (
-    <span style={{ ...style, padding: "3px 10px", borderRadius: 20, fontSize: 11.5, fontWeight: 700, whiteSpace: "nowrap" }}>
-      {trangThai}
-    </span>
-  );
-}
 
 function fmtDateTime(iso) {
   if (!iso) return "";
@@ -487,9 +474,19 @@ function BulkUploadCard({ onDone, onOpenForm, thang, setThang, months, exporting
   );
 }
 
+// 3 tab tình trạng (chốt 27/08) — thay cho cột "Tình trạng" đã bỏ khỏi
+// bảng, lọc job theo đúng 1 trong 3 trạng thái. Nhãn tab "Chưa nhận" cố
+// tình đặt dài hơn ("Chủ Đề Mới - Chưa nhận") theo đúng yêu cầu.
+const CHU_DE_TABS = [
+  { key: "Chưa nhận", label: "Chủ Đề Mới - Chưa nhận" },
+  { key: "Đang xử lý", label: "Đang xử lý" },
+  { key: "Hoàn tất", label: "Hoàn tất" },
+];
+
 export default function TheoDoiChuDePage() {
   const [me, setMe] = useState(null);
   const [jobs, setJobs] = useState([]);
+  const [activeTab, setActiveTab] = useState("Chưa nhận");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -653,6 +650,19 @@ export default function TheoDoiChuDePage() {
         <JobFormCard editingJob={editingJob} onDone={afterSave} onCancel={closeForm} />
       )}
 
+      {/* 3 tab tình trạng (chốt 27/08) — thay cho cột "Tình trạng" đã bỏ
+          khỏi bảng, nằm ngay dưới khung "Cập nhập chủ đề mới". */}
+      <div className="month-tabs">
+        {CHU_DE_TABS.map((t) => {
+          const count = jobs.filter((j) => j.trang_thai === t.key).length;
+          return (
+            <div key={t.key} className={`month-tab ${activeTab === t.key ? "active" : ""}`} onClick={() => setActiveTab(t.key)}>
+              {t.label} ({count})
+            </div>
+          );
+        })}
+      </div>
+
       {error && <div className="placeholder-box">Không tải được dữ liệu: {error}</div>}
       {!error && !loading && jobs.length === 0 && (
         <div className="placeholder-box">Chưa có job chủ đề nào được đăng.</div>
@@ -672,13 +682,15 @@ export default function TheoDoiChuDePage() {
                   <th>NV Check</th>
                   <th>Ngày Check</th>
                   <th>Số ngày xử lý</th>
-                  <th>Tình trạng</th>
                   <th>Kết quả</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {jobs.map((job) => {
+                {jobs.filter((job) => job.trang_thai === activeTab).length === 0 && (
+                  <tr><td colSpan={9} style={{ textAlign: "center", color: "var(--text-400)" }}>Không có job nào ở tình trạng này.</td></tr>
+                )}
+                {jobs.filter((job) => job.trang_thai === activeTab).map((job) => {
                   const supporters = job.supporters || [];
                   const mine = me && job.claimed_by_user_id === me.id;
                   const isSupporter = me && supporters.some((s) => s.user_id === me.id);
@@ -707,7 +719,6 @@ export default function TheoDoiChuDePage() {
                       </td>
                       <td>{fmtDateTime(job.ngay_bat_dau_check) || "-"}</td>
                       <td>{soNgay === null ? "-" : `${soNgay} ngày`}</td>
-                      <td>{statusPill(job.trang_thai)}</td>
                       <td>{job.ket_qua_vi_pham || "-"}</td>
                       <td>
                         <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "stretch" }}>
