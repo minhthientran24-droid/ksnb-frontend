@@ -81,6 +81,10 @@ export default function HoTroKiemKePage() {
   const [bcksTttcProcessing, setBcksTttcProcessing] = useState(false);
   const [bcksTttcResult, setBcksTttcResult] = useState(null); // { files: [{filename, blob}] } | null
   const [bcksTttcError, setBcksTttcError] = useState("");
+  // Popup cảnh báo "2 file cần import EHO" (chốt 27/08 lần 13) — hiện khi
+  // file NKXK bị cắt làm 2 (cả "Xuất truy thu TTTC" lẫn "Xử lý NKXK TTTC"
+  // cùng có trong kết quả trả về, xem services/tong_hop_bcks_tttc.py).
+  const [showEhoWarning, setShowEhoWarning] = useState(false);
   const bcksTttcFileInputRef = useRef(null);
 
   async function handleVxUpload(e) {
@@ -159,6 +163,11 @@ export default function HoTroKiemKePage() {
       // Tự động tải về ngay khi xử lý xong — bấm nút "Tổng hợp báo cáo
       // kiểm soát" là đủ, không cần bấm thêm nút tải.
       downloadBcksTttcFiles(files);
+      // File NKXK bị cắt làm 2 (chốt 27/08 lần 13) -> cảnh báo đỏ nhắc NV
+      // đừng bỏ sót bước import EHO cho cả 2 file.
+      const hasTruyThu = files.some((f) => f.filename.startsWith("Xuất truy thu TTTC"));
+      const hasXuLyNkxk = files.some((f) => f.filename.startsWith("Xử lý NKXK TTTC"));
+      if (hasTruyThu && hasXuLyNkxk) setShowEhoWarning(true);
     } catch (err) {
       setBcksTttcError(err.message || "Xử lý thất bại");
     } finally {
@@ -603,6 +612,48 @@ export default function HoTroKiemKePage() {
           </div>
           </div>
         </>
+      )}
+
+      {showEhoWarning && (
+        <div
+          style={{
+            position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20,
+          }}
+          onClick={() => setShowEhoWarning(false)}
+        >
+          <div
+            style={{
+              background: "#fff", borderRadius: 12, padding: "22px 26px", width: 440, maxWidth: "100%",
+              boxShadow: "0 24px 60px rgba(0,0,0,0.3)", border: "2px solid #D6362F", position: "relative",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowEhoWarning(false)}
+              aria-label="Đóng"
+              style={{
+                position: "absolute", top: 10, right: 12, border: "none", background: "none",
+                fontSize: 18, cursor: "pointer", color: "var(--text-600)", lineHeight: 1,
+              }}
+            >
+              ✕
+            </button>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#D6362F", marginBottom: 10, paddingRight: 20 }}>
+              ⚠️ Chú Ý
+            </div>
+            <p style={{ fontSize: 13.5, color: "#D6362F", lineHeight: 1.6, marginBottom: 18 }}>
+              Có 2 file Cần thực hiện import trên EHO đối với TTTC này, Bạn Đừng Bỏ Sót nhes^^
+            </p>
+            <button
+              className="login-btn"
+              style={{ width: "auto", padding: "9px 26px", margin: 0, background: "#D6362F" }}
+              onClick={() => setShowEhoWarning(false)}
+            >
+              OK
+            </button>
+          </div>
+        </div>
       )}
     </Layout>
   );
