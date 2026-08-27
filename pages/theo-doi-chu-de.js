@@ -476,11 +476,13 @@ function BulkUploadCard({ onDone, onOpenForm, thang, setThang, months, exporting
 
 // 3 tab tình trạng (chốt 27/08) — thay cho cột "Tình trạng" đã bỏ khỏi
 // bảng, lọc job theo đúng 1 trong 3 trạng thái. Nhãn tab "Chưa nhận" cố
-// tình đặt dài hơn ("Chủ Đề Mới - Chưa nhận") theo đúng yêu cầu.
+// tình đặt dài hơn ("Chủ Đề Mới - Chưa nhận") theo đúng yêu cầu. Mỗi tab
+// 1 màu riêng (chốt 27/08 lần 2): Chủ đề mới=Cam, Đang xử lý=Xanh dương,
+// Hoàn tất=Xanh lá — tab đang chọn tô ĐẶC màu đó, tab còn lại tô NHẠT.
 const CHU_DE_TABS = [
-  { key: "Chưa nhận", label: "Chủ Đề Mới - Chưa nhận" },
-  { key: "Đang xử lý", label: "Đang xử lý" },
-  { key: "Hoàn tất", label: "Hoàn tất" },
+  { key: "Chưa nhận", label: "Chủ Đề Mới - Chưa nhận", color: "var(--orange)", bg: "#FFF1E1" },
+  { key: "Đang xử lý", label: "Đang xử lý", color: "var(--blue-accent)", bg: "#E8EFFC" },
+  { key: "Hoàn tất", label: "Hoàn tất", color: "#4C9A2A", bg: "#EAF6E5" },
 ];
 
 export default function TheoDoiChuDePage() {
@@ -655,8 +657,16 @@ export default function TheoDoiChuDePage() {
       <div className="month-tabs">
         {CHU_DE_TABS.map((t) => {
           const count = jobs.filter((j) => j.trang_thai === t.key).length;
+          const isActive = activeTab === t.key;
           return (
-            <div key={t.key} className={`month-tab ${activeTab === t.key ? "active" : ""}`} onClick={() => setActiveTab(t.key)}>
+            <div
+              key={t.key}
+              className="month-tab"
+              onClick={() => setActiveTab(t.key)}
+              style={isActive
+                ? { background: t.color, borderColor: t.color, color: "#fff" }
+                : { background: t.bg, borderColor: t.color, color: t.color }}
+            >
               {t.label} ({count})
             </div>
           );
