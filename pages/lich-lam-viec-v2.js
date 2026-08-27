@@ -6,7 +6,7 @@ import {
   llv2BridgeLogin,
   llv2GetShops, llv2GetCandidates, llv2GetScheduledToday,
   llv2Schedule, llv2SetClass, llv2DeleteCycle,
-  llv2UploadDanhSach, llv2DownloadDanhSachUrl, llv2UploadQuota,
+  llv2UploadQuota,
   llv2BulkCreateTickets, llv2CreateDanhSachChia, llv2EhoAllShopAuditUrl,
 } from "../lib/llv2Api";
 
@@ -180,8 +180,6 @@ export default function LichLamViecV2Page() {
         <div className="page-head">
           <h1>Phân công KSNB kiểm kê — Chia lịch / Dời lịch / Phân loại shop</h1>
         </div>
-
-        {isAdminRole && <UploadDanhSachBar onDone={reload} />}
 
         <div className="month-tabs">
           <div className={`month-tab ${group === "long_chau" ? "active" : ""}`} onClick={() => setGroup("long_chau")}>Long Châu</div>
@@ -462,49 +460,9 @@ function ThongKeThangView({ data, month, onMonthChange, group }) {
   );
 }
 
-function UploadDanhSachBar({ onDone }) {
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState(null); // { ok, text }
-
-  async function onPickFile(e) {
-    const file = e.target.files && e.target.files[0];
-    e.target.value = ""; // cho phép chọn lại đúng file lần sau
-    if (!file) return;
-    setBusy(true);
-    setMsg(null);
-    try {
-      const r = await llv2UploadDanhSach(file);
-      const skip = r.shop_skipped_missing_open_date
-        ? ` ⚠️ Bỏ qua ${r.shop_skipped_missing_open_date} shop thiếu Ngày mở bán (VD: ${r.skipped_shop_codes.slice(0, 10).join(", ")}${r.shop_skipped_missing_open_date > 10 ? "..." : ""}) — bổ sung Ngày mở bán rồi upload lại nếu cần đưa vào hệ thống.`
-        : "";
-      setMsg({
-        ok: true,
-        text: `✅ Đã xử lý ${r.total_rows} dòng — thêm mới ${r.shop_added} shop, cập nhật kết quả kiểm gần nhất cho ${r.report_rows_updated} shop. File trạng thái trên server đã được ghi lại.${skip}`,
-      });
-      onDone && onDone();
-    } catch (err) {
-      setMsg({ ok: false, text: "❌ " + err.message });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="card" style={{ marginBottom: 16 }}>
-      <div className="card-body" style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
-        <label className="upload-btn" style={{ cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
-          {busy ? "Đang xử lý..." : "⬆️ Upload danh sách shop (Excel)"}
-          <input type="file" accept=".xlsx" onChange={onPickFile} disabled={busy} style={{ display: "none" }} />
-        </label>
-        <a className="fbtn" href={llv2DownloadDanhSachUrl()} target="_blank" rel="noreferrer">⬇️ Tải file trạng thái hiện tại</a>
-        <span style={{ fontSize: 12, color: "var(--text-600)" }}>
-          Upload lại cùng file mẫu (cột Mã Shop, Tên Shop, Vùng...) để thêm shop mới hoặc cập nhật kết quả kiểm gần nhất — không ảnh hưởng lịch đang chia.
-        </span>
-        {msg && <div style={{ width: "100%", fontSize: 12.5, color: msg.ok ? "#3E7A2A" : "var(--danger)" }}>{msg.text}</div>}
-      </div>
-    </div>
-  );
-}
+// UploadDanhSachBar (Upload danh sách shop Excel + tải file trạng thái
+// hiện tại) đã dời sang menu "Tải lên dữ liệu" (chốt 27/08 lần 21) — xem
+// pages/tai-len-du-lieu.js::DanhSachShopUploadBar.
 
 function ShopListView({ data, onReload }) {
   const { filters, setFilter, applyFilters, hasActive, clearFilters } = useColumnFilters();
