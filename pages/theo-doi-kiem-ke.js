@@ -728,8 +728,9 @@ export default function TheoDoiKiemKePage() {
               <thead>
                 <tr>
                   <th>Vùng</th><th>Tên shop</th><th>Ngày kiểm kê</th>
-                  <th>Giá trị kiểm kê - Non CL</th><th>Giá trị kiểm kê - Cắt liều</th><th>Truy thu thanh lý</th>
-                  <th>Cân Tồn</th><th>Lũy Kế</th><th>Ước tính truy thu</th>
+                  <th>Giá trị kiểm kê - Non CL</th><th>Cân tồn - Non CL</th>
+                  <th>Kiểm kê - Cắt liều</th><th>Cân tồn - Cắt liều</th>
+                  <th>Lũy Kế</th><th>Ước tính truy thu</th><th>Truy thu thanh lý</th>
                   <th>NV kiểm kê</th><th>Ghi chú</th>
                 </tr>
               </thead>
@@ -740,11 +741,12 @@ export default function TheoDoiKiemKePage() {
                     <td style={{ textAlign: "left" }}>{r.ma_shop}{r.ten_shop ? ` - ${r.ten_shop}` : ""}</td>
                     <td>{r.ngay_kiem_ke || "-"}</td>
                     <td className="num neg">{fmtMoney(r.gia_tri_non_cl)}</td>
+                    <td className="num">-</td>
                     <td className="num neg">{fmtMoney(r.gia_tri_cat_lieu)}</td>
+                    <td className="num">-</td>
+                    <td className="num">-</td>
+                    <td className="num">-</td>
                     <td className="num">{fmtMoney(r.truy_thu_thanh_ly)}</td>
-                    <td className="num">-</td>
-                    <td className="num">-</td>
-                    <td className="num">-</td>
                     <td>{r.nv_kiem_ke || "-"}</td>
                     <td style={{ minWidth: 200 }}>
                       {editingId === r.id ? (
@@ -767,7 +769,7 @@ export default function TheoDoiKiemKePage() {
                   </tr>
                 ))}
                 {displayRows.length === 0 && (
-                  <tr><td colSpan={11} style={{ textAlign: "center", color: "var(--text-400)" }}>
+                  <tr><td colSpan={12} style={{ textAlign: "center", color: "var(--text-400)" }}>
                     {searchQuery ? "Không tìm thấy shop nào khớp" : "Không có shop nào trong tháng này"}
                   </td></tr>
                 )}
