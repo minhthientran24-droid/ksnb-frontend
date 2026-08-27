@@ -52,6 +52,15 @@ function tinhUocTinhTruyThu(r) {
   return nonCl + (catLieuSum < 0 ? catLieuSum : 0);
 }
 
+// Số liệu bảng "Đã kiểm" — CHỈ tô đỏ + in đậm khi giá trị < -4.999.999,
+// còn lại hiện bình thường (chốt 27/08 lần 14 — trước đây tô đỏ theo
+// className "neg" cho mọi số âm, không phân biệt mức độ).
+const DANGER_THRESHOLD = -4999999;
+function moneyStyle(n) {
+  const v = n === undefined || n === null ? 0 : n;
+  return v < DANGER_THRESHOLD ? { color: "var(--danger)", fontWeight: 700 } : undefined;
+}
+
 // Sort bấm-vào-tiêu-đề cho toàn bộ cột bảng "Đã kiểm" (chốt 27/08 lần 10)
 // — mỗi cột khai báo cách lấy giá trị để so sánh + kiểu dữ liệu (text
 // sort A→Z/Z→A, number sort tăng/giảm dần). Null/undefined coi là 0
@@ -817,13 +826,15 @@ export default function TheoDoiKiemKePage() {
                     <td style={{ textAlign: "left" }}>{r.vung}</td>
                     <td style={{ textAlign: "left" }}>{r.ma_shop}{r.ten_shop ? ` - ${r.ten_shop}` : ""}</td>
                     <td>{r.ngay_kiem_ke || "-"}</td>
-                    <td className="num neg">{fmtMoney(r.gia_tri_non_cl)}</td>
-                    <td className="num">{fmtMoney(r.can_ton_non_cl)}</td>
-                    <td className="num neg">{fmtMoney(r.gia_tri_cat_lieu)}</td>
-                    <td className="num">{fmtMoney(r.can_ton_cat_lieu)}</td>
-                    <td className="num">{fmtMoney(r.luy_ke)}</td>
-                    <td className="num">{nhom === "long_chau" ? fmtMoney(tinhUocTinhTruyThu(r)) : "-"}</td>
-                    <td className="num">{fmtMoney(r.truy_thu_thanh_ly)}</td>
+                    <td className="num" style={moneyStyle(r.gia_tri_non_cl)}>{fmtMoney(r.gia_tri_non_cl)}</td>
+                    <td className="num" style={moneyStyle(r.can_ton_non_cl)}>{fmtMoney(r.can_ton_non_cl)}</td>
+                    <td className="num" style={moneyStyle(r.gia_tri_cat_lieu)}>{fmtMoney(r.gia_tri_cat_lieu)}</td>
+                    <td className="num" style={moneyStyle(r.can_ton_cat_lieu)}>{fmtMoney(r.can_ton_cat_lieu)}</td>
+                    <td className="num" style={moneyStyle(r.luy_ke)}>{fmtMoney(r.luy_ke)}</td>
+                    <td className="num" style={nhom === "long_chau" ? moneyStyle(tinhUocTinhTruyThu(r)) : undefined}>
+                      {nhom === "long_chau" ? fmtMoney(tinhUocTinhTruyThu(r)) : "-"}
+                    </td>
+                    <td className="num" style={moneyStyle(r.truy_thu_thanh_ly)}>{fmtMoney(r.truy_thu_thanh_ly)}</td>
                     <td>{r.nv_kiem_ke || "-"}</td>
                   </tr>
                 ))}
