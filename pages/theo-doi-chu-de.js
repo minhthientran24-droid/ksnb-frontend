@@ -404,7 +404,7 @@ function JobFormCard({ editingJob, onDone, onCancel }) {
 // ---------- Admin: thêm chủ đề mới — nhập tay 1 job (mở form bên dưới)
 // hoặc đăng NHIỀU job cùng lúc bằng Excel (KHÔNG đính kèm được file data
 // cho từng dòng, khác đăng 1 job qua form). 2 nút nằm chung 1 hàng. ----------
-function BulkUploadCard({ onDone, onOpenForm }) {
+function BulkUploadCard({ onDone, onOpenForm, thang, setThang, months, exporting, exportError, onExport, canExport }) {
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
@@ -461,7 +461,25 @@ function BulkUploadCard({ onDone, onOpenForm }) {
           <button className="upload-btn" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
             📤 {uploading ? "Đang xử lý..." : "Chọn file Excel"}
           </button>
+
+          {/* Chọn tháng + Xuất data (chốt 27/08 lần 2) — dời sang cùng hàng
+              với 3 nút trên, canh bên phải UI. */}
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginLeft: "auto" }}>
+            <select className="month-select" value={thang} onChange={(e) => setThang(e.target.value)}>
+              <option value="">Tất cả các tháng</option>
+              {months.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+            {canExport && (
+              <button
+                className="fbtn" disabled={exporting} onClick={onExport}
+                style={{ background: "#EAF6E5", borderColor: "#4C9A2A", color: "#3E7A2A" }}
+              >
+                {exporting ? "Đang xuất..." : "📤 Xuất data"}
+              </button>
+            )}
+          </div>
         </div>
+        {exportError && <div style={{ fontSize: 12, color: "var(--danger)", marginTop: 10 }}>{exportError}</div>}
         {resultMsg && <div style={{ fontSize: 12, color: "#4C9A2A", marginTop: 10 }}>{resultMsg}</div>}
         {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginTop: 10 }}>{error}</div>}
       </div>
@@ -598,27 +616,38 @@ export default function TheoDoiChuDePage() {
         </p>
       </div>
 
-      {/* Bộ chọn tháng + Xuất data (chốt 27/08) — chọn tháng lọc theo Ngày
-          Upload, "Tất cả các tháng" = không lọc. Nút Xuất data chỉ admin/editor. */}
-      <div className="card" style={{ marginBottom: 14 }}>
-        <div className="card-body" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "14px 18px" }}>
-          <select className="month-select" value={thang} onChange={(e) => setThang(e.target.value)}>
-            <option value="">Tất cả các tháng</option>
-            {months.map((m) => <option key={m} value={m}>{m}</option>)}
-          </select>
-          {canUpload && (
-            <button
-              className="fbtn" disabled={exporting} onClick={handleExport}
-              style={{ background: "#EAF6E5", borderColor: "#4C9A2A", color: "#3E7A2A" }}
-            >
-              {exporting ? "Đang xuất..." : "📤 Xuất data"}
-            </button>
-          )}
-          {exportError && <div style={{ fontSize: 12, color: "var(--danger)" }}>{exportError}</div>}
+      {/* Bộ chọn tháng + Xuất data (chốt 27/08, dời vị trí lần 2) — khi
+          đang hiện được card "Cập nhập chủ đề mới" thì 2 nút này dời vào
+          chung 1 hàng với 3 nút ở đó (canh phải). Còn lại (viewer không
+          canUpload, hoặc đang mở form Sửa job) vẫn cần chỗ hiện riêng để
+          không mất luôn chức năng chọn tháng. */}
+      {(!canUpload || showForm) && (
+        <div className="card" style={{ marginBottom: 14 }}>
+          <div className="card-body" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "14px 18px" }}>
+            <select className="month-select" value={thang} onChange={(e) => setThang(e.target.value)}>
+              <option value="">Tất cả các tháng</option>
+              {months.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+            {canUpload && (
+              <button
+                className="fbtn" disabled={exporting} onClick={handleExport}
+                style={{ background: "#EAF6E5", borderColor: "#4C9A2A", color: "#3E7A2A" }}
+              >
+                {exporting ? "Đang xuất..." : "📤 Xuất data"}
+              </button>
+            )}
+            {exportError && <div style={{ fontSize: 12, color: "var(--danger)" }}>{exportError}</div>}
+          </div>
         </div>
-      </div>
+      )}
 
-      {canUpload && !showForm && <BulkUploadCard onDone={load} onOpenForm={() => setShowForm(true)} />}
+      {canUpload && !showForm && (
+        <BulkUploadCard
+          onDone={load} onOpenForm={() => setShowForm(true)}
+          thang={thang} setThang={setThang} months={months}
+          exporting={exporting} exportError={exportError} onExport={handleExport} canExport={canUpload}
+        />
+      )}
 
       {canUpload && showForm && (
         <JobFormCard editingJob={editingJob} onDone={afterSave} onCancel={closeForm} />
