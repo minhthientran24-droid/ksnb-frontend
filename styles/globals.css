@@ -241,6 +241,12 @@ td.neg{color:var(--danger); font-weight:600;}
   .report-download-label{width:100%;}
 }
 
+/* Lưới ô "Dữ liệu tham chiếu" (chốt 27/08 lần 23) — TỐI ĐA 5 ô/hàng, thu
+   hẹp dần theo màn hình hẹp thay vì tràn ngang. */
+.reference-items-grid{display:grid; grid-template-columns:repeat(5,1fr); gap:12px;}
+@media (max-width:1100px){ .reference-items-grid{grid-template-columns:repeat(3,1fr);} }
+@media (max-width:640px){ .reference-items-grid{grid-template-columns:repeat(2,1fr);} }
+
 .pill{display:inline-block; padding:3px 10px; border-radius:20px; font-size:11.5px; font-weight:700;}
 
 .tiny-spinner{

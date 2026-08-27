@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
-import ReferenceFilesPanel from "../components/ReferenceFilesPanel";
+import ReferenceFilesPanel, { REFERENCE_ITEMS } from "../components/ReferenceFilesPanel";
 import {
   listPendingUploads, uploadPendingFile, deletePendingUpload, uploadKiemKeThangReport, getUser,
   getLuyKeStatus, uploadLuyKe, getXknkCanTonMonths, uploadXknkCanTon,
@@ -28,6 +28,13 @@ const CAT_LIEU_REFERENCE_ITEMS = [
 ];
 const VX_REFERENCE_ITEMS = [
   { key: "msp_loai_tru_vx", label: "MSP loại trừ xử lý tồn kho VX (MSP_LoaiTru_VX)" },
+];
+
+// Gộp cả 4 nhóm thành 1 lưới duy nhất (chốt 27/08 lần 23) — bỏ hết tiêu
+// đề/ghi chú riêng từng nhóm, chỉ còn 1 tiêu đề tổng "Dữ liệu tham chiếu"
+// ở card cha.
+const ALL_REFERENCE_ITEMS = [
+  ...REFERENCE_ITEMS, ...GUI_MAIL_REFERENCE_ITEMS, ...CAT_LIEU_REFERENCE_ITEMS, ...VX_REFERENCE_ITEMS,
 ];
 
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
@@ -202,34 +209,14 @@ export default function TaiLenDuLieuPage() {
         <p>Báo cáo kiểm kê tháng xử lý ngay khi upload. Báo cáo chủ đề tháng và dữ liệu khác vẫn qua PC riêng xử lý.</p>
       </div>
 
-      {/* ---- Dữ liệu tham chiếu — gom chung 4 nhóm (Kiểm kê Thanh Lý/Gửi
-          mail BCKS/Cắt liều/VX) vào 1 card duy nhất (chốt 27/08 lần 22,
-          trước đó mỗi nhóm 1 card riêng rời rạc). ---- */}
+      {/* ---- Dữ liệu tham chiếu — gộp cả 4 nhóm (Kiểm kê Thanh Lý/Gửi mail
+          BCKS/Cắt liều/VX) thành 1 lưới duy nhất, bỏ hết tiêu đề/ghi chú
+          riêng từng nhóm (chốt 27/08 lần 23 — trước đó mỗi nhóm 1 khối
+          tiêu đề riêng bên trong). ---- */}
       <div className="card">
         <div className="card-head"><h3>🗂️ Dữ liệu tham chiếu</h3></div>
-        <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <ReferenceFilesPanel bare />
-          <hr style={dividerStyle} />
-          <ReferenceFilesPanel
-            bare
-            items={GUI_MAIL_REFERENCE_ITEMS}
-            title="⚙️ Dữ liệu tham chiếu — Gửi mail BCKS (Admin)"
-            subtitle="Cập nhật ở đây — mọi NV KSNB dùng chung khi gửi mail báo cáo"
-          />
-          <hr style={dividerStyle} />
-          <ReferenceFilesPanel
-            bare
-            items={CAT_LIEU_REFERENCE_ITEMS}
-            title="⚙️ Danh mục SP cắt liều (Admin)"
-            subtitle='Dùng để điền cột "Thuộc tính SP" ở sheet KIEM KE — cập nhật khi danh mục thay đổi'
-          />
-          <hr style={dividerStyle} />
-          <ReferenceFilesPanel
-            bare
-            items={VX_REFERENCE_ITEMS}
-            title="⚙️ Danh mục tham chiếu xử lý VX (Admin)"
-            subtitle='MSP loại trừ: áp dụng sheet "Kiểm Kê VPKM" + "Kiểm kê VTYT". VTYT tiêu hao: áp dụng riêng sheet "Kiểm kê VTYT" (điền cột Ghi chú) — cập nhật khi danh mục thay đổi'
-          />
+        <div className="card-body">
+          <ReferenceFilesPanel bare hideHeader items={ALL_REFERENCE_ITEMS} />
         </div>
       </div>
 
@@ -617,7 +604,6 @@ function DanhSachShopUploadBar() {
   );
 }
 
-const dividerStyle = { border: "none", borderTop: "1px solid var(--border)", margin: 0 };
 const labelStyle = { fontSize: 11.5, fontWeight: 600, color: "var(--text-600)", display: "block", marginBottom: 5 };
 const selectStyle = { padding: "8px 10px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13, background: "#FAFBFD" };
 const deleteBtnStyle = {

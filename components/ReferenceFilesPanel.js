@@ -18,14 +18,18 @@ export const REFERENCE_ITEMS = [
 // gom chung 1 card "Dữ liệu tham chiếu" ở "Tải lên dữ liệu") — cùng 1 cặp
 // API get/upload theo key, chỉ khác `items`/`title`.
 //
-// `bare` (chốt lần 22) — bỏ khung ".card" ngoài + đổi <h3> thành <h4> nhỏ
-// hơn, dùng khi nhúng NHIỀU panel vào chung 1 ".card" cha (xem
-// pages/tai-len-du-lieu.js) thay vì mỗi panel là 1 card riêng như trước.
+// `bare` (chốt lần 22) — bỏ khung ".card" ngoài, dùng khi nhúng NHIỀU
+// panel vào chung 1 ".card" cha (xem pages/tai-len-du-lieu.js) thay vì
+// mỗi panel là 1 card riêng như trước.
+// `hideHeader` (chốt lần 23) — bỏ hẳn tiêu đề/ghi chú riêng của panel
+// (dùng khi đã gộp nhiều panel thành 1 lưới chung, không cần tiêu đề
+// từng nhóm nữa vì đã có tiêu đề tổng ở card cha).
 export default function ReferenceFilesPanel({
   items = REFERENCE_ITEMS,
   title = "⚙️ Dữ liệu tham chiếu (Admin)",
   subtitle = "Cập nhật khi có quy định/giá bán/lịch sử kiểm kê mới",
   bare = false,
+  hideHeader = false,
 }) {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState("");
@@ -56,7 +60,7 @@ export default function ReferenceFilesPanel({
   const body = (
     <>
       {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 10 }}>{error}</div>}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 12 }}>
+      <div className="reference-items-grid">
         {items.map((item) => {
           const info = status?.[item.key];
           const uploading = uploadingKey === item.key;
@@ -93,10 +97,12 @@ export default function ReferenceFilesPanel({
   if (bare) {
     return (
       <div>
-        <div style={{ marginBottom: 10 }}>
-          <h4 style={{ fontSize: 13, fontWeight: 700, color: "var(--navy-900)", marginBottom: 2 }}>{title}</h4>
-          <span className="note" style={{ fontSize: 12, color: "var(--text-400)" }}>{subtitle}</span>
-        </div>
+        {!hideHeader && (
+          <div style={{ marginBottom: 10 }}>
+            <h4 style={{ fontSize: 13, fontWeight: 700, color: "var(--navy-900)", marginBottom: 2 }}>{title}</h4>
+            <span className="note" style={{ fontSize: 12, color: "var(--text-400)" }}>{subtitle}</span>
+          </div>
+        )}
         {body}
       </div>
     );
@@ -104,10 +110,12 @@ export default function ReferenceFilesPanel({
 
   return (
     <div className="card">
-      <div className="card-head">
-        <h3>{title}</h3>
-        <span className="note">{subtitle}</span>
-      </div>
+      {!hideHeader && (
+        <div className="card-head">
+          <h3>{title}</h3>
+          <span className="note">{subtitle}</span>
+        </div>
+      )}
       <div className="card-body">{body}</div>
     </div>
   );
