@@ -536,7 +536,7 @@ export default function TheoDoiKiemKePage() {
       {canLcnb && loai === "da_kiem" && (
         <div className="card" style={{ marginBottom: 20 }}>
           <div className="card-head"><h3>📁 Tải file báo cáo</h3></div>
-          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div className="card-body report-download-grid">
             {isAdmin && (
               <>
                 <div className="report-download-row">
