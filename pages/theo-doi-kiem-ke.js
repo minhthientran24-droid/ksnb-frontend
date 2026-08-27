@@ -38,6 +38,20 @@ function fmtMoney(n) {
   return Math.round(n).toLocaleString("vi-VN");
 }
 
+// "Ước tính truy thu" — CHỈ áp dụng cho Long Châu (chốt 27/08 lần 7):
+// = Kiểm kê - Non CL + Cân tồn - Non CL + Lũy Kế
+//   + (Kiểm kê - Cắt liều + Cân tồn - Cắt liều)  -- CHỈ cộng phần này khi
+//     tổng cắt liều < 0; nếu > 0 thì bỏ qua, không cộng vào.
+// Thiếu "Kiểm kê - Non CL" (gia_tri_non_cl) coi như shop chưa có đủ data
+// gốc -> để trống (không tính đại 0), các thành phần còn lại thiếu thì
+// coi là 0 (chưa phát sinh chênh lệch ở mục đó).
+function tinhUocTinhTruyThu(r) {
+  if (r.gia_tri_non_cl === undefined || r.gia_tri_non_cl === null) return null;
+  const nonCl = (r.gia_tri_non_cl || 0) + (r.can_ton_non_cl || 0) + (r.luy_ke || 0);
+  const catLieuSum = (r.gia_tri_cat_lieu || 0) + (r.can_ton_cat_lieu || 0);
+  return nonCl + (catLieuSum < 0 ? catLieuSum : 0);
+}
+
 const STATUS_LABELS = {
   cho_chia: "Chờ chia lịch", cho_den_han: "Chờ đến kỳ", qua_han_chia: "Quá hạn chia lịch",
   sap_kiem: "Chuẩn bị kiểm kê", dang_kiem: "Đang kiểm kê", da_doi_lich: "Đã dời lịch",
@@ -747,7 +761,7 @@ export default function TheoDoiKiemKePage() {
                     <td className="num neg">{fmtMoney(r.gia_tri_cat_lieu)}</td>
                     <td className="num">{fmtMoney(r.can_ton_cat_lieu)}</td>
                     <td className="num">{fmtMoney(r.luy_ke)}</td>
-                    <td className="num">-</td>
+                    <td className="num">{nhom === "long_chau" ? fmtMoney(tinhUocTinhTruyThu(r)) : "-"}</td>
                     <td className="num">{fmtMoney(r.truy_thu_thanh_ly)}</td>
                     <td>{r.nv_kiem_ke || "-"}</td>
                     <td style={{ minWidth: 200 }}>
