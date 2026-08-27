@@ -228,13 +228,16 @@ td.neg{color:var(--danger); font-weight:600;}
 .month-select:focus{outline:none; box-shadow:0 0 0 2px rgba(85,128,214,0.25);}
 
 /* Khối "Tải file báo cáo" (Theo dõi kiểm kê -> Đã kiểm, chốt 27/08 lần
-   15, rút gọn 2 cột lần 16) — 2 dòng/hàng thay vì 4 dòng dọc cho gọn. */
-.report-download-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px 24px;}
-.report-download-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
-.report-download-label{width:170px; flex-shrink:0; font-size:12.5px; font-weight:600; color:var(--text-600);}
+   15-17) — flex-wrap thay vì CSS grid (an toàn hơn, tự động 2 chip/hàng
+   trên màn hình rộng, rớt xuống 1 chip/hàng trên màn hình hẹp, không phụ
+   thuộc số cột cố định dễ vỡ layout). Mỗi "chip" tự co giãn trong khoảng
+   320-420px, không tràn ra ngoài card. */
+.report-download-grid{display:flex; flex-wrap:wrap; gap:14px 28px; width:100%;}
+.report-download-row{display:flex; align-items:center; gap:8px; flex:1 1 360px; min-width:300px; max-width:420px;}
+.report-download-label{width:150px; flex-shrink:0; font-size:12.5px; font-weight:600; color:var(--text-600);}
 .report-download-msg{font-size:12px;}
 @media (max-width:760px){
-  .report-download-grid{grid-template-columns:1fr;}
+  .report-download-row{flex-basis:100%; max-width:100%;}
   .report-download-label{width:100%;}
 }
 
