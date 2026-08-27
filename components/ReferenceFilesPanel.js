@@ -14,12 +14,18 @@ export const REFERENCE_ITEMS = [
 ];
 
 // Component dùng chung cho MỌI khối "Dữ liệu tham chiếu (Admin)" trên toàn
-// web (Kiểm kê Thanh Lý ở "Tải lên dữ liệu" + Cắt liều/VX ở "Hỗ Trợ Kiểm
-// Kê") — cùng 1 cặp API get/upload theo key, chỉ khác `items`/`title`.
+// web (Kiểm kê Thanh Lý/Gửi mail BCKS/Cắt liều/VX — chốt 27/08 lần 22, đều
+// gom chung 1 card "Dữ liệu tham chiếu" ở "Tải lên dữ liệu") — cùng 1 cặp
+// API get/upload theo key, chỉ khác `items`/`title`.
+//
+// `bare` (chốt lần 22) — bỏ khung ".card" ngoài + đổi <h3> thành <h4> nhỏ
+// hơn, dùng khi nhúng NHIỀU panel vào chung 1 ".card" cha (xem
+// pages/tai-len-du-lieu.js) thay vì mỗi panel là 1 card riêng như trước.
 export default function ReferenceFilesPanel({
   items = REFERENCE_ITEMS,
   title = "⚙️ Dữ liệu tham chiếu (Admin)",
   subtitle = "Cập nhật khi có quy định/giá bán/lịch sử kiểm kê mới",
+  bare = false,
 }) {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState("");
@@ -47,46 +53,62 @@ export default function ReferenceFilesPanel({
     }
   }
 
+  const body = (
+    <>
+      {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 10 }}>{error}</div>}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 12 }}>
+        {items.map((item) => {
+          const info = status?.[item.key];
+          const uploading = uploadingKey === item.key;
+          return (
+            <div key={item.key} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "12px 14px" }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--navy-900)", marginBottom: 6 }}>{item.label}</div>
+              {info?.uploaded ? (
+                <div style={{ fontSize: 11, color: "#4C9A2A", marginBottom: 8 }}>
+                  ✅ Đã có — cập nhật {new Date(info.updated_at).toLocaleString("vi-VN")}
+                </div>
+              ) : (
+                <div style={{ fontSize: 11, color: "var(--text-400)", marginBottom: 8 }}>Chưa có file</div>
+              )}
+              <input
+                ref={(el) => (fileInputRefs.current[item.key] = el)}
+                type="file"
+                style={{ display: "none" }}
+                onChange={(e) => handleUpload(item.key, e)}
+              />
+              <button
+                className="upload-btn"
+                disabled={uploading}
+                onClick={() => fileInputRefs.current[item.key]?.click()}
+              >
+                {uploading ? "Đang tải lên..." : info?.uploaded ? "Thay file mới" : "Tải file lên"}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+
+  if (bare) {
+    return (
+      <div>
+        <div style={{ marginBottom: 10 }}>
+          <h4 style={{ fontSize: 13, fontWeight: 700, color: "var(--navy-900)", marginBottom: 2 }}>{title}</h4>
+          <span className="note" style={{ fontSize: 12, color: "var(--text-400)" }}>{subtitle}</span>
+        </div>
+        {body}
+      </div>
+    );
+  }
+
   return (
     <div className="card">
       <div className="card-head">
         <h3>{title}</h3>
         <span className="note">{subtitle}</span>
       </div>
-      <div className="card-body">
-        {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 10 }}>{error}</div>}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 12 }}>
-          {items.map((item) => {
-            const info = status?.[item.key];
-            const uploading = uploadingKey === item.key;
-            return (
-              <div key={item.key} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "12px 14px" }}>
-                <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--navy-900)", marginBottom: 6 }}>{item.label}</div>
-                {info?.uploaded ? (
-                  <div style={{ fontSize: 11, color: "#4C9A2A", marginBottom: 8 }}>
-                    ✅ Đã có — cập nhật {new Date(info.updated_at).toLocaleString("vi-VN")}
-                  </div>
-                ) : (
-                  <div style={{ fontSize: 11, color: "var(--text-400)", marginBottom: 8 }}>Chưa có file</div>
-                )}
-                <input
-                  ref={(el) => (fileInputRefs.current[item.key] = el)}
-                  type="file"
-                  style={{ display: "none" }}
-                  onChange={(e) => handleUpload(item.key, e)}
-                />
-                <button
-                  className="upload-btn"
-                  disabled={uploading}
-                  onClick={() => fileInputRefs.current[item.key]?.click()}
-                >
-                  {uploading ? "Đang tải lên..." : info?.uploaded ? "Thay file mới" : "Tải file lên"}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <div className="card-body">{body}</div>
     </div>
   );
 }

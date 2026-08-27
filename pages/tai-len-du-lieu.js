@@ -202,33 +202,36 @@ export default function TaiLenDuLieuPage() {
         <p>Báo cáo kiểm kê tháng xử lý ngay khi upload. Báo cáo chủ đề tháng và dữ liệu khác vẫn qua PC riêng xử lý.</p>
       </div>
 
-      {/* ---- Dữ liệu tham chiếu (Admin) — dời từ "Hỗ Trợ Kiểm Kê" sang
-          đây (chốt 27/08 lần 18), dùng chung component với 2 bộ tham
-          chiếu riêng (Cắt liều/VX) vẫn còn ở "Hỗ Trợ Kiểm Kê". ---- */}
-      <ReferenceFilesPanel />
-
-      {/* ---- Dữ liệu tham chiếu (Admin) — Gửi mail BCKS (ShopInfo/CC theo
-          vùng) — dời từ "Gửi mail BCKS" sang đây (chốt 27/08 lần 19). Dùng
-          chung 1 kho key-value với bộ ở trên, chỉ khác items hiển thị. ---- */}
-      <ReferenceFilesPanel
-        items={GUI_MAIL_REFERENCE_ITEMS}
-        title="⚙️ Dữ liệu tham chiếu — Gửi mail BCKS (Admin)"
-        subtitle="Cập nhật ở đây — mọi NV KSNB dùng chung khi gửi mail báo cáo"
-      />
-
-      {/* ---- Dữ liệu tham chiếu (Admin) — Hỗ Trợ Kiểm Kê (Cắt liều + VX)
-          — dời từ 2 tab "Tổng hợp Báo cáo Kiểm Soát Sau Kiểm Kê" và "Hỗ
-          trợ kiểm kê shop VX" sang đây (chốt 27/08 lần 20). ---- */}
-      <ReferenceFilesPanel
-        items={CAT_LIEU_REFERENCE_ITEMS}
-        title="⚙️ Danh mục SP cắt liều (Admin)"
-        subtitle='Dùng để điền cột "Thuộc tính SP" ở sheet KIEM KE — cập nhật khi danh mục thay đổi'
-      />
-      <ReferenceFilesPanel
-        items={VX_REFERENCE_ITEMS}
-        title="⚙️ Danh mục tham chiếu xử lý VX (Admin)"
-        subtitle='MSP loại trừ: áp dụng sheet "Kiểm Kê VPKM" + "Kiểm kê VTYT". VTYT tiêu hao: áp dụng riêng sheet "Kiểm kê VTYT" (điền cột Ghi chú) — cập nhật khi danh mục thay đổi'
-      />
+      {/* ---- Dữ liệu tham chiếu — gom chung 4 nhóm (Kiểm kê Thanh Lý/Gửi
+          mail BCKS/Cắt liều/VX) vào 1 card duy nhất (chốt 27/08 lần 22,
+          trước đó mỗi nhóm 1 card riêng rời rạc). ---- */}
+      <div className="card">
+        <div className="card-head"><h3>🗂️ Dữ liệu tham chiếu</h3></div>
+        <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <ReferenceFilesPanel bare />
+          <hr style={dividerStyle} />
+          <ReferenceFilesPanel
+            bare
+            items={GUI_MAIL_REFERENCE_ITEMS}
+            title="⚙️ Dữ liệu tham chiếu — Gửi mail BCKS (Admin)"
+            subtitle="Cập nhật ở đây — mọi NV KSNB dùng chung khi gửi mail báo cáo"
+          />
+          <hr style={dividerStyle} />
+          <ReferenceFilesPanel
+            bare
+            items={CAT_LIEU_REFERENCE_ITEMS}
+            title="⚙️ Danh mục SP cắt liều (Admin)"
+            subtitle='Dùng để điền cột "Thuộc tính SP" ở sheet KIEM KE — cập nhật khi danh mục thay đổi'
+          />
+          <hr style={dividerStyle} />
+          <ReferenceFilesPanel
+            bare
+            items={VX_REFERENCE_ITEMS}
+            title="⚙️ Danh mục tham chiếu xử lý VX (Admin)"
+            subtitle='MSP loại trừ: áp dụng sheet "Kiểm Kê VPKM" + "Kiểm kê VTYT". VTYT tiêu hao: áp dụng riêng sheet "Kiểm kê VTYT" (điền cột Ghi chú) — cập nhật khi danh mục thay đổi'
+          />
+        </div>
+      </div>
 
       {/* ---- Danh sách shop (Phân công KSNB kiểm kê) — dời từ "Phân công
           KSNB kiểm kê" sang đây (chốt 27/08 lần 21). ---- */}
@@ -614,6 +617,7 @@ function DanhSachShopUploadBar() {
   );
 }
 
+const dividerStyle = { border: "none", borderTop: "1px solid var(--border)", margin: 0 };
 const labelStyle = { fontSize: 11.5, fontWeight: 600, color: "var(--text-600)", display: "block", marginBottom: 5 };
 const selectStyle = { padding: "8px 10px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13, background: "#FAFBFD" };
 const deleteBtnStyle = {
