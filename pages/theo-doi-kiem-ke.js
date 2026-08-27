@@ -52,6 +52,41 @@ function tinhUocTinhTruyThu(r) {
   return nonCl + (catLieuSum < 0 ? catLieuSum : 0);
 }
 
+// Sort bấm-vào-tiêu-đề cho toàn bộ cột bảng "Đã kiểm" (chốt 27/08 lần 10)
+// — mỗi cột khai báo cách lấy giá trị để so sánh + kiểu dữ liệu (text
+// sort A→Z/Z→A, number sort tăng/giảm dần). Null/undefined coi là 0
+// (number) hoặc chuỗi rỗng (text) — nhất quán với quy tắc "null hiểu là
+// 0" đã chốt cho cả bảng.
+const SORT_COLUMNS = {
+  vung: { type: "text", get: (r) => r.vung },
+  ten_shop: { type: "text", get: (r) => r.ten_shop },
+  ngay_kiem_ke: { type: "text", get: (r) => r.ngay_kiem_ke },
+  gia_tri_non_cl: { type: "number", get: (r) => r.gia_tri_non_cl },
+  can_ton_non_cl: { type: "number", get: (r) => r.can_ton_non_cl },
+  gia_tri_cat_lieu: { type: "number", get: (r) => r.gia_tri_cat_lieu },
+  can_ton_cat_lieu: { type: "number", get: (r) => r.can_ton_cat_lieu },
+  luy_ke: { type: "number", get: (r) => r.luy_ke },
+  uoc_tinh_truy_thu: { type: "number", get: (r) => tinhUocTinhTruyThu(r) },
+  truy_thu_thanh_ly: { type: "number", get: (r) => r.truy_thu_thanh_ly },
+  nv_kiem_ke: { type: "text", get: (r) => r.nv_kiem_ke },
+};
+
+function sortDaKiemRows(rows, sortKey, sortDir) {
+  const col = SORT_COLUMNS[sortKey];
+  if (!col) return rows;
+  const mul = sortDir === "desc" ? -1 : 1;
+  return [...rows].sort((a, b) => {
+    if (col.type === "number") {
+      const va = col.get(a) || 0;
+      const vb = col.get(b) || 0;
+      return (va - vb) * mul;
+    }
+    const va = String(col.get(a) || "");
+    const vb = String(col.get(b) || "");
+    return va.localeCompare(vb, "vi") * mul;
+  });
+}
+
 const STATUS_LABELS = {
   cho_chia: "Chờ chia lịch", cho_den_han: "Chờ đến kỳ", qua_han_chia: "Quá hạn chia lịch",
   sap_kiem: "Chuẩn bị kiểm kê", dang_kiem: "Đang kiểm kê", da_doi_lich: "Đã dời lịch",
@@ -199,6 +234,10 @@ export default function TheoDoiKiemKePage() {
   const [error, setError] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  // Sort bấm-vào-tiêu-đề bảng "Đã kiểm" (chốt 27/08 lần 10) — mặc định
+  // vẫn là Ước tính truy thu tăng dần (giữ nguyên hành vi lần 9).
+  const [sortKey, setSortKey] = useState("uoc_tinh_truy_thu");
+  const [sortDir, setSortDir] = useState("asc");
   const me = getUser();
   const isAdmin = ["admin", "super_admin"].includes(me?.role);
   // LCNB Thanh Lý HCM/HNI — chốt 26/08 lần 9: mở thêm cho role "editor"
@@ -421,17 +460,45 @@ export default function TheoDoiKiemKePage() {
     setSearchQuery("");
   }
 
-  // Lọc theo mã shop/tên shop, rồi sắp xếp theo "Ước tính truy thu" tăng
-  // dần (chốt 27/08 lần 9 — trước đây sắp theo |giá trị kiểm kê| giảm dần).
-  const displayRows = rows
-    .filter((r) => {
+  // Bấm vào tiêu đề cột (chốt 27/08 lần 10) — bấm cột MỚI thì sort tăng
+  // dần (A→Z / thấp→cao) trước; bấm LẠI đúng cột đang chọn thì đảo chiều.
+  function handleSort(key) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
+
+  function SortTh({ label, sortCol }) {
+    const active = sortKey === sortCol;
+    return (
+      <th
+        onClick={() => handleSort(sortCol)}
+        style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+        title="Bấm để sắp xếp"
+      >
+        {label}
+        <span style={{ marginLeft: 4, color: active ? "inherit" : "var(--text-400)", opacity: active ? 1 : 0.5 }}>
+          {active ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}
+        </span>
+      </th>
+    );
+  }
+
+  // Lọc theo mã shop/tên shop, rồi sắp xếp theo cột đang chọn (mặc định
+  // Ước tính truy thu tăng dần).
+  const displayRows = sortDaKiemRows(
+    rows.filter((r) => {
       if (!searchQuery) return true;
       return (
         (r.ma_shop || "").toLowerCase().includes(searchQuery) ||
         (r.ten_shop || "").toLowerCase().includes(searchQuery)
       );
-    })
-    .sort((a, b) => tinhUocTinhTruyThu(a) - tinhUocTinhTruyThu(b));
+    }),
+    sortKey, sortDir,
+  );
 
   return (
     <Layout crumb="Theo dõi kiểm kê">
@@ -716,18 +783,24 @@ export default function TheoDoiKiemKePage() {
             <h3>Kỳ {period}</h3>
             <span className="note">
               {searchQuery ? `${displayRows.length}/${rows.length} shop (đang lọc)` : `${rows.length} shop`}
-              {" · sắp xếp theo Ước tính truy thu (thấp đến cao)"}
+              {" · bấm tiêu đề cột để sắp xếp"}
             </span>
           </div>
           <div className="card-body">
             <table>
               <thead>
                 <tr>
-                  <th>Vùng</th><th>Tên shop</th><th>Ngày kiểm kê</th>
-                  <th>Kiểm kê - Non CL</th><th>Cân tồn - Non CL</th>
-                  <th>Kiểm kê - Cắt liều</th><th>Cân tồn - Cắt liều</th>
-                  <th>Lũy Kế</th><th>Ước tính truy thu</th><th>Truy thu thanh lý</th>
-                  <th>NV kiểm kê</th>
+                  <SortTh label="Vùng" sortCol="vung" />
+                  <SortTh label="Tên shop" sortCol="ten_shop" />
+                  <SortTh label="Ngày kiểm kê" sortCol="ngay_kiem_ke" />
+                  <SortTh label="Kiểm kê - Non CL" sortCol="gia_tri_non_cl" />
+                  <SortTh label="Cân tồn - Non CL" sortCol="can_ton_non_cl" />
+                  <SortTh label="Kiểm kê - Cắt liều" sortCol="gia_tri_cat_lieu" />
+                  <SortTh label="Cân tồn - Cắt liều" sortCol="can_ton_cat_lieu" />
+                  <SortTh label="Lũy Kế" sortCol="luy_ke" />
+                  <SortTh label="Ước tính truy thu" sortCol="uoc_tinh_truy_thu" />
+                  <SortTh label="Truy thu thanh lý" sortCol="truy_thu_thanh_ly" />
+                  <SortTh label="NV kiểm kê" sortCol="nv_kiem_ke" />
                 </tr>
               </thead>
               <tbody>
