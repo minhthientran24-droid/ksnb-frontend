@@ -594,11 +594,12 @@ function DanhSachShopUploadBar() {
       const skip = r.shop_skipped_missing_open_date
         ? ` ⚠️ Bỏ qua ${r.shop_skipped_missing_open_date} shop thiếu Ngày mở bán (VD: ${r.skipped_shop_codes.slice(0, 10).join(", ")}${r.shop_skipped_missing_open_date > 10 ? "..." : ""}) — bổ sung Ngày mở bán rồi upload lại nếu cần đưa vào hệ thống.`
         : "";
-      // Chốt 28/08: thêm mới = 0 nhưng KHÔNG có dòng nào bị báo "bỏ qua" —
-      // rất có thể do cột "Vùng"/"Loại shop" sai giá trị hệ thống cho phép
-      // (bị âm thầm loại, không tự báo lỗi) — nhắc luôn để không mất công dò lại.
+      // Chốt 28/08 (bỏ giới hạn Vùng — nhận tất cả Vùng, chỉ còn "Loại
+      // shop" là điều kiện ẩn): thêm mới = 0 nhưng KHÔNG có dòng nào bị
+      // báo "bỏ qua" — rất có thể do cột "Loại shop" sai giá trị hệ thống
+      // cho phép (bị âm thầm loại, không tự báo lỗi).
       const scopeHint = (r.total_rows > 0 && r.shop_added === 0 && !r.shop_skipped_missing_open_date)
-        ? ' ⚠️ 0 shop được thêm mới dù không có dòng nào báo thiếu Ngày mở bán — kiểm tra lại cột "Vùng" (chỉ nhận: Hồ Chí Minh 1/2, Miền Đông, Miền Tây, Miền Trung) và "Loại shop" (chỉ nhận: Long Châu, Hub Long Châu, LifeStyle, Vaccine, Vaccine, Xét Nghiệm) — sai giá trị 2 cột này thì dòng đó bị loại âm thầm, không báo lỗi.'
+        ? ' ⚠️ 0 shop được thêm mới dù không có dòng nào báo thiếu Ngày mở bán — kiểm tra lại cột "Loại shop" (chỉ nhận: Long Châu, Hub Long Châu, LifeStyle, Vaccine, Vaccine, Xét Nghiệm) — sai giá trị cột này thì dòng đó bị loại âm thầm, không báo lỗi.'
         : "";
       setMsg({
         ok: true,
