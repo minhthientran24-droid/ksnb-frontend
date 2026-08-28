@@ -62,11 +62,16 @@ function SortTh({ label, sortKey, sortState, onSort, align }) {
   return (
     <th
       onClick={() => onSort(sortKey)}
-      style={{ cursor: "pointer", userSelect: "none", textAlign: align || "center", whiteSpace: "nowrap" }}
+      style={{
+        cursor: "pointer", userSelect: "none", textAlign: align || "center", whiteSpace: "nowrap",
+        // Cùng quy ước màu với menu Phân công KSNB kiểm kê — xanh lá = tăng
+        // dần, cam = giảm dần, để chỉ báo trực quan đang sort cột nào.
+        background: active ? (sortState.dir === "asc" ? "#EAF6E5" : "#FFF1E1") : undefined,
+      }}
       title="Bấm để sắp xếp"
     >
       {label}
-      <span style={{ marginLeft: 4, fontSize: 10, opacity: active ? 1 : 0.35 }}>
+      <span style={{ marginLeft: 4, fontSize: 10, opacity: active ? 1 : 0.5 }}>
         {active ? (sortState.dir === "asc" ? "▲" : "▼") : "⇅"}
       </span>
     </th>
