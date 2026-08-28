@@ -520,7 +520,7 @@ export default function TheoDoiKiemKePage() {
           <div key={i} style={{ whiteSpace: "nowrap" }}>
             {line}
             {i === lines.length - 1 && (
-              <span style={{ marginLeft: 4, color: active ? "inherit" : "var(--text-400)", opacity: active ? 1 : 0.5 }}>
+              <span style={{ marginLeft: 4, fontSize: 10, color: active ? "inherit" : "var(--text-400)", opacity: active ? 1 : 0.5 }}>
                 {active ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}
               </span>
             )}
