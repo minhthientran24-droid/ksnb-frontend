@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import {
-  getKiemKePeriods, listKiemKe,
+  getKiemKePeriods, listKiemKe, deleteKiemKeRow,
   getShopChiaHomNay, getDangKiem, doiLichShopChiaHomNay, huyDangKiem, getUser,
   downloadKetQuaKiemKeGuiMail, getKetQuaKiemKeGuiMailMonths,
   downloadKetQuaKiemKeGuiMailVaccine, getKetQuaKiemKeGuiMailVaccineMonths,
@@ -460,6 +460,27 @@ export default function TheoDoiKiemKePage() {
     }
   }, [loai]);
 
+  // Xoá dòng "Đã kiểm" bị gửi nhầm — gỡ NGƯỢC về "Đang kiểm" luôn (chốt
+  // 28/08, chỉ admin/super_admin) để tự chủ động gửi lại mail, không cần
+  // nhờ xử lý tay dưới DB nữa.
+  async function handleDeleteRow(row) {
+    if (!confirm(
+      `Xoá dòng "Đã kiểm" của shop ${row.ma_shop}${row.ten_shop ? ` - ${row.ten_shop}` : ""}?\n\n` +
+      `Kỳ kiểm kê tương ứng sẽ được đưa NGƯỢC lại "Đang kiểm" để gửi mail lại — không xoá lịch sử, chỉ gỡ lần "Đã kiểm" này.`
+    )) return;
+    try {
+      const result = await deleteKiemKeRow(row.id);
+      if (result.lichlamviec_reverted) {
+        alert("✅ Đã gỡ về \"Đang kiểm\" — vào tab Đang kiểm để gửi mail lại.");
+      } else {
+        alert("✅ Đã xoá dòng \"Đã kiểm\" — không tìm thấy đúng kỳ lịch làm việc tương ứng để tự gỡ về \"Đang kiểm\" (có thể do dữ liệu cũ), cần chia lịch lại thủ công nếu cần.");
+      }
+      listKiemKe(period, loai, loai === "da_kiem" ? nhom : undefined).then(setRows).catch((err) => setError(err.message));
+    } catch (err) {
+      alert(err.message || "Xoá thất bại");
+    }
+  }
+
   function handleSearch() {
     setSearchQuery(searchInput.trim().toLowerCase());
   }
@@ -831,6 +852,7 @@ export default function TheoDoiKiemKePage() {
                   <SortTh label={["Ước tính", "truy thu"]} sortCol="uoc_tinh_truy_thu" />
                   <SortTh label={["Truy thu", "thanh lý"]} sortCol="truy_thu_thanh_ly" />
                   <SortTh label="NV kiểm kê" sortCol="nv_kiem_ke" />
+                  {isAdmin && <th>Thao tác</th>}
                 </tr>
               </thead>
               <tbody>
@@ -849,10 +871,22 @@ export default function TheoDoiKiemKePage() {
                     </td>
                     <td className="num" style={moneyStyle(r.truy_thu_thanh_ly)}>{fmtMoney(r.truy_thu_thanh_ly)}</td>
                     <td>{r.nv_kiem_ke || "-"}</td>
+                    {isAdmin && (
+                      <td>
+                        <button
+                          className="fbtn"
+                          style={{ color: "var(--danger)", borderColor: "var(--danger)" }}
+                          onClick={() => handleDeleteRow(r)}
+                          title='Xoá dòng "Đã kiểm" này, gỡ ngược về "Đang kiểm" để gửi mail lại'
+                        >
+                          🗑️ Gỡ về Đang kiểm
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {displayRows.length === 0 && (
-                  <tr><td colSpan={11} style={{ textAlign: "center", color: "var(--text-400)" }}>
+                  <tr><td colSpan={isAdmin ? 12 : 11} style={{ textAlign: "center", color: "var(--text-400)" }}>
                     {searchQuery ? "Không tìm thấy shop nào khớp" : "Không có shop nào trong tháng này"}
                   </td></tr>
                 )}
