@@ -658,12 +658,18 @@ function ShopListView({ data, onReload }) {
               </select>
             </div>
           )}
-          {classForm.phan_loai !== "Định kỳ" && (
-            <div className="field">
-              <label className="flabel">Ngày cần kiểm</label>
-              <input type="date" className="finput" style={{ width: "100%" }} value={classForm.ngay_can_kiem} onChange={(e) => setClassForm({ ...classForm, ngay_can_kiem: e.target.value })} />
-            </div>
-          )}
+          <div className="field">
+            <label className="flabel">Ngày cần kiểm{classForm.phan_loai === "Định kỳ" ? " (tuỳ chọn)" : ""}</label>
+            <input type="date" className="finput" style={{ width: "100%" }} value={classForm.ngay_can_kiem} onChange={(e) => setClassForm({ ...classForm, ngay_can_kiem: e.target.value })} />
+            {classForm.phan_loai === "Định kỳ" && (
+              <div style={{ fontSize: 11, color: "var(--text-400)", marginTop: 4 }}>
+                Để trống thì hệ thống tự tính theo chu kỳ định kỳ như cũ — chỉ nhập khi muốn ấn định đúng 1 ngày cụ thể.
+              </div>
+            )}
+          </div>
+          {/* Chốt 28/08 — Chú ý (Xin kiểm kê / Vi phạm / Đóng cửa) vẫn BẮT
+              BUỘC nhập "Ngày cần kiểm" (validate ở backend), chỉ riêng
+              "Định kỳ" là tuỳ chọn, nên không cần thông báo riêng ở đây. */}
           {msg && <div style={{ fontSize: 12.5, marginBottom: 12, color: msg.startsWith("✅") ? "#3E7A2A" : "var(--danger)" }}>{msg}</div>}
           <div className="llv-modal-actions">
             <button className="login-btn" style={{ width: "auto", padding: "9px 20px" }} disabled={busy} onClick={submitClass}>{busy ? "Đang lưu..." : "Xác nhận"}</button>
