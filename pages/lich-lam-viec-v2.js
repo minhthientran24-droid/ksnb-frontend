@@ -91,10 +91,31 @@ function useColumnFilters() {
   return { filters, setFilter, clearFilters, applyFilters, hasActive };
 }
 
-function FilterTh({ label, value, onChange, align, minWidth }) {
+// `sortCol` (chốt 28/08) — thêm bấm-tiêu-đề-để-sắp-xếp CHO cột này bên
+// cạnh ô lọc có sẵn, dùng chung state với `sortState`/`onSort` (xem
+// useSort() bên dưới). Cột nào KHÔNG truyền sortCol thì không đổi gì
+// (dùng lại cho 2 bảng "Cần chia lịch"/"Shop được chia hôm nay", chỉ tab
+// "Danh sách shop" mới truyền các prop này).
+function FilterTh({ label, value, onChange, align, minWidth, sortCol, sortState, onSort }) {
+  const active = sortCol && sortState && sortState.key === sortCol;
   return (
     <th style={{ textAlign: align || "center", minWidth }}>
-      <div style={{ marginBottom: 5 }}>{label}</div>
+      <div
+        style={{
+          marginBottom: 5, cursor: sortCol ? "pointer" : undefined, userSelect: "none",
+          display: "inline-block", padding: active ? "1px 6px" : undefined, borderRadius: active ? 4 : undefined,
+          background: active ? (sortState.dir === "asc" ? "#EAF6E5" : "#FFF1E1") : undefined,
+        }}
+        onClick={sortCol ? () => onSort(sortCol) : undefined}
+        title={sortCol ? "Bấm để sắp xếp" : undefined}
+      >
+        {label}
+        {sortCol && (
+          <span style={{ marginLeft: 4, opacity: active ? 1 : 0.5 }}>
+            {active ? (sortState.dir === "asc" ? "▲" : "▼") : "⇅"}
+          </span>
+        )}
+      </div>
       <input
         className="finput"
         style={{ width: "100%", padding: "4px 7px", fontSize: 11, fontWeight: 400, textTransform: "none", letterSpacing: 0 }}
@@ -104,6 +125,56 @@ function FilterTh({ label, value, onChange, align, minWidth }) {
       />
     </th>
   );
+}
+
+// Bấm-tiêu-đề-để-sắp-xếp cho bảng KHÔNG có ô lọc (2 bảng ở tab "Thống
+// kê") — cùng quy ước màu với FilterTh ở trên (xanh lá = A→Z/tăng dần,
+// cam = Z→A/giảm dần).
+function SortTh({ label, sortCol, sortState, onSort, align }) {
+  const active = sortState.key === sortCol;
+  return (
+    <th
+      onClick={() => onSort(sortCol)}
+      style={{
+        textAlign: align || "center", cursor: "pointer", userSelect: "none",
+        background: active ? (sortState.dir === "asc" ? "#EAF6E5" : "#FFF1E1") : undefined,
+      }}
+      title="Bấm để sắp xếp"
+    >
+      {label}
+      <span style={{ marginLeft: 4, opacity: active ? 1 : 0.5 }}>
+        {active ? (sortState.dir === "asc" ? "▲" : "▼") : "⇅"}
+      </span>
+    </th>
+  );
+}
+
+function useSort(defaultKey = null, defaultDir = "asc") {
+  const [key, setKey] = useState(defaultKey);
+  const [dir, setDir] = useState(defaultDir);
+  function onSort(col) {
+    if (key === col) setDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setKey(col); setDir("asc"); }
+  }
+  return { state: { key, dir }, onSort };
+}
+
+// So sánh chung — tự nhận biết số so số, còn lại so chuỗi (đủ dùng cho cả
+// ngày dạng "YYYY-MM-DD", vì so chuỗi kiểu này vẫn đúng thứ tự thời gian).
+function applySort(rows, sortState, getters) {
+  const { key, dir } = sortState;
+  if (!key) return rows;
+  const getter = (getters && getters[key]) || ((r) => r[key]);
+  const mul = dir === "desc" ? -1 : 1;
+  return [...rows].sort((a, b) => {
+    const va = getter(a);
+    const vb = getter(b);
+    const na = typeof va === "number" ? va : parseFloat(va);
+    const nb = typeof vb === "number" ? vb : parseFloat(vb);
+    const numeric = va !== "" && va != null && vb !== "" && vb != null && !isNaN(na) && !isNaN(nb);
+    if (numeric) return (na - nb) * mul;
+    return String(va ?? "").localeCompare(String(vb ?? ""), "vi") * mul;
+  });
 }
 
 export default function LichLamViecV2Page() {
@@ -304,9 +375,15 @@ function ThongKeThangView({ data, month, onMonthChange, group }) {
     setActiveFilter(null);
   }, [data]);
 
-  const detailRows = activeFilter
+  const filteredDetailRows = activeFilter
     ? allDetailRows.filter((r) => r[KPI_FILTER_FLAG[activeFilter]])
     : allDetailRows;
+
+  // Bấm-tiêu-đề-để-sắp-xếp (chốt 28/08) — riêng state cho từng bảng.
+  const vungSort = useSort();
+  const detailSort = useSort();
+  const sortedRows = applySort(rows, vungSort.state);
+  const detailRows = applySort(filteredDetailRows, detailSort.state);
 
   function toggleFilter(key) {
     setActiveFilter((cur) => (cur === key ? null : key));
@@ -374,15 +451,15 @@ function ThongKeThangView({ data, month, onMonthChange, group }) {
           <table>
             <thead>
               <tr>
-                <th style={{ textAlign: "left" }}>Vùng</th>
-                <th>SL Shop cần kiểm trong tháng</th>
-                <th>SL shop đã kiểm</th>
-                <th>SL shop đã chia lịch + đang kiểm</th>
-                <th>SL shop còn lại</th>
+                <SortTh label="Vùng" align="left" sortCol="vung" sortState={vungSort.state} onSort={vungSort.onSort} />
+                <SortTh label="SL Shop cần kiểm trong tháng" sortCol="can_kiem" sortState={vungSort.state} onSort={vungSort.onSort} />
+                <SortTh label="SL shop đã kiểm" sortCol="da_kiem" sortState={vungSort.state} onSort={vungSort.onSort} />
+                <SortTh label="SL shop đã chia lịch + đang kiểm" sortCol="da_chia_dang_kiem" sortState={vungSort.state} onSort={vungSort.onSort} />
+                <SortTh label="SL shop còn lại" sortCol="con_lai" sortState={vungSort.state} onSort={vungSort.onSort} />
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {sortedRows.map((r) => (
                 <tr key={r.vung}>
                   <td style={{ textAlign: "left" }}>{r.vung}</td>
                   <td>{r.can_kiem}</td>
@@ -426,14 +503,14 @@ function ThongKeThangView({ data, month, onMonthChange, group }) {
           <table>
             <thead>
               <tr>
-                <th style={{ textAlign: "left" }}>Vùng</th>
-                <th>Mã Shop</th>
-                <th style={{ textAlign: "left" }}>Tên Shop</th>
-                <th>Ngày cần kiểm</th>
-                <th>Ngày thực tế kiểm</th>
-                <th>Ngày gửi mail</th>
-                <th>Hình thức kiểm kê</th>
-                <th>KSNB phụ trách</th>
+                <SortTh label="Vùng" align="left" sortCol="vung" sortState={detailSort.state} onSort={detailSort.onSort} />
+                <SortTh label="Mã Shop" sortCol="ma_shop" sortState={detailSort.state} onSort={detailSort.onSort} />
+                <SortTh label="Tên Shop" align="left" sortCol="ten_shop" sortState={detailSort.state} onSort={detailSort.onSort} />
+                <SortTh label="Ngày cần kiểm" sortCol="ngay_can_kiem" sortState={detailSort.state} onSort={detailSort.onSort} />
+                <SortTh label="Ngày thực tế kiểm" sortCol="ngay_thuc_te_kiem" sortState={detailSort.state} onSort={detailSort.onSort} />
+                <SortTh label="Ngày gửi mail" sortCol="ngay_gui_mail" sortState={detailSort.state} onSort={detailSort.onSort} />
+                <SortTh label="Hình thức kiểm kê" sortCol="hinh_thuc" sortState={detailSort.state} onSort={detailSort.onSort} />
+                <SortTh label="KSNB phụ trách" sortCol="ksnb_phu_trach" sortState={detailSort.state} onSort={detailSort.onSort} />
               </tr>
             </thead>
             <tbody>
@@ -471,7 +548,17 @@ function ShopListView({ data, onReload }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
-  const rows = applyFilters(data.rows || [], {
+  const filteredRows = applyFilters(data.rows || [], {
+    trang_thai: (r) => statusLabel(r.display_status),
+    ngay_can_kiem: (r) => r.next_due_date || r.ngay_can_kiem,
+    ksnb: (r) => r.last_ksnb || r.ksnb,
+  });
+
+  // Bấm-tiêu-đề-để-sắp-xếp (chốt 28/08) — dùng chung getter với bộ lọc ở
+  // trên để sort đúng giá trị đang hiển thị (vd "Trạng thái" sort theo
+  // nhãn tiếng Việt, không phải mã trạng thái nội bộ).
+  const sort = useSort();
+  const rows = applySort(filteredRows, sort.state, {
     trang_thai: (r) => statusLabel(r.display_status),
     ngay_can_kiem: (r) => r.next_due_date || r.ngay_can_kiem,
     ksnb: (r) => r.last_ksnb || r.ksnb,
@@ -517,12 +604,12 @@ function ShopListView({ data, onReload }) {
           <table>
             <thead>
               <tr>
-                <FilterTh label="Mã shop" align="left" value={filters.ma_shop} onChange={(v) => setFilter("ma_shop", v)} />
-                <FilterTh label="Tên shop" align="left" value={filters.ten_shop} onChange={(v) => setFilter("ten_shop", v)} minWidth={220} />
-                <FilterTh label="Phân loại" value={filters.phan_loai} onChange={(v) => setFilter("phan_loai", v)} />
-                <FilterTh label="Trạng thái" value={filters.trang_thai} onChange={(v) => setFilter("trang_thai", v)} />
-                <FilterTh label="Ngày cần kiểm" value={filters.ngay_can_kiem} onChange={(v) => setFilter("ngay_can_kiem", v)} />
-                <FilterTh label="KSNB gần nhất" value={filters.ksnb} onChange={(v) => setFilter("ksnb", v)} />
+                <FilterTh label="Mã shop" align="left" value={filters.ma_shop} onChange={(v) => setFilter("ma_shop", v)} sortCol="ma_shop" sortState={sort.state} onSort={sort.onSort} />
+                <FilterTh label="Tên shop" align="left" value={filters.ten_shop} onChange={(v) => setFilter("ten_shop", v)} minWidth={220} sortCol="ten_shop" sortState={sort.state} onSort={sort.onSort} />
+                <FilterTh label="Phân loại" value={filters.phan_loai} onChange={(v) => setFilter("phan_loai", v)} sortCol="phan_loai" sortState={sort.state} onSort={sort.onSort} />
+                <FilterTh label="Trạng thái" value={filters.trang_thai} onChange={(v) => setFilter("trang_thai", v)} sortCol="trang_thai" sortState={sort.state} onSort={sort.onSort} />
+                <FilterTh label="Ngày cần kiểm" value={filters.ngay_can_kiem} onChange={(v) => setFilter("ngay_can_kiem", v)} sortCol="ngay_can_kiem" sortState={sort.state} onSort={sort.onSort} />
+                <FilterTh label="KSNB gần nhất" value={filters.ksnb} onChange={(v) => setFilter("ksnb", v)} sortCol="ksnb" sortState={sort.state} onSort={sort.onSort} />
                 <th></th>
               </tr>
             </thead>
