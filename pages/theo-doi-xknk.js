@@ -233,8 +233,7 @@ function CanTonTab({ isAdmin, me }) {
           <div>
             {currentMonthInfo ? (
               <span className="note">
-                Cập nhật lúc {fmtDateTime(currentMonthInfo.uploaded_at)} bởi {currentMonthInfo.uploaded_by || "-"} · file "{currentMonthInfo.source_filename}" ·{" "}
-                {currentMonthInfo.matched_rows?.toLocaleString("vi-VN")}/{currentMonthInfo.total_rows?.toLocaleString("vi-VN")} dòng khớp
+                Cập nhật lúc {fmtDateTime(currentMonthInfo.uploaded_at)} bởi {currentMonthInfo.uploaded_by || "-"}
               </span>
             ) : (
               <span className="note">Chưa có dữ liệu — upload file báo cáo Xuất Khác - Nhập Khác ở menu "Tải lên dữ liệu" để bắt đầu.</span>
@@ -288,7 +287,6 @@ export default function TheoDoiXknkPage() {
     <Layout crumb="Theo dõi XK-NK">
       <div className="page-head">
         <h1>Theo dõi XK-NK</h1>
-        <p>Theo dõi cân tồn và tình hình xuất sử dụng (Xuất Khác - Nhập Khác) — dữ liệu cập nhật qua file upload ở menu "Tải lên dữ liệu".</p>
       </div>
 
       <div className="month-tabs">
