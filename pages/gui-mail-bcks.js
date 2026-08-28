@@ -347,10 +347,6 @@ export default function GuiMailBcksPage() {
     <Layout crumb="Gửi mail BCKS">
       <div className="page-head">
         <h1>Gửi mail BCKS</h1>
-        <p>
-          Đính kèm file báo cáo kiểm soát đã hoàn chỉnh, xem trước nội dung mail rồi gửi thẳng cho quản lý vùng
-          (ASM) và CC theo vùng — không cần thao tác tay qua Outlook.
-        </p>
       </div>
 
       <div style={{ marginBottom: 14 }}>

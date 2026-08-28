@@ -623,11 +623,9 @@ export default function TheoDoiChuDePage() {
     <Layout crumb="Theo dõi chủ đề">
       <div className="page-head">
         <h1>Theo dõi chủ đề</h1>
-        <p>
-          {canUpload
-            ? "Đăng job chủ đề cần kiểm tra lên đây — NV KSNB tự bấm \"Nhận Job\" để nhận xử lý."
-            : "Bấm \"Nhận Job\" để nhận xử lý — job có file data check sẽ hiện nút tải về."}
-        </p>
+        {!canUpload && (
+          <p>Bấm "Nhận Job" để nhận xử lý — job có file data check sẽ hiện nút tải về.</p>
+        )}
       </div>
 
       {/* Bộ chọn tháng + Xuất data (chốt 27/08, dời vị trí lần 2) — khi

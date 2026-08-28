@@ -522,11 +522,6 @@ export default function TheoDoiKiemKePage() {
       <div className="page-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1>Theo dõi kiểm kê</h1>
-          <p>
-            {loai === "da_kiem"
-              ? "Tự động cập nhật khi gửi mail BCKS (shop rời \"Đang kiểm\" chuyển sang đây)."
-              : "Cột Ghi chú do NV KSNB tự cập nhật."}
-          </p>
         </div>
       </div>
 

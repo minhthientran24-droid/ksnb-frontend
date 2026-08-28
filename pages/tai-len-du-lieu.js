@@ -219,7 +219,6 @@ export default function TaiLenDuLieuPage() {
     <Layout crumb="Tải lên dữ liệu">
       <div className="page-head">
         <h1>Tải lên dữ liệu</h1>
-        <p>Báo cáo kiểm kê tháng xử lý ngay khi upload. Báo cáo chủ đề tháng và dữ liệu khác vẫn qua PC riêng xử lý.</p>
       </div>
 
       {/* ---- Dữ liệu tham chiếu — gộp cả 4 nhóm (Kiểm kê Thanh Lý/Gửi mail

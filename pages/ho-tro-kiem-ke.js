@@ -229,7 +229,6 @@ export default function HoTroKiemKePage() {
     <Layout crumb="Hỗ Trợ Kiểm Kê">
       <div className="page-head">
         <h1>Hỗ Trợ Kiểm Kê</h1>
-        <p>Các nội dung hỗ trợ nghiệp vụ kiểm kê ngoài báo cáo tháng — chia theo tab bên dưới.</p>
       </div>
 
       <div className="month-tabs">
