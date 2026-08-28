@@ -578,10 +578,29 @@ export default function TaiLenDuLieuPage() {
 // "Danh sách shop" cho menu "Phân công KSNB kiểm kê" — dời sang đây (chốt
 // 27/08 lần 21), y nguyên logic cũ (UploadDanhSachBar), chỉ khác không
 // còn `onDone` reload danh sách shop (trang đó tự tải lại khi mở lên).
+// Giải mã base64 -> tải file .xlsx về máy (chốt 28/08, dùng cho file lỗi
+// upload danh sách shop — cùng cách làm với các job trả file base64 khác
+// trong app, xem lib/api.js).
+function downloadBase64Xlsx(base64, filename) {
+  const bin = atob(base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename || "file.xlsx";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 function DanhSachShopUploadBar() {
   const [busy, setBusy] = useState(false);
   const [templateBusy, setTemplateBusy] = useState(false);
   const [msg, setMsg] = useState(null); // { ok, text }
+  const [errorFile, setErrorFile] = useState(null); // { base64, filename, count }
 
   async function onPickFile(e) {
     const file = e.target.files && e.target.files[0];
@@ -589,22 +608,22 @@ function DanhSachShopUploadBar() {
     if (!file) return;
     setBusy(true);
     setMsg(null);
+    setErrorFile(null);
     try {
       const r = await llv2UploadDanhSach(file);
-      const skip = r.shop_skipped_missing_open_date
-        ? ` ⚠️ Bỏ qua ${r.shop_skipped_missing_open_date} shop thiếu Ngày mở bán (VD: ${r.skipped_shop_codes.slice(0, 10).join(", ")}${r.shop_skipped_missing_open_date > 10 ? "..." : ""}) — bổ sung Ngày mở bán rồi upload lại nếu cần đưa vào hệ thống.`
-        : "";
-      // Chốt 28/08 (bỏ giới hạn Vùng — nhận tất cả Vùng, chỉ còn "Loại
-      // shop" là điều kiện ẩn): thêm mới = 0 nhưng KHÔNG có dòng nào bị
-      // báo "bỏ qua" — rất có thể do cột "Loại shop" sai giá trị hệ thống
-      // cho phép (bị âm thầm loại, không tự báo lỗi).
-      const scopeHint = (r.total_rows > 0 && r.shop_added === 0 && !r.shop_skipped_missing_open_date)
-        ? ' ⚠️ 0 shop được thêm mới dù không có dòng nào báo thiếu Ngày mở bán — kiểm tra lại cột "Loại shop" (chỉ nhận: Long Châu, Hub Long Châu, LifeStyle, Vaccine, Vaccine, Xét Nghiệm) — sai giá trị cột này thì dòng đó bị loại âm thầm, không báo lỗi.'
+      // Chốt 28/08 — mọi dòng không xử lý được (thiếu field bắt buộc, sai
+      // Vùng/Loại shop, hay rơi vào lô lỗi) giờ gom vào 1 file lỗi tải về
+      // được kèm lý do cụ thể, thay vì chỉ đoán qua vài dòng gợi ý.
+      const errText = r.error_rows_count
+        ? ` ⚠️ ${r.error_rows_count} dòng không xử lý được — tải file lỗi bên dưới để xem chi tiết từng dòng.`
         : "";
       setMsg({
         ok: true,
-        text: `✅ Đã xử lý ${r.total_rows} dòng — thêm mới ${r.shop_added} shop, cập nhật kết quả kiểm gần nhất cho ${r.report_rows_updated} shop. File trạng thái trên server đã được ghi lại.${skip}${scopeHint}`,
+        text: `✅ Đã xử lý ${r.total_rows} dòng — thêm mới ${r.shop_added} shop, cập nhật kết quả kiểm gần nhất cho ${r.report_rows_updated} shop. File trạng thái trên server đã được ghi lại.${errText}`,
       });
+      if (r.error_file_base64) {
+        setErrorFile({ base64: r.error_file_base64, filename: r.error_filename, count: r.error_rows_count });
+      }
     } catch (err) {
       setMsg({ ok: false, text: "❌ " + err.message });
     } finally {
@@ -639,6 +658,15 @@ function DanhSachShopUploadBar() {
           Upload lại cùng file mẫu (cột Mã Shop, Tên Shop, Vùng...) để thêm shop mới hoặc cập nhật kết quả kiểm gần nhất — không ảnh hưởng lịch đang chia.
         </span>
         {msg && <div style={{ width: "100%", fontSize: 12.5, color: msg.ok ? "#3E7A2A" : "var(--danger)" }}>{msg.text}</div>}
+        {errorFile && (
+          <button
+            className="fbtn"
+            style={{ background: "#FDECEA", borderColor: "var(--danger)", color: "var(--danger)" }}
+            onClick={() => downloadBase64Xlsx(errorFile.base64, errorFile.filename)}
+          >
+            📥 Tải file lỗi ({errorFile.count} dòng)
+          </button>
+        )}
       </div>
     </div>
   );
