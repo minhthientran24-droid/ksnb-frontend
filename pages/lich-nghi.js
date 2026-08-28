@@ -117,32 +117,24 @@ function MyLeavePanel() {
           </div>
         </form>
 
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ fontSize: 12 }}>
-            <thead>
-              <tr>
-                <th style={thStyle}>Ngày nghỉ</th>
-                <th style={{ ...thStyle, textAlign: "left" }}>Ghi chú</th>
-                <th style={thStyle}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedRows.map((r) => (
-                <tr key={r.id}>
-                  <td style={{ ...tdStyle, fontWeight: 600, color: r.ngay_nghi < today ? "var(--text-400)" : "var(--text-900)" }}>
-                    {formatDateVn(r.ngay_nghi)}
-                    {r.ngay_nghi < today && <span style={{ fontSize: 10, marginLeft: 6, color: "var(--text-400)" }}>(đã qua)</span>}
-                  </td>
-                  <td style={{ ...tdStyle, textAlign: "left" }}>{r.ghi_chu || "—"}</td>
-                  <td style={tdStyle}><button className="fbtn danger" onClick={() => handleDelete(r.id)}>Xóa</button></td>
-                </tr>
-              ))}
-              {!rows.length && (
-                <tr><td colSpan={3} style={{ color: "var(--text-400)", padding: 18 }}>Chưa đăng ký ngày nghỉ nào.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        {!rows.length ? (
+          <div className="leave-empty">Chưa đăng ký ngày nghỉ nào.</div>
+        ) : (
+          <div className="leave-list">
+            {sortedRows.map((r) => (
+              <div className="leave-row" key={r.id}>
+                <span className={`leave-row-date${r.ngay_nghi < today ? " past" : ""}`}>
+                  {formatDateVn(r.ngay_nghi)}
+                  {r.ngay_nghi < today && <span style={{ fontSize: 10, marginLeft: 6, fontWeight: 500 }}>(đã qua)</span>}
+                </span>
+                <span className="leave-row-note">{r.ghi_chu || "—"}</span>
+                <span className="leave-row-actions">
+                  <button className="fbtn danger" onClick={() => handleDelete(r.id)}>Xóa</button>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -168,33 +160,20 @@ function AllLeavePanel() {
       </div>
       <div className="card-body">
         {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 10 }}>{error}</div>}
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ fontSize: 12 }}>
-            <thead>
-              <tr>
-                <th style={thStyle}>Ngày nghỉ</th>
-                <th style={{ ...thStyle, textAlign: "left" }}>Họ tên</th>
-                <th style={{ ...thStyle, textAlign: "left" }}>Ghi chú</th>
-              </tr>
-            </thead>
-            <tbody>
-              {upcoming.map((r) => (
-                <tr key={r.id}>
-                  <td style={{ ...tdStyle, fontWeight: 600 }}>{formatDateVn(r.ngay_nghi)}</td>
-                  <td style={{ ...tdStyle, textAlign: "left" }}>{r.full_name}</td>
-                  <td style={{ ...tdStyle, textAlign: "left" }}>{r.ghi_chu || "—"}</td>
-                </tr>
-              ))}
-              {!upcoming.length && (
-                <tr><td colSpan={3} style={{ color: "var(--text-400)", padding: 18 }}>Không có ngày nghỉ sắp tới nào.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        {!upcoming.length ? (
+          <div className="leave-empty">Không có ngày nghỉ sắp tới nào.</div>
+        ) : (
+          <div className="leave-list">
+            {upcoming.map((r) => (
+              <div className="leave-row" key={r.id}>
+                <span className="leave-row-date">{formatDateVn(r.ngay_nghi)}</span>
+                <span className="leave-row-name">{r.full_name}</span>
+                <span className="leave-row-note">{r.ghi_chu || "—"}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 }
-
-const thStyle = { fontSize: 10.5, padding: "8px 10px", whiteSpace: "normal", lineHeight: 1.3 };
-const tdStyle = { fontSize: 11.5, padding: "8px 10px" };

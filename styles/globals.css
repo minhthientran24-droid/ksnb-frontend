@@ -330,3 +330,23 @@ td.neg{color:var(--danger); font-weight:600;}
   .kpi-grid{grid-template-columns:1fr;}
   .login-card{padding:30px 22px 24px;}
 }
+
+/* ---------- Danh sách dạng "hàng" (menu Lịch làm việc & nghỉ phép) ----------
+   Dùng flex-row thay vì <table> vì dữ liệu chỉ 2-3 trường đơn giản/dòng —
+   tự xuống dòng gọn gàng trên điện thoại, không cần cuộn ngang như bảng. */
+.leave-list{display:flex; flex-direction:column; gap:10px;}
+.leave-row{
+  border:1px solid var(--border); border-radius:8px; padding:12px 14px;
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+}
+.leave-row-date{font-weight:700; font-size:13.5px; color:var(--text-900); flex-shrink:0;}
+.leave-row-date.past{color:var(--text-400); font-weight:600;}
+.leave-row-name{font-weight:700; font-size:13px; color:var(--navy-800); flex-shrink:0;}
+.leave-row-note{flex:1; min-width:140px; font-size:12.5px; color:var(--text-600);}
+.leave-row-actions{margin-left:auto;}
+.leave-empty{color:var(--text-400); padding:18px; text-align:center; font-size:12.5px;}
+
+@media (max-width:640px){
+  .leave-row{flex-direction:column; align-items:stretch; gap:8px;}
+  .leave-row-actions{margin-left:0; align-self:flex-end;}
+}
