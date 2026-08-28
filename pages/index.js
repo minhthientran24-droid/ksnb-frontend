@@ -3,12 +3,14 @@ import Link from "next/link";
 import Layout from "../components/Layout";
 import { getHomepageContent, updateHomepageContent, getUser } from "../lib/api";
 
+// Chốt 28/08 — thay toàn bộ "Truy cập nhanh" theo đúng 5 menu anh chọn
+// (icon lấy đúng như Sidebar.js để đồng bộ toàn web).
 const QUICK_LINKS = [
-  { href: "/bao-cao", icon: "📊", label: "Báo cáo tháng" },
-  { href: "/theo-doi-kiem-ke", icon: "🔎", label: "Theo dõi kiểm kê" },
-  { href: "/theo-doi-chu-de", icon: "🗂️", label: "Theo dõi chủ đề" },
-  { href: "/nhan-su", icon: "👥", label: "Giới thiệu nhân sự KSNB" },
-  { href: "/hoat-dong", icon: "🎉", label: "Hoạt động phòng ban" },
+  { href: "/ho-tro-kiem-ke", icon: "🧰", label: "Hỗ trợ kiểm kê" },
+  { href: "/gui-mail-bcks", icon: "📧", label: "Gửi mail BCKS" },
+  { href: "/theo-doi-kiem-ke", icon: "▦", label: "Theo dõi kiểm kê" },
+  { href: "/theo-doi-chu-de", icon: "☰", label: "Theo dõi chủ đề" },
+  { href: "/lich-nghi", icon: "🏖️", label: "Lịch làm việc & nghỉ phép" },
 ];
 
 export default function HomePage() {
