@@ -460,16 +460,19 @@ export default function TheoDoiKiemKePage() {
     }
   }, [loai]);
 
-  // Xoá dòng "Đã kiểm" bị gửi nhầm — gỡ NGƯỢC về "Đang kiểm" luôn (chốt
+  // Huỷ dòng "Đã kiểm" bị gửi nhầm — gỡ NGƯỢC về "Đang kiểm" luôn (chốt
   // 28/08, chỉ admin/super_admin) để tự chủ động gửi lại mail, không cần
-  // nhờ xử lý tay dưới DB nữa.
-  async function handleDeleteRow(row) {
-    if (!confirm(
-      `Xoá dòng "Đã kiểm" của shop ${row.ma_shop}${row.ten_shop ? ` - ${row.ten_shop}` : ""}?\n\n` +
-      `Kỳ kiểm kê tương ứng sẽ được đưa NGƯỢC lại "Đang kiểm" để gửi mail lại — không xoá lịch sử, chỉ gỡ lần "Đã kiểm" này.`
-    )) return;
+  // nhờ xử lý tay dưới DB nữa. Popup xác nhận riêng (thay vì confirm() mặc
+  // định của trình duyệt) để đặt tên nút rõ ràng "Đồng ý"/"Huỷ yêu cầu".
+  const [undoRow, setUndoRow] = useState(null);
+  const [undoBusy, setUndoBusy] = useState(false);
+
+  async function confirmUndoRow() {
+    if (!undoRow) return;
+    setUndoBusy(true);
     try {
-      const result = await deleteKiemKeRow(row.id);
+      const result = await deleteKiemKeRow(undoRow.id);
+      setUndoRow(null);
       if (result.lichlamviec_reverted) {
         alert("✅ Đã gỡ về \"Đang kiểm\" — vào tab Đang kiểm để gửi mail lại.");
       } else {
@@ -477,7 +480,9 @@ export default function TheoDoiKiemKePage() {
       }
       listKiemKe(period, loai, loai === "da_kiem" ? nhom : undefined).then(setRows).catch((err) => setError(err.message));
     } catch (err) {
-      alert(err.message || "Xoá thất bại");
+      alert(err.message || "Huỷ thất bại");
+    } finally {
+      setUndoBusy(false);
     }
   }
 
@@ -801,6 +806,24 @@ export default function TheoDoiKiemKePage() {
         </Modal>
       )}
 
+      {undoRow && (
+        <Modal
+          title={`Huỷ "Đã kiểm" — shop ${undoRow.ma_shop}`}
+          subtitle={undoRow.ten_shop || ""}
+          onClose={() => setUndoRow(null)}
+        >
+          <div style={{ fontSize: 13, color: "var(--text-900)", marginBottom: 16, lineHeight: 1.6 }}>
+            Huỷ thì kỳ kiểm kê này sẽ được đưa lại về trạng thái <strong>"Đang kiểm"</strong> (để gửi mail lại) — không xoá lịch sử, chỉ gỡ đúng lần "Đã kiểm" này. Bạn có đồng ý không?
+          </div>
+          <div className="llv-modal-actions">
+            <button className="login-btn" style={{ width: "auto", padding: "9px 20px", background: "var(--danger)" }} disabled={undoBusy} onClick={confirmUndoRow}>
+              {undoBusy ? "Đang xử lý..." : "Đồng ý"}
+            </button>
+            <button className="fbtn" disabled={undoBusy} onClick={() => setUndoRow(null)}>Huỷ yêu cầu</button>
+          </div>
+        </Modal>
+      )}
+
       <style jsx global>{`
         .llv-modal-overlay {
           position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5);
@@ -876,10 +899,10 @@ export default function TheoDoiKiemKePage() {
                         <button
                           className="fbtn"
                           style={{ color: "var(--danger)", borderColor: "var(--danger)" }}
-                          onClick={() => handleDeleteRow(r)}
-                          title='Xoá dòng "Đã kiểm" này, gỡ ngược về "Đang kiểm" để gửi mail lại'
+                          onClick={() => setUndoRow(r)}
+                          title='Huỷ dòng "Đã kiểm" này, đưa lại về "Đang kiểm" để gửi mail lại'
                         >
-                          🗑️ Gỡ về Đang kiểm
+                          Huỷ
                         </button>
                       </td>
                     )}
