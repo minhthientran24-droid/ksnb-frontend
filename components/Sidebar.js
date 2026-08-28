@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { href: "/ghi-nhan-case", icon: "📝", label: "Ghi nhận case vi phạm" },
   { href: "/nhan-su", icon: "◈", label: "Giới thiệu nhân sự KSNB" },
   { href: "/hoat-dong", icon: "☺", label: "Hoạt động phòng ban" },
+  { href: "/lich-nghi", icon: "🏖️", label: "Lịch làm việc & nghỉ phép" },
   // Trang tự giới hạn nội dung theo role (chỉ admin/super_admin thấy 3 tab
   // Chia lịch/Dời lịch/Phân loại shop, "editor" chỉ thấy tab "Thống kê" —
   // chốt 27/08) — để ở NAV_ITEMS (không phải ADMIN_ITEMS) để hiện được cho editor.

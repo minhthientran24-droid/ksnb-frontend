@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
-import { getUser, listKiemKeStaff, getLlvThongKeThang, downloadLlvThongKeThang } from "../lib/api";
+import { getUser, listKiemKeStaff, getLlvThongKeThang, downloadLlvThongKeThang, leaveDaysByDate } from "../lib/api";
 import {
   llv2BridgeLogin,
   llv2GetShops, llv2GetCandidates, llv2GetScheduledToday,
@@ -694,6 +694,15 @@ function ScheduleView({ data, group, onDone }) {
   const [err, setErr] = useState("");
   const [quotaBusy, setQuotaBusy] = useState(false);
   const [quotaMsg, setQuotaMsg] = useState("");
+  // Cảnh báo sớm KSNB đang đăng ký nghỉ đúng "Ngày kiểm" đang chọn — backend
+  // vẫn chặn cứng lúc bấm "Chia lịch" (xem err bên dưới), tra trước ở đây
+  // chỉ để admin thấy ngay trong lúc điền hạn mức, đỡ phải bấm thử.
+  const [offNames, setOffNames] = useState([]);
+
+  useEffect(() => {
+    if (!ngayKiem) { setOffNames([]); return; }
+    leaveDaysByDate(ngayKiem).then((r) => setOffNames(r.names || [])).catch(() => setOffNames([]));
+  }, [ngayKiem]);
 
   const rows = applyFilters(data.rows || [], {
     qua_han: (r) => (r.is_overdue ? "Quá hạn" : ""),
@@ -832,15 +841,25 @@ function ScheduleView({ data, group, onDone }) {
             KSNB nào không kiểm trong đợt này: bấm ✕ xóa dòng, hoặc để Số lượng = 0.
           </div>
           {quotaMsg && <div style={{ fontSize: 11.5, marginBottom: 8, color: quotaMsg.startsWith("✅") ? "#3E7A2A" : "var(--danger)" }}>{quotaMsg}</div>}
-          {quotas.map((q, i) => (
-            <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-              <input className="finput" placeholder="Tên KSNB" style={{ flex: 1 }} value={q.ksnb}
-                onChange={(e) => setQuotas(quotas.map((x, j) => j === i ? { ...x, ksnb: e.target.value } : x))} />
-              <input className="finput" type="number" min="0" style={{ width: 70 }} value={q.so_luong}
-                onChange={(e) => setQuotas(quotas.map((x, j) => j === i ? { ...x, so_luong: e.target.value } : x))} />
-              <button className="fbtn" onClick={() => setQuotas(quotas.filter((_, j) => j !== i))}>✕</button>
-            </div>
-          ))}
+          {quotas.map((q, i) => {
+            const isOff = offNames.includes(q.ksnb.trim());
+            return (
+              <div key={i} style={{ marginBottom: 8 }}>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input className="finput" placeholder="Tên KSNB" style={{ flex: 1, borderColor: isOff ? "var(--danger)" : undefined }} value={q.ksnb}
+                    onChange={(e) => setQuotas(quotas.map((x, j) => j === i ? { ...x, ksnb: e.target.value } : x))} />
+                  <input className="finput" type="number" min="0" style={{ width: 70 }} value={q.so_luong}
+                    onChange={(e) => setQuotas(quotas.map((x, j) => j === i ? { ...x, so_luong: e.target.value } : x))} />
+                  <button className="fbtn" onClick={() => setQuotas(quotas.filter((_, j) => j !== i))}>✕</button>
+                </div>
+                {isOff && (
+                  <div style={{ fontSize: 11, color: "var(--danger)", marginTop: 3 }}>
+                    ⚠️ {q.ksnb} đã đăng ký nghỉ ngày {ngayKiem} — sẽ bị chặn nếu chia
+                  </div>
+                )}
+              </div>
+            );
+          })}
           <button className="fbtn" onClick={() => setQuotas([...quotas, { ksnb: "", so_luong: 1 }])}>+ Thêm KSNB</button>
 
           <div style={{ fontSize: 11.5, color: "var(--text-600)", marginTop: 12, lineHeight: 1.5 }}>
