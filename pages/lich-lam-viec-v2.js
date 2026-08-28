@@ -606,6 +606,7 @@ function ShopListView({ data, onReload }) {
               <tr>
                 <FilterTh label="Mã shop" align="left" value={filters.ma_shop} onChange={(v) => setFilter("ma_shop", v)} sortCol="ma_shop" sortState={sort.state} onSort={sort.onSort} />
                 <FilterTh label="Tên shop" align="left" value={filters.ten_shop} onChange={(v) => setFilter("ten_shop", v)} minWidth={220} sortCol="ten_shop" sortState={sort.state} onSort={sort.onSort} />
+                <FilterTh label="Vùng" align="left" value={filters.vung} onChange={(v) => setFilter("vung", v)} sortCol="vung" sortState={sort.state} onSort={sort.onSort} />
                 <FilterTh label="Phân loại" value={filters.phan_loai} onChange={(v) => setFilter("phan_loai", v)} sortCol="phan_loai" sortState={sort.state} onSort={sort.onSort} />
                 <FilterTh label="Trạng thái" value={filters.trang_thai} onChange={(v) => setFilter("trang_thai", v)} sortCol="trang_thai" sortState={sort.state} onSort={sort.onSort} />
                 <FilterTh label="Ngày cần kiểm" value={filters.ngay_can_kiem} onChange={(v) => setFilter("ngay_can_kiem", v)} sortCol="ngay_can_kiem" sortState={sort.state} onSort={sort.onSort} />
@@ -618,6 +619,7 @@ function ShopListView({ data, onReload }) {
                 <tr key={r.ma_shop}>
                   <td style={{ textAlign: "left", fontVariantNumeric: "tabular-nums" }}>{r.ma_shop}</td>
                   <td style={{ textAlign: "left" }}>{r.ten_shop}</td>
+                  <td style={{ textAlign: "left" }}>{r.vung || "—"}</td>
                   <td>
                     <Pill kind={PHAN_LOAI_PILL[r.phan_loai]}>{r.phan_loai || "—"}</Pill>
                     {r.phan_loai === "Xin kiểm kê" && r.ly_do_xin_kiem_ke && (
