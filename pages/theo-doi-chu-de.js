@@ -33,6 +33,46 @@ function soNgayXuLy(ngayBatDauCheck) {
 
 const VI_PHAM_OPTIONS = ["Không vi phạm", "Có vi phạm"];
 
+// ---------- Sắp xếp bằng cách bấm tiêu đề cột (cùng cách làm với menu
+// Phân công KSNB kiểm kê) — tự nhận biết so sánh số hay chữ (localeCompare
+// "vi" cho đúng thứ tự chữ cái tiếng Việt có dấu). ----------
+function useSort(defaultKey = null, defaultDir = "asc") {
+  const [state, setState] = useState({ key: defaultKey, dir: defaultDir });
+  function onSort(key) {
+    setState((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+  }
+  return { state, onSort };
+}
+
+function applySort(rows, sortState, getters) {
+  if (!sortState?.key) return rows;
+  const getter = getters[sortState.key] || ((r) => r[sortState.key]);
+  const sorted = [...rows].sort((a, b) => {
+    const av = getter(a);
+    const bv = getter(b);
+    const bothNum = typeof av === "number" && typeof bv === "number";
+    const cmp = bothNum ? av - bv : String(av ?? "").localeCompare(String(bv ?? ""), "vi");
+    return sortState.dir === "asc" ? cmp : -cmp;
+  });
+  return sorted;
+}
+
+function SortTh({ label, sortKey, sortState, onSort, align }) {
+  const active = sortState?.key === sortKey;
+  return (
+    <th
+      onClick={() => onSort(sortKey)}
+      style={{ cursor: "pointer", userSelect: "none", textAlign: align || "center", whiteSpace: "nowrap" }}
+      title="Bấm để sắp xếp"
+    >
+      {label}
+      <span style={{ marginLeft: 4, fontSize: 10, opacity: active ? 1 : 0.35 }}>
+        {active ? (sortState.dir === "asc" ? "▲" : "▼") : "⇅"}
+      </span>
+    </th>
+  );
+}
+
 // ---------- Popup: Nhận Job — xác nhận, hoặc "Nhận + thêm người hỗ trợ"
 // mở tiếp màn hình tick chọn 1/nhiều KSNB (chốt 25/08) ----------
 function ClaimJobModal({ job, meId, onDone, onCancel }) {
@@ -502,6 +542,7 @@ export default function TheoDoiChuDePage() {
   const [months, setMonths] = useState([]);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
+  const sort = useSort();
 
   function load(thangFilter = thang) {
     setLoading(true);
@@ -552,6 +593,17 @@ export default function TheoDoiChuDePage() {
     return true;
   }
   const visibleJobs = jobs.filter((job) => jobMatchesTab(job, activeTab));
+  const sortedJobs = applySort(visibleJobs, sort.state, {
+    upload_date: (j) => j.upload_date || "",
+    ten_chu_de: (j) => j.ten_chu_de || "",
+    vung: (j) => j.vung || "",
+    ten_shop: (j) => shopDisplay(j),
+    noi_dung_vi_pham: (j) => j.noi_dung_vi_pham || "",
+    nhan_vien_phu_trach: (j) => j.nhan_vien_phu_trach || "",
+    ngay_bat_dau_check: (j) => (j.ngay_bat_dau_check ? new Date(j.ngay_bat_dau_check).getTime() : -Infinity),
+    so_ngay_xu_ly: (j) => soNgayXuLy(j.ngay_bat_dau_check) ?? -Infinity,
+    ket_qua_vi_pham: (j) => j.ket_qua_vi_pham || "",
+  });
 
   function closeForm() {
     setShowForm(false);
@@ -697,15 +749,15 @@ export default function TheoDoiChuDePage() {
             <table>
               <thead>
                 <tr>
-                  <th>Ngày Upload</th>
-                  <th>Tên Chủ Đề</th>
-                  <th>Vùng</th>
-                  <th>Tên Shop</th>
-                  <th>Nội Dung Vi Phạm</th>
-                  <th>NV Check</th>
-                  <th>Ngày Check</th>
-                  <th>Số ngày xử lý</th>
-                  <th>Kết quả</th>
+                  <SortTh label="Ngày Upload" sortKey="upload_date" sortState={sort.state} onSort={sort.onSort} />
+                  <SortTh label="Tên Chủ Đề" sortKey="ten_chu_de" sortState={sort.state} onSort={sort.onSort} align="left" />
+                  <SortTh label="Vùng" sortKey="vung" sortState={sort.state} onSort={sort.onSort} />
+                  <SortTh label="Tên Shop" sortKey="ten_shop" sortState={sort.state} onSort={sort.onSort} align="left" />
+                  <SortTh label="Nội Dung Vi Phạm" sortKey="noi_dung_vi_pham" sortState={sort.state} onSort={sort.onSort} align="left" />
+                  <SortTh label="NV Check" sortKey="nhan_vien_phu_trach" sortState={sort.state} onSort={sort.onSort} align="left" />
+                  <SortTh label="Ngày Check" sortKey="ngay_bat_dau_check" sortState={sort.state} onSort={sort.onSort} />
+                  <SortTh label="Số ngày xử lý" sortKey="so_ngay_xu_ly" sortState={sort.state} onSort={sort.onSort} />
+                  <SortTh label="Kết quả" sortKey="ket_qua_vi_pham" sortState={sort.state} onSort={sort.onSort} />
                   <th></th>
                 </tr>
               </thead>
@@ -713,7 +765,7 @@ export default function TheoDoiChuDePage() {
                 {visibleJobs.length === 0 && (
                   <tr><td colSpan={9} style={{ textAlign: "center", color: "var(--text-400)" }}>Không có job nào ở tình trạng này.</td></tr>
                 )}
-                {visibleJobs.map((job) => {
+                {sortedJobs.map((job) => {
                   const supporters = job.supporters || [];
                   const mine = me && job.claimed_by_user_id === me.id;
                   const isSupporter = me && supporters.some((s) => s.user_id === me.id);
