@@ -350,3 +350,14 @@ td.neg{color:var(--danger); font-weight:600;}
   .leave-row{flex-direction:column; align-items:stretch; gap:8px;}
   .leave-row-actions{margin-left:0; align-self:flex-end;}
 }
+
+/* ---------- Thanh cuộn (scrollbar) — áp dụng TOÀN WEB ----------
+   Nền thanh cuộn trong suốt, nút kéo màu xanh lam nhạt (dùng luôn
+   --blue-accent sẵn có, đậm hơn khi hover cho dễ thấy đang kéo). Cả
+   Chrome/Edge/Safari (::-webkit-scrollbar) lẫn Firefox (scrollbar-color). */
+*{scrollbar-width:thin; scrollbar-color:rgba(85,128,214,0.55) transparent;}
+*::-webkit-scrollbar{width:8px; height:8px;}
+*::-webkit-scrollbar-track{background:transparent;}
+*::-webkit-scrollbar-thumb{background:rgba(85,128,214,0.55); border-radius:8px;}
+*::-webkit-scrollbar-thumb:hover{background:var(--blue-accent);}
+*::-webkit-scrollbar-corner{background:transparent;}
