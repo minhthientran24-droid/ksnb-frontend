@@ -377,8 +377,13 @@ td.neg{color:var(--danger); font-weight:600;}
   color:var(--text-900); font-weight:600; text-align:left; min-width:130px;
   position:sticky; left:0; background:#fff; z-index:1;
 }
-.schedule-grid-table th:first-child{
+.schedule-grid-table th.name-col-header{
   position:sticky; left:0; background:#EAF1FC; z-index:2; text-align:left; min-width:130px;
+}
+/* Đồng bộ độ rộng mọi cột ngày — mặc định "auto" khiến cột chữ ngắn (VD
+   "CN") hẹp hơn cột chữ dài ("THỨ 7"), nhìn lệch hàng. */
+.schedule-grid-table th:not(.name-col-header), .schedule-grid-table td:not(.name-col){
+  min-width:60px;
 }
 .schedule-grid-table tbody tr:nth-child(even) td:not(.name-col){background:#FAFBFD;}
 .schedule-grid-table tbody tr:nth-child(even) td.name-col{background:#FAFBFD;}

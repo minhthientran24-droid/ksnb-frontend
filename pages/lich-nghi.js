@@ -264,7 +264,7 @@ function ScheduleGridPanel() {
             <table className="schedule-grid-table">
               <thead>
                 <tr>
-                  <th rowSpan={2}>Tên NV</th>
+                  <th rowSpan={2} className="name-col-header">Tên NV</th>
                   {days.map((d) => (
                     <th key={d} className={isWeekend(d) ? "weekend" : ""}>{String(d).padStart(2, "0")}</th>
                   ))}
