@@ -361,3 +361,24 @@ td.neg{color:var(--danger); font-weight:600;}
 *::-webkit-scrollbar-thumb{background:rgba(85,128,214,0.55); border-radius:8px;}
 *::-webkit-scrollbar-thumb:hover{background:var(--blue-accent);}
 *::-webkit-scrollbar-corner{background:transparent;}
+
+/* ---------- Bảng "Lịch bố trí" (menu Lịch làm việc & nghỉ phép) ----------
+   Bảng kiểu Excel: cột hẹp, dày đặc theo ngày trong tháng — không dùng
+   style table mặc định (quá to/rộng, chỉ hợp bảng vài cột). Cột "Tên NV"
+   dính (sticky) bên trái khi cuộn ngang qua nhiều ngày. */
+.schedule-grid-table{width:auto; border-collapse:collapse; font-size:11px;}
+.schedule-grid-table th, .schedule-grid-table td{
+  border:1px solid var(--border); padding:4px 7px; text-align:center; white-space:nowrap;
+}
+.schedule-grid-table thead th{background:#EAF1FC; color:var(--text-600); font-weight:700;}
+.schedule-grid-table thead th.weekend{color:var(--danger);}
+.schedule-grid-table td{color:var(--danger); font-weight:700;}
+.schedule-grid-table td.name-col{
+  color:var(--text-900); font-weight:600; text-align:left; min-width:130px;
+  position:sticky; left:0; background:#fff; z-index:1;
+}
+.schedule-grid-table th:first-child{
+  position:sticky; left:0; background:#EAF1FC; z-index:2; text-align:left; min-width:130px;
+}
+.schedule-grid-table tbody tr:nth-child(even) td:not(.name-col){background:#FAFBFD;}
+.schedule-grid-table tbody tr:nth-child(even) td.name-col{background:#FAFBFD;}
