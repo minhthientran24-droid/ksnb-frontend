@@ -238,12 +238,23 @@ function ScheduleGridPanel() {
 
   const monthRows = rows.filter((r) => r.ngay_nghi.startsWith(month));
   const byName = {};
+  const khuVucByName = {};
   monthRows.forEach((r) => {
     const day = parseInt(r.ngay_nghi.slice(8, 10), 10);
     if (!byName[r.full_name]) byName[r.full_name] = new Set();
     byName[r.full_name].add(day);
+    khuVucByName[r.full_name] = r.khu_vuc || "";
   });
-  const names = Object.keys(byName).sort((a, b) => a.localeCompare(b, "vi"));
+  // Nhiều NV cùng xin nghỉ (chốt 29/08): xếp VP HCM lên trên, VP HNI xuống
+  // dưới, NV chưa gán Khu vực làm việc xuống cuối — trong cùng khu vực vẫn
+  // sắp theo tên (bảng chữ cái tiếng Việt).
+  const KHU_VUC_ORDER = { "VP HCM": 0, "VP HNI": 1 };
+  const names = Object.keys(byName).sort((a, b) => {
+    const oa = KHU_VUC_ORDER[khuVucByName[a]] ?? 2;
+    const ob = KHU_VUC_ORDER[khuVucByName[b]] ?? 2;
+    if (oa !== ob) return oa - ob;
+    return a.localeCompare(b, "vi");
+  });
 
   return (
     <div className="card">
