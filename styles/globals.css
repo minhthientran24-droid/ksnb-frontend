@@ -366,9 +366,10 @@ td.neg{color:var(--danger); font-weight:600;}
    Bảng kiểu Excel: cột hẹp, dày đặc theo ngày trong tháng — không dùng
    style table mặc định (quá to/rộng, chỉ hợp bảng vài cột). Cột "Tên NV"
    dính (sticky) bên trái khi cuộn ngang qua nhiều ngày. */
-.schedule-grid-table{width:auto; border-collapse:collapse; font-size:11px;}
+.schedule-grid-table{width:auto; border-collapse:collapse; font-size:9px;}
 .schedule-grid-table th, .schedule-grid-table td{
   border:1px solid var(--border); padding:4px 7px; text-align:center; white-space:nowrap;
+  text-transform:none; /* đè lại text-transform:uppercase mặc định của th toàn web — "Thứ 3" chứ không phải "THỨ 3" */
 }
 .schedule-grid-table thead th{background:#EAF1FC; color:var(--text-600); font-weight:700;}
 .schedule-grid-table thead th.weekend{color:var(--danger);}
