@@ -20,7 +20,7 @@ const NAV_ITEMS = [
   // Trang tự giới hạn nội dung theo role (chỉ admin/super_admin thấy 3 tab
   // Chia lịch/Dời lịch/Phân loại shop, "editor" chỉ thấy tab "Thống kê" —
   // chốt 27/08) — để ở NAV_ITEMS (không phải ADMIN_ITEMS) để hiện được cho editor.
-  { href: "/lich-lam-viec-v2", icon: "🗓️", label: "Phân công KSNB kiểm kê", hideForRoles: ["viewer", "editor_base"] },
+  { href: "/lich-lam-viec", icon: "🗓️", label: "Phân công KSNB kiểm kê", hideForRoles: ["viewer", "editor_base"] },
 ];
 
 const ADMIN_ITEMS = [

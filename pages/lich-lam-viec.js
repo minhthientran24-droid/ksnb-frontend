@@ -177,7 +177,7 @@ function applySort(rows, sortState, getters) {
   });
 }
 
-export default function LichLamViecV2Page() {
+export default function LichLamViecPage() {
   const router = useRouter();
   const [checked, setChecked] = useState(false);
   const [bridgeError, setBridgeError] = useState("");

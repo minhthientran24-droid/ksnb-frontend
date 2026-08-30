@@ -136,7 +136,7 @@ function daysBetween(todayStr, dateStr) {
 }
 
 // Badge trạng thái ticket thông báo SSC — giống hệt bên trang Phân công
-// KSNB kiểm kê (lich-lam-viec-v2.js), lặp lại ở đây vì 2 trang khác nhau
+// KSNB kiểm kê (lich-lam-viec.js), lặp lại ở đây vì 2 trang khác nhau
 // không share component, chỉ share class .pill định nghĩa ở globals.css.
 const JOB_STATUS_LABELS = {
   "": "Chưa tạo", cho_tao: "Đang chờ tạo", da_tao: "Đã tạo",
