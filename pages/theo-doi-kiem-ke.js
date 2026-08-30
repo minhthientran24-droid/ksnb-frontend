@@ -40,16 +40,32 @@ function fmtMoney(n) {
   return Math.round(v).toLocaleString("vi-VN");
 }
 
-// "Ước tính truy thu" — CHỈ áp dụng cho Long Châu (chốt 27/08 lần 7):
+// "Ước tính truy thu" — Long Châu (chốt 27/08 lần 7):
 // = Kiểm kê - Non CL + Cân tồn - Non CL + Lũy Kế
 //   + (Kiểm kê - Cắt liều + Cân tồn - Cắt liều)  -- CHỈ cộng phần này khi
 //     tổng cắt liều < 0; nếu > 0 thì bỏ qua, không cộng vào.
 // Thành phần nào null/undefined coi là 0 (chốt 27/08 lần 8, áp dụng
 // chung cho cả bảng, không riêng công thức này).
-function tinhUocTinhTruyThu(r) {
+function tinhUocTinhTruyThuLongChau(r) {
   const nonCl = (r.gia_tri_non_cl || 0) + (r.can_ton_non_cl || 0) + (r.luy_ke || 0);
   const catLieuSum = (r.gia_tri_cat_lieu || 0) + (r.can_ton_cat_lieu || 0);
   return nonCl + (catLieuSum < 0 ? catLieuSum : 0);
+}
+
+// "Ước tính truy thu" — Vaccine (chốt 29/08):
+// tổng = Kiểm kê VPKM + Kiểm kê VX + Kiểm kê VTYT
+// - tổng >= 0 -> truy thu = 0 (KHÔNG cộng lũy kế).
+// - tổng < 0 -> cộng thêm Lũy Kế: sau khi cộng mà vẫn < 0 thì đó là giá
+//   trị truy thu; còn nếu cộng lũy kế xong >= 0 thì truy thu = 0.
+function tinhUocTinhTruyThuVaccine(r) {
+  const tong = (r.kiem_ke_vpkm || 0) + (r.kiem_ke_vx || 0) + (r.kiem_ke_vtyt || 0);
+  if (tong >= 0) return 0;
+  const sauLuyKe = tong + (r.luy_ke || 0);
+  return sauLuyKe < 0 ? sauLuyKe : 0;
+}
+
+function tinhUocTinhTruyThu(r) {
+  return r.nhom === "vaccine" ? tinhUocTinhTruyThuVaccine(r) : tinhUocTinhTruyThuLongChau(r);
 }
 
 // Số liệu bảng "Đã kiểm" — CHỈ tô đỏ + in đậm khi giá trị < -4.999.999,
@@ -74,10 +90,10 @@ const SORT_COLUMNS = {
   can_ton_non_cl: { type: "number", get: (r) => r.can_ton_non_cl },
   gia_tri_cat_lieu: { type: "number", get: (r) => r.gia_tri_cat_lieu },
   can_ton_cat_lieu: { type: "number", get: (r) => r.can_ton_cat_lieu },
-  // 3 cột riêng cho nhóm Vaccine (chốt 29/08) — mới đổi UI, rule lấy data
-  // làm sau, tạm để field chưa có trong data (hiện "-") cho tới khi nối data.
+  // 3 cột riêng cho nhóm Vaccine (chốt 29/08) — lấy từ C12/C13/C14 sheet
+  // "Tổng hợp BCKS" lúc gửi mail BCKS, xem gui_mail_bcks.py.
   kiem_ke_vx: { type: "number", get: (r) => r.kiem_ke_vx },
-  kiem_ke_ttyt: { type: "number", get: (r) => r.kiem_ke_ttyt },
+  kiem_ke_vtyt: { type: "number", get: (r) => r.kiem_ke_vtyt },
   kiem_ke_vpkm: { type: "number", get: (r) => r.kiem_ke_vpkm },
   luy_ke: { type: "number", get: (r) => r.luy_ke },
   uoc_tinh_truy_thu: { type: "number", get: (r) => tinhUocTinhTruyThu(r) },
@@ -882,7 +898,7 @@ export default function TheoDoiKiemKePage() {
                   ) : (
                     <>
                       <SortTh label="Kiểm kê VX" sortCol="kiem_ke_vx" />
-                      <SortTh label="Kiểm kê TTYT" sortCol="kiem_ke_ttyt" />
+                      <SortTh label="Kiểm kê VTYT" sortCol="kiem_ke_vtyt" />
                       <SortTh label="Kiểm kê VPKM" sortCol="kiem_ke_vpkm" />
                     </>
                   )}
@@ -909,14 +925,12 @@ export default function TheoDoiKiemKePage() {
                     ) : (
                       <>
                         <td className="num" style={moneyStyle(r.kiem_ke_vx)}>{fmtMoney(r.kiem_ke_vx)}</td>
-                        <td className="num" style={moneyStyle(r.kiem_ke_ttyt)}>{fmtMoney(r.kiem_ke_ttyt)}</td>
+                        <td className="num" style={moneyStyle(r.kiem_ke_vtyt)}>{fmtMoney(r.kiem_ke_vtyt)}</td>
                         <td className="num" style={moneyStyle(r.kiem_ke_vpkm)}>{fmtMoney(r.kiem_ke_vpkm)}</td>
                       </>
                     )}
                     <td className="num" style={moneyStyle(r.luy_ke)}>{fmtMoney(r.luy_ke)}</td>
-                    <td className="num" style={nhom === "long_chau" ? moneyStyle(tinhUocTinhTruyThu(r)) : undefined}>
-                      {nhom === "long_chau" ? fmtMoney(tinhUocTinhTruyThu(r)) : "-"}
-                    </td>
+                    <td className="num" style={moneyStyle(tinhUocTinhTruyThu(r))}>{fmtMoney(tinhUocTinhTruyThu(r))}</td>
                     <td className="num" style={moneyStyle(r.truy_thu_thanh_ly)}>{fmtMoney(r.truy_thu_thanh_ly)}</td>
                     <td>{r.nv_kiem_ke || "-"}</td>
                     {isAdmin && (
