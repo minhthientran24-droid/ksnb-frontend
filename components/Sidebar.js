@@ -4,7 +4,7 @@ import Link from "next/link";
 import { getUser } from "../lib/api";
 
 const NAV_ITEMS = [
-  { href: "/", icon: "⌂", label: "Trang chủ" },
+  { href: "/", icon: "🏠", label: "Trang chủ" },
   { href: "/chat-nhom", icon: "💬", label: "Chat nhóm" },
   { href: "/bao-cao", icon: "▤", label: "Báo cáo tháng", hideForRoles: ["editor_base"] },
   { href: "/ho-tro-kiem-ke", icon: "🧰", label: "Hỗ Trợ Kiểm Kê" },
@@ -14,8 +14,8 @@ const NAV_ITEMS = [
   { href: "/theo-doi-xknk", icon: "📦", label: "Theo dõi XK-NK" },
   { href: "/de-xuat-kiem-ke", icon: "📮", label: "Đề xuất kiểm kê", hideForRoles: ["editor_base", "viewer"] },
   { href: "/ghi-nhan-case", icon: "📝", label: "Ghi nhận case vi phạm" },
-  { href: "/nhan-su", icon: "◈", label: "Giới thiệu nhân sự KSNB" },
-  { href: "/hoat-dong", icon: "☺", label: "Hoạt động phòng ban" },
+  { href: "/nhan-su", icon: "👥", label: "Giới thiệu nhân sự KSNB" },
+  { href: "/hoat-dong", icon: "🎉", label: "Hoạt động phòng ban" },
   { href: "/lich-nghi", icon: "🏖️", label: "Lịch làm việc & nghỉ phép" },
   // Trang tự giới hạn nội dung theo role (chỉ admin/super_admin thấy 3 tab
   // Chia lịch/Dời lịch/Phân loại shop, "editor" chỉ thấy tab "Thống kê" —
