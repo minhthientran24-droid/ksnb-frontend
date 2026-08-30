@@ -74,6 +74,11 @@ const SORT_COLUMNS = {
   can_ton_non_cl: { type: "number", get: (r) => r.can_ton_non_cl },
   gia_tri_cat_lieu: { type: "number", get: (r) => r.gia_tri_cat_lieu },
   can_ton_cat_lieu: { type: "number", get: (r) => r.can_ton_cat_lieu },
+  // 3 cột riêng cho nhóm Vaccine (chốt 29/08) — mới đổi UI, rule lấy data
+  // làm sau, tạm để field chưa có trong data (hiện "-") cho tới khi nối data.
+  kiem_ke_vx: { type: "number", get: (r) => r.kiem_ke_vx },
+  kiem_ke_ttyt: { type: "number", get: (r) => r.kiem_ke_ttyt },
+  kiem_ke_vpkm: { type: "number", get: (r) => r.kiem_ke_vpkm },
   luy_ke: { type: "number", get: (r) => r.luy_ke },
   uoc_tinh_truy_thu: { type: "number", get: (r) => tinhUocTinhTruyThu(r) },
   truy_thu_thanh_ly: { type: "number", get: (r) => r.truy_thu_thanh_ly },
@@ -867,10 +872,20 @@ export default function TheoDoiKiemKePage() {
                   <SortTh label="Vùng" sortCol="vung" />
                   <SortTh label="Tên shop" sortCol="ten_shop" />
                   <SortTh label="Ngày kiểm kê" sortCol="ngay_kiem_ke" />
-                  <SortTh label={["Kiểm kê", "Non CL"]} sortCol="gia_tri_non_cl" />
-                  <SortTh label={["Cân tồn", "Non CL"]} sortCol="can_ton_non_cl" />
-                  <SortTh label={["Kiểm kê", "Cắt liều"]} sortCol="gia_tri_cat_lieu" />
-                  <SortTh label={["Cân tồn", "Cắt liều"]} sortCol="can_ton_cat_lieu" />
+                  {nhom === "long_chau" ? (
+                    <>
+                      <SortTh label={["Kiểm kê", "Non CL"]} sortCol="gia_tri_non_cl" />
+                      <SortTh label={["Cân tồn", "Non CL"]} sortCol="can_ton_non_cl" />
+                      <SortTh label={["Kiểm kê", "Cắt liều"]} sortCol="gia_tri_cat_lieu" />
+                      <SortTh label={["Cân tồn", "Cắt liều"]} sortCol="can_ton_cat_lieu" />
+                    </>
+                  ) : (
+                    <>
+                      <SortTh label="Kiểm kê VX" sortCol="kiem_ke_vx" />
+                      <SortTh label="Kiểm kê TTYT" sortCol="kiem_ke_ttyt" />
+                      <SortTh label="Kiểm kê VPKM" sortCol="kiem_ke_vpkm" />
+                    </>
+                  )}
                   <SortTh label="Lũy Kế" sortCol="luy_ke" />
                   <SortTh label={["Ước tính", "truy thu"]} sortCol="uoc_tinh_truy_thu" />
                   <SortTh label={["Truy thu", "thanh lý"]} sortCol="truy_thu_thanh_ly" />
@@ -884,10 +899,20 @@ export default function TheoDoiKiemKePage() {
                     <td style={{ textAlign: "left" }}>{r.vung}</td>
                     <td style={{ textAlign: "left" }}>{r.ma_shop}{r.ten_shop ? ` - ${r.ten_shop}` : ""}</td>
                     <td>{r.ngay_kiem_ke || "-"}</td>
-                    <td className="num" style={moneyStyle(r.gia_tri_non_cl)}>{fmtMoney(r.gia_tri_non_cl)}</td>
-                    <td className="num" style={moneyStyle(r.can_ton_non_cl)}>{fmtMoney(r.can_ton_non_cl)}</td>
-                    <td className="num" style={moneyStyle(r.gia_tri_cat_lieu)}>{fmtMoney(r.gia_tri_cat_lieu)}</td>
-                    <td className="num" style={moneyStyle(r.can_ton_cat_lieu)}>{fmtMoney(r.can_ton_cat_lieu)}</td>
+                    {nhom === "long_chau" ? (
+                      <>
+                        <td className="num" style={moneyStyle(r.gia_tri_non_cl)}>{fmtMoney(r.gia_tri_non_cl)}</td>
+                        <td className="num" style={moneyStyle(r.can_ton_non_cl)}>{fmtMoney(r.can_ton_non_cl)}</td>
+                        <td className="num" style={moneyStyle(r.gia_tri_cat_lieu)}>{fmtMoney(r.gia_tri_cat_lieu)}</td>
+                        <td className="num" style={moneyStyle(r.can_ton_cat_lieu)}>{fmtMoney(r.can_ton_cat_lieu)}</td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="num" style={moneyStyle(r.kiem_ke_vx)}>{fmtMoney(r.kiem_ke_vx)}</td>
+                        <td className="num" style={moneyStyle(r.kiem_ke_ttyt)}>{fmtMoney(r.kiem_ke_ttyt)}</td>
+                        <td className="num" style={moneyStyle(r.kiem_ke_vpkm)}>{fmtMoney(r.kiem_ke_vpkm)}</td>
+                      </>
+                    )}
                     <td className="num" style={moneyStyle(r.luy_ke)}>{fmtMoney(r.luy_ke)}</td>
                     <td className="num" style={nhom === "long_chau" ? moneyStyle(tinhUocTinhTruyThu(r)) : undefined}>
                       {nhom === "long_chau" ? fmtMoney(tinhUocTinhTruyThu(r)) : "-"}
@@ -909,7 +934,7 @@ export default function TheoDoiKiemKePage() {
                   </tr>
                 ))}
                 {displayRows.length === 0 && (
-                  <tr><td colSpan={isAdmin ? 12 : 11} style={{ textAlign: "center", color: "var(--text-400)" }}>
+                  <tr><td colSpan={(nhom === "long_chau" ? 11 : 10) + (isAdmin ? 1 : 0)} style={{ textAlign: "center", color: "var(--text-400)" }}>
                     {searchQuery ? "Không tìm thấy shop nào khớp" : "Không có shop nào trong tháng này"}
                   </td></tr>
                 )}
