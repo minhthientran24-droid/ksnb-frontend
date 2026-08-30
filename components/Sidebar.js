@@ -14,7 +14,7 @@ const NAV_ITEMS = [
   { href: "/theo-doi-xknk", icon: "📦", label: "Theo dõi XK-NK" },
   { href: "/de-xuat-kiem-ke", icon: "📮", label: "Đề xuất kiểm kê", hideForRoles: ["editor_base", "viewer"] },
   { href: "/ghi-nhan-case", icon: "📝", label: "Ghi nhận case vi phạm" },
-  { href: "/nhan-su", icon: "👥", label: "Giới thiệu nhân sự KSNB" },
+  { href: "/nhan-su", icon: "🧑‍💼", label: "Giới thiệu nhân sự KSNB" },
   { href: "/hoat-dong", icon: "🎉", label: "Hoạt động phòng ban" },
   { href: "/lich-nghi", icon: "🏖️", label: "Lịch làm việc & nghỉ phép" },
   // Trang tự giới hạn nội dung theo role (chỉ admin/super_admin thấy 3 tab
