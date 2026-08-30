@@ -94,15 +94,17 @@ a{color:inherit; text-decoration:none;}
 .sb-item.active{background:var(--blue-accent); color:#fff; font-weight:700;}
 .sb-item .ic{width:32px; font-size:26px; line-height:1; text-align:center; opacity:0.95; flex-shrink:0;}
 
-/* Tooltip hiện tên menu khi sidebar đang thu gọn và hover vào icon */
-.sb-tooltip{
-  position:absolute; left:calc(100% + 10px); top:50%; transform:translateY(-50%);
+/* Tooltip hiện tên menu khi sidebar đang thu gọn và hover vào icon — chốt
+   30/08: đổi sang position:fixed, toạ độ tính tay lúc hover (Sidebar.js)
+   thay vì absolute lồng trong .sb-item, vì overflow:hidden của .sb-item
+   và overflow-y:auto của .sb-nav (kéo theo overflow-x tự động bị ép
+   "auto" theo spec CSS) đều cắt mất tooltip kiểu cũ. */
+.sb-tooltip-fixed{
+  position:fixed; transform:translateY(-50%);
   background:var(--navy-900); color:#fff; font-size:12.5px; font-weight:600;
   padding:6px 12px; border-radius:6px; white-space:nowrap;
-  opacity:0; pointer-events:none; transition:opacity .12s;
-  box-shadow:0 6px 16px rgba(0,0,0,0.25); z-index:20;
+  pointer-events:none; box-shadow:0 6px 16px rgba(0,0,0,0.25); z-index:200;
 }
-.sidebar.collapsed .sb-item:hover .sb-tooltip{opacity:1;}
 
 .sb-item .chev{margin-left:auto; font-size:11px; opacity:0.6; transition:transform .15s; flex-shrink:0;}
 .sb-item.open .chev{transform:rotate(90deg);}

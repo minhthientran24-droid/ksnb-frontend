@@ -39,6 +39,12 @@ export default function Sidebar() {
   // Menu dạng ngăn kéo (drawer) riêng cho mobile — độc lập với "collapsed"
   // (tính năng thu gọn còn icon dành cho desktop, không dùng trên mobile).
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Tooltip tên menu khi thu gọn (chốt 30/08) — dùng position:fixed + toạ
+  // độ tính tay lúc hover thay vì absolute lồng trong .sb-item, vì .sb-item
+  // (overflow:hidden) và .sb-nav (overflow-y:auto, kéo theo overflow-x bị
+  // ép thành "auto" luôn theo spec CSS) đều CẮT MẤT tooltip cũ — tooltip
+  // trước giờ chưa từng hiện ra được dù code đã có sẵn.
+  const [hoveredTip, setHoveredTip] = useState(null); // {label, top, left}
 
   useEffect(() => {
     const me = getUser();
@@ -56,19 +62,32 @@ export default function Sidebar() {
   function toggleCollapsed() {
     const next = !collapsed;
     setCollapsed(next);
+    setHoveredTip(null);
     localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
   }
 
   const isActive = (href) =>
     href === "/" ? router.pathname === "/" : router.pathname.startsWith(href);
 
+  function handleItemMouseEnter(e, item) {
+    if (!collapsed) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setHoveredTip({ label: item.label, top: rect.top + rect.height / 2, left: rect.right + 10 });
+  }
+  function handleItemMouseLeave() {
+    setHoveredTip(null);
+  }
+
   function renderItem(item) {
     return (
       <Link key={item.href} href={item.href}>
-        <div className={`sb-item ${isActive(item.href) ? "active" : ""}`}>
+        <div
+          className={`sb-item ${isActive(item.href) ? "active" : ""}`}
+          onMouseEnter={(e) => handleItemMouseEnter(e, item)}
+          onMouseLeave={handleItemMouseLeave}
+        >
           <span className="ic">{item.icon}</span>
           <span className="sb-item-label">{item.label}</span>
-          {collapsed && <span className="sb-tooltip">{item.label}</span>}
         </div>
       </Link>
     );
@@ -106,6 +125,12 @@ export default function Sidebar() {
           <span className="sb-toggle-label">Thu gọn menu</span>
         </div>
       </aside>
+
+      {collapsed && hoveredTip && (
+        <div className="sb-tooltip-fixed" style={{ top: hoveredTip.top, left: hoveredTip.left }}>
+          {hoveredTip.label}
+        </div>
+      )}
     </>
   );
 }
