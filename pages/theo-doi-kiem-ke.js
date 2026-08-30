@@ -913,7 +913,10 @@ export default function TheoDoiKiemKePage() {
                 {displayRows.map((r) => (
                   <tr key={r.id}>
                     <td style={{ textAlign: "left" }}>{r.vung}</td>
-                    <td style={{ textAlign: "left" }}>{r.ma_shop}{r.ten_shop ? ` - ${r.ten_shop}` : ""}</td>
+                    <td style={{ textAlign: "left", color: r.so_ngay_gui_tre ? "var(--danger)" : undefined, fontWeight: r.so_ngay_gui_tre ? 700 : undefined }}>
+                      {r.ma_shop}{r.ten_shop ? ` - ${r.ten_shop}` : ""}
+                      {r.so_ngay_gui_tre ? ` - gửi trễ ${r.so_ngay_gui_tre} ngày` : ""}
+                    </td>
                     <td>{r.ngay_kiem_ke || "-"}</td>
                     {nhom === "long_chau" ? (
                       <>
