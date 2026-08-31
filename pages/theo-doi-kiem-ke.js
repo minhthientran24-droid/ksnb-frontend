@@ -151,10 +151,68 @@ function JobStatusBadge({ status, url }) {
   return url ? <a href={url} target="_blank" rel="noreferrer">{badge}</a> : badge;
 }
 
+// Bấm tiêu đề cột để sắp xếp (chốt 30/08) — dùng chung cho 2 tab
+// "Shop được chia - Chuẩn bị kiểm kê" và "Đang kiểm", cùng cách làm/màu với
+// các bảng sort khác trên web (xanh lá = tăng dần, cam = giảm dần).
+function useLlvSort(defaultKey = null, defaultDir = "asc") {
+  const [state, setState] = useState({ key: defaultKey, dir: defaultDir });
+  function onSort(key) {
+    setState((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+  }
+  return { state, onSort };
+}
+
+function applyLlvSort(rows, sortState, getters) {
+  if (!sortState?.key) return rows;
+  const getter = getters[sortState.key] || ((r) => r[sortState.key]);
+  const sorted = [...rows].sort((a, b) => {
+    const av = getter(a);
+    const bv = getter(b);
+    const bothNum = typeof av === "number" && typeof bv === "number";
+    const cmp = bothNum ? av - bv : String(av ?? "").localeCompare(String(bv ?? ""), "vi");
+    return sortState.dir === "asc" ? cmp : -cmp;
+  });
+  return sorted;
+}
+
+function LlvSortTh({ label, sortKey, sortState, onSort, align }) {
+  const active = sortState?.key === sortKey;
+  return (
+    <th
+      onClick={() => onSort(sortKey)}
+      style={{
+        cursor: "pointer", userSelect: "none", textAlign: align || "center", whiteSpace: "nowrap",
+        background: active ? (sortState.dir === "asc" ? "#EAF6E5" : "#FFF1E1") : undefined,
+      }}
+      title="Bấm để sắp xếp"
+    >
+      {label}
+      <span style={{ marginLeft: 4, fontSize: 10, opacity: active ? 1 : 0.5 }}>
+        {active ? (sortState.dir === "asc" ? "▲" : "▼") : "⇅"}
+      </span>
+    </th>
+  );
+}
+
+// Trạng thái hiển thị thật sự trên bảng (ưu tiên "Đã trễ hạn"/"Sắp trễ hạn"
+// theo Số ngày kiểm nếu có) — tách riêng để dùng chung cho cả sort lẫn hiển thị.
+function llvStatusText(r, soNgayKiem) {
+  const urgency = soNgayKiem == null ? null
+    : soNgayKiem > 5 ? "da_tre_han"
+      : (soNgayKiem === 4 || soNgayKiem === 5) ? "sap_tre_han"
+        : null;
+  return urgency === "da_tre_han" ? "Đã trễ hạn"
+    : urgency === "sap_tre_han" ? "Sắp trễ hạn"
+      : statusLabel(r.display_status);
+}
+
 // Bảng dùng chung cho 2 tab lấy dữ liệu từ Phân công KSNB kiểm kê (LLV v2):
 // "Shop được chia - Chuẩn bị kiểm kê" (có nút Dời lịch) và "Đang kiểm" (chỉ
-// xem, có thêm cột Số ngày kiểm + cảnh báo trễ hạn, sắp theo số ngày giảm dần).
+// xem, có thêm cột Số ngày kiểm + cảnh báo trễ hạn, mặc định sắp theo số
+// ngày giảm dần — vẫn bấm đổi cột/chiều sắp được như mọi cột khác).
 function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canReschedule, onOpenReschedule, showHuy, onOpenHuy, emptyText, showSoNgayKiem, showTicket }) {
+  const sort = useLlvSort(showSoNgayKiem ? "so_ngay_kiem" : null, "desc");
+
   let rows = (data?.rows || []).filter((r) => {
     if (!searchQuery) return true;
     return (
@@ -164,10 +222,18 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
   });
 
   if (showSoNgayKiem) {
-    rows = rows
-      .map((r) => ({ ...r, _soNgayKiem: daysBetween(data.date, r.ngay_kiem) }))
-      .sort((a, b) => (b._soNgayKiem ?? -Infinity) - (a._soNgayKiem ?? -Infinity));
+    rows = rows.map((r) => ({ ...r, _soNgayKiem: daysBetween(data.date, r.ngay_kiem) }));
   }
+  rows = applyLlvSort(rows, sort.state, {
+    vung: (r) => r.vung || "",
+    ma_shop: (r) => r.ma_shop || "",
+    ten_shop: (r) => r.ten_shop || "",
+    ksnb: (r) => r.ksnb || "",
+    ngay_kiem: (r) => r.ngay_kiem || "",
+    so_ngay_kiem: (r) => r._soNgayKiem ?? -Infinity,
+    hinh_thuc: (r) => r.hinh_thuc || "",
+    trang_thai: (r) => llvStatusText(r, showSoNgayKiem ? r._soNgayKiem : null),
+  });
 
   const colCount = 7 + (showSoNgayKiem ? 1 : 0) + (showTicket ? 1 : 0) + (showDoiLich ? 1 : 0) + (showHuy ? 1 : 0);
 
@@ -184,9 +250,15 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
         <table>
           <thead>
             <tr>
-              <th>Vùng</th><th>Mã shop</th><th>Tên shop</th><th>KSNB phụ trách</th>
-              <th>Ngày kiểm</th>{showSoNgayKiem && <th>Số ngày kiểm</th>}
-              <th>Hình thức</th><th>Trạng thái</th>{showTicket && <th>Ticket thông báo</th>}{showDoiLich && <th></th>}{showHuy && <th></th>}
+              <LlvSortTh label="Vùng" sortKey="vung" sortState={sort.state} onSort={sort.onSort} align="left" />
+              <LlvSortTh label="Mã shop" sortKey="ma_shop" sortState={sort.state} onSort={sort.onSort} />
+              <LlvSortTh label="Tên shop" sortKey="ten_shop" sortState={sort.state} onSort={sort.onSort} align="left" />
+              <LlvSortTh label="KSNB phụ trách" sortKey="ksnb" sortState={sort.state} onSort={sort.onSort} />
+              <LlvSortTh label="Ngày kiểm" sortKey="ngay_kiem" sortState={sort.state} onSort={sort.onSort} />
+              {showSoNgayKiem && <LlvSortTh label="Số ngày kiểm" sortKey="so_ngay_kiem" sortState={sort.state} onSort={sort.onSort} />}
+              <LlvSortTh label="Hình thức" sortKey="hinh_thuc" sortState={sort.state} onSort={sort.onSort} />
+              <LlvSortTh label="Trạng thái" sortKey="trang_thai" sortState={sort.state} onSort={sort.onSort} />
+              {showTicket && <th>Ticket thông báo</th>}{showDoiLich && <th></th>}{showHuy && <th></th>}
             </tr>
           </thead>
           <tbody>
@@ -204,9 +276,7 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
                 : soNgayKiem > 5 ? "da_tre_han"
                   : (soNgayKiem === 4 || soNgayKiem === 5) ? "sap_tre_han"
                     : null;
-              const statusText = urgency === "da_tre_han" ? "Đã trễ hạn"
-                : urgency === "sap_tre_han" ? "Sắp trễ hạn"
-                  : statusLabel(r.display_status);
+              const statusText = llvStatusText(r, soNgayKiem);
               // Trễ hạn/sắp trễ hạn -> đổi màu đỏ cho toàn bộ dòng (chỉ màu
               // chữ, không đổi nền); "Đã trễ hạn" thêm in đậm cả dòng.
               const rowStyle = urgency
