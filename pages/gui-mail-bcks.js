@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
 import SignatureEditor, { GREETING_FONT_SIZES } from "../components/SignatureEditor";
+import { useAllowedKeys } from "../lib/permissions";
 import {
   getUser,
   previewGuiMailBcks, sendGuiMailBcks, getMySmtpCredential, saveMySmtpCredential,
@@ -341,6 +342,7 @@ function SelfServicePanel({ smtpConfigured }) {
 
 export default function GuiMailBcksPage() {
   const me = getUser();
+  const { can } = useAllowedKeys();
   const [smtpConfigured, setSmtpConfigured] = useState(false);
 
   return (
@@ -349,11 +351,13 @@ export default function GuiMailBcksPage() {
         <h1>Gửi mail BCKS</h1>
       </div>
 
-      <div style={{ marginBottom: 14 }}>
-        <SmtpCredentialPanel onConfigured={(s) => setSmtpConfigured(s.configured)} />
-      </div>
+      {can("/gui-mail-bcks::cau-hinh-email") && (
+        <div style={{ marginBottom: 14 }}>
+          <SmtpCredentialPanel onConfigured={(s) => setSmtpConfigured(s.configured)} />
+        </div>
+      )}
 
-      <SelfServicePanel smtpConfigured={smtpConfigured} />
+      {can("/gui-mail-bcks::gui-bao-cao") && <SelfServicePanel smtpConfigured={smtpConfigured} />}
     </Layout>
   );
 }

@@ -7,6 +7,7 @@ import {
   downloadKetQuaKiemKeGuiMailVaccine, getKetQuaKiemKeGuiMailVaccineMonths,
   downloadLcnbThanhLyHni, downloadLcnbThanhLyHcm, getLcnbThanhLyMonths,
 } from "../lib/api";
+import { useAllowedKeys } from "../lib/permissions";
 
 function normName(s) {
   return String(s == null ? "" : s).toLowerCase().trim()
@@ -321,6 +322,7 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
 }
 
 export default function TheoDoiKiemKePage() {
+  const { can, ready: permReady } = useAllowedKeys();
   const [loai, setLoai] = useState("shop_chia_hom_nay"); // "shop_chia_hom_nay" | "dang_kiem" | "da_kiem" — mặc định vào là tab "Shop được chia - Chuẩn bị kiểm kê" (chốt 22/08)
   // Tab "Đã kiểm" — tách riêng Long Châu/Vaccine (chốt 26/08 lần 12), nút
   // chọn loại trừ lẫn nhau (không cho chọn đồng thời cả 2). Chỉ áp dụng
@@ -399,6 +401,14 @@ export default function TheoDoiKiemKePage() {
   const [ketQuaLogThang, setKetQuaLogThang] = useState("");
   const [ketQuaLogBusy, setKetQuaLogBusy] = useState(false);
   const [ketQuaLogMsg, setKetQuaLogMsg] = useState("");
+
+  // Chốt 01/09 — nếu tab đang mở bị super_admin gỡ quyền qua "Quản lý phân
+  // quyền" thì tự chuyển sang tab đầu tiên còn được phép, tránh màn hình trắng.
+  useEffect(() => {
+    if (!permReady || can(`/theo-doi-kiem-ke::${loai}`)) return;
+    const first = ["shop_chia_hom_nay", "dang_kiem", "da_kiem"].find((k) => can(`/theo-doi-kiem-ke::${k}`));
+    if (first) setLoai(first);
+  }, [permReady, loai]);
 
   useEffect(() => {
     if (!isAdmin || loai !== "da_kiem") return;
@@ -732,17 +742,24 @@ export default function TheoDoiKiemKePage() {
         </div>
       )}
 
-      {/* Tab chọn Shop được chia hôm nay / Đang kiểm / Đã kiểm (chốt 22/08) */}
+      {/* Tab chọn Shop được chia hôm nay / Đang kiểm / Đã kiểm (chốt 22/08) —
+          ẩn tab role không có quyền (chốt 01/09, Quản lý phân quyền cấp 2) */}
       <div className="month-tabs">
-        <div className={`month-tab ${loai === "shop_chia_hom_nay" ? "active" : ""}`} onClick={() => setLoai("shop_chia_hom_nay")}>
-          📌 Shop được chia - Chuẩn bị kiểm kê
-        </div>
-        <div className={`month-tab ${loai === "dang_kiem" ? "active" : ""}`} onClick={() => setLoai("dang_kiem")}>
-          ⏳ Đang kiểm
-        </div>
-        <div className={`month-tab ${loai === "da_kiem" ? "active" : ""}`} onClick={() => setLoai("da_kiem")}>
-          ✅ Đã kiểm
-        </div>
+        {can("/theo-doi-kiem-ke::shop_chia_hom_nay") && (
+          <div className={`month-tab ${loai === "shop_chia_hom_nay" ? "active" : ""}`} onClick={() => setLoai("shop_chia_hom_nay")}>
+            📌 Shop được chia - Chuẩn bị kiểm kê
+          </div>
+        )}
+        {can("/theo-doi-kiem-ke::dang_kiem") && (
+          <div className={`month-tab ${loai === "dang_kiem" ? "active" : ""}`} onClick={() => setLoai("dang_kiem")}>
+            ⏳ Đang kiểm
+          </div>
+        )}
+        {can("/theo-doi-kiem-ke::da_kiem") && (
+          <div className={`month-tab ${loai === "da_kiem" ? "active" : ""}`} onClick={() => setLoai("da_kiem")}>
+            ✅ Đã kiểm
+          </div>
+        )}
       </div>
 
       {/* Tab "Đã kiểm" — nhóm shop (Long Châu/Vaccine, loại trừ lẫn nhau)

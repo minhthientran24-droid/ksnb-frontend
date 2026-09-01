@@ -7,6 +7,7 @@ import {
   bulkUploadChuDeJobs, downloadChuDeJobBulkUploadTemplate, lookupChuDeShop,
   getChuDeJobMonths, exportChuDeJobs,
 } from "../lib/api";
+import { useAllowedKeys } from "../lib/permissions";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
 
@@ -531,9 +532,17 @@ const CHU_DE_TABS = [
 ];
 
 export default function TheoDoiChuDePage() {
+  const { can, ready: permReady } = useAllowedKeys();
   const [me, setMe] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [activeTab, setActiveTab] = useState("Chưa nhận");
+  // Chốt 01/09 — tự chuyển sang tab đầu tiên còn quyền nếu tab đang mở bị
+  // super_admin gỡ quyền qua "Quản lý phân quyền" (cấp 2).
+  useEffect(() => {
+    if (!permReady || can(`/theo-doi-chu-de::${activeTab}`)) return;
+    const first = CHU_DE_TABS.map((t) => t.key).find((k) => can(`/theo-doi-chu-de::${k}`));
+    if (first) setActiveTab(first);
+  }, [permReady, activeTab]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -725,7 +734,7 @@ export default function TheoDoiChuDePage() {
       {/* 3 tab tình trạng (chốt 27/08) — thay cho cột "Tình trạng" đã bỏ
           khỏi bảng, nằm ngay dưới khung "Cập nhập chủ đề mới". */}
       <div className="month-tabs">
-        {CHU_DE_TABS.map((t) => {
+        {CHU_DE_TABS.filter((t) => can(`/theo-doi-chu-de::${t.key}`)).map((t) => {
           const count = jobs.filter((j) => jobMatchesTab(j, t.key)).length;
           const isActive = activeTab === t.key;
           return (

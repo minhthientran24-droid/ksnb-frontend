@@ -417,27 +417,41 @@ export default function QuanLyTaiKhoanPage() {
   );
 }
 
-// ---------- Tab "Quản lý phân quyền" (chốt 31/08) — chỉ super_admin. Bố
-// trí dạng cây: mỗi menu 1 hàng ("thư mục"), tick chọn role nào được xem
-// menu đó. Phase 1: chỉ cấp menu, chưa xuống tới chức năng con bên trong
-// từng trang (super_admin luôn full quyền, không hiện trong bảng). ----------
+// ---------- Tab "Quản lý phân quyền" (chốt 31/08, mở rộng cấp 2 — chốt
+// 01/09) — chỉ super_admin. Bố trí dạng cây: mỗi menu 1 hàng ("thư mục"),
+// bấm mũi tên để mở ra các tab/khu vực con (cấp 2) bên trong, tick chọn
+// role nào được xem menu/tab đó. super_admin luôn full quyền, không hiện
+// trong bảng. Cấp 2 chỉ thật sự có hiệu lực khi role đó ĐÃ có quyền cấp 1. ----------
 function PhanQuyenPanel() {
   const [data, setData] = useState(null); // {menus, roles, role_labels, matrix}
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
   const [dirty, setDirty] = useState(false);
+  // Menu nào đang mở cây con — mặc định mở hết cho dễ rà soát tổng quan.
+  const [expanded, setExpanded] = useState(new Set());
 
   function load() {
     setSaveMsg("");
-    getMenuPermissionCatalog().then(setData).catch((err) => setError(err.message));
+    getMenuPermissionCatalog().then((d) => {
+      setData(d);
+      setExpanded(new Set(d.menus.filter((m) => m.children.length).map((m) => m.key)));
+    }).catch((err) => setError(err.message));
   }
   useEffect(load, []);
 
-  function toggle(role, menuKey) {
+  function toggleExpand(key) {
+    setExpanded((s) => {
+      const next = new Set(s);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }
+
+  function toggle(role, key) {
     setData((d) => ({
       ...d,
-      matrix: { ...d.matrix, [role]: { ...d.matrix[role], [menuKey]: !d.matrix[role][menuKey] } },
+      matrix: { ...d.matrix, [role]: { ...d.matrix[role], [key]: !d.matrix[role][key] } },
     }));
     setDirty(true);
     setSaveMsg("");
@@ -469,7 +483,8 @@ function PhanQuyenPanel() {
       <div className="card-body">
         <div style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 14, lineHeight: 1.6 }}>
           Tick chọn role nào được xem/vào 1 menu — bỏ tick thì role đó không thấy menu này trên sidebar
-          và cũng không vào được dù gõ thẳng link. Chưa tick gì cho 1 menu = role đó không được truy cập.
+          và cũng không vào được dù gõ thẳng link. Bấm ▸/▾ để mở ra các tab/khu vực con (cấp 2) bên trong
+          từng menu — cấp 2 chỉ thật sự có hiệu lực khi role đó ĐÃ được tick ở menu cha (cấp 1).
         </div>
         <div style={{ overflowX: "auto" }}>
           <table style={{ fontSize: 12.5 }}>
@@ -482,21 +497,49 @@ function PhanQuyenPanel() {
               </tr>
             </thead>
             <tbody>
-              {data.menus.map((m) => (
-                <tr key={m.key}>
-                  <td style={{ textAlign: "left" }}>📁 {m.label}</td>
-                  {data.roles.map((role) => (
-                    <td key={role}>
-                      <input
-                        type="checkbox"
-                        checked={!!data.matrix[role][m.key]}
-                        onChange={() => toggle(role, m.key)}
-                        style={{ width: 16, height: 16, cursor: "pointer" }}
-                      />
-                    </td>
-                  ))}
-                </tr>
-              ))}
+              {data.menus.map((m) => {
+                const hasChildren = m.children.length > 0;
+                const isOpen = expanded.has(m.key);
+                return (
+                  <Fragment key={m.key}>
+                    <tr>
+                      <td
+                        style={{ textAlign: "left", cursor: hasChildren ? "pointer" : "default" }}
+                        onClick={() => hasChildren && toggleExpand(m.key)}
+                      >
+                        {hasChildren ? (isOpen ? "▾" : "▸") : "　"} 📁 {m.label}
+                      </td>
+                      {data.roles.map((role) => (
+                        <td key={role}>
+                          <input
+                            type="checkbox"
+                            checked={!!data.matrix[role][m.key]}
+                            onChange={() => toggle(role, m.key)}
+                            style={{ width: 16, height: 16, cursor: "pointer" }}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                    {hasChildren && isOpen && m.children.map((c) => (
+                      <tr key={c.key} style={{ background: "var(--bg)" }}>
+                        <td style={{ textAlign: "left", paddingLeft: 36, color: "var(--text-600)" }}>
+                          📄 {c.label}
+                        </td>
+                        {data.roles.map((role) => (
+                          <td key={role}>
+                            <input
+                              type="checkbox"
+                              checked={!!data.matrix[role][c.key]}
+                              onChange={() => toggle(role, c.key)}
+                              style={{ width: 16, height: 16, cursor: "pointer" }}
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>

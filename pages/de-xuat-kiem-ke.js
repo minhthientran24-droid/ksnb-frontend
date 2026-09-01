@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
+import { useAllowedKeys } from "../lib/permissions";
 import {
   getUser,
   lookupDeXuatShop, listDeXuatShops, createDeXuatShop, deleteDeXuatShop,
@@ -28,6 +29,7 @@ function formatThangKiemKe(v) {
 
 export default function DeXuatKiemKePage() {
   const router = useRouter();
+  const { can } = useAllowedKeys();
   const [checked, setChecked] = useState(false);
   const [dlBusy, setDlBusy] = useState(false);
   const [dlMsg, setDlMsg] = useState("");
@@ -71,8 +73,8 @@ export default function DeXuatKiemKePage() {
       </div>
 
       <div className="grid-2" style={{ gap: 18, alignItems: "start" }}>
-        <ShopProposalPanel />
-        <KsnbProposalPanel />
+        {can("/de-xuat-kiem-ke::shop") && <ShopProposalPanel />}
+        {can("/de-xuat-kiem-ke::ksnb") && <KsnbProposalPanel />}
       </div>
     </Layout>
   );

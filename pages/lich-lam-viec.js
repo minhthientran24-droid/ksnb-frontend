@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import { getUser, listKiemKeStaff, getLlvThongKeThang, downloadLlvThongKeThang, leaveDaysByDate } from "../lib/api";
+import { useAllowedKeys } from "../lib/permissions";
 import {
   llv2BridgeLogin,
   llv2GetShops, llv2GetCandidates, llv2GetScheduledToday,
@@ -179,6 +180,7 @@ function applySort(rows, sortState, getters) {
 
 export default function LichLamViecPage() {
   const router = useRouter();
+  const { can } = useAllowedKeys();
   const [checked, setChecked] = useState(false);
   const [bridgeError, setBridgeError] = useState("");
   const [myRole, setMyRole] = useState(null);
@@ -258,25 +260,36 @@ export default function LichLamViecPage() {
         </div>
 
         <div className="month-tabs">
-          <div className={`month-tab ${view === "thong_ke" ? "active" : ""}`} onClick={() => setView("thong_ke")}>📊 Thống kê</div>
+          {can("/lich-lam-viec::thong_ke") && (
+            <div className={`month-tab ${view === "thong_ke" ? "active" : ""}`} onClick={() => setView("thong_ke")}>📊 Thống kê</div>
+          )}
           {isAdminRole && (
             <>
-              <div className={`month-tab ${view === "list" ? "active" : ""}`} onClick={() => setView("list")}>📋 Danh sách shop</div>
-              <div className={`month-tab ${view === "schedule" ? "active" : ""}`} onClick={() => setView("schedule")}>🗓️ Cần chia lịch</div>
-              <div className={`month-tab ${view === "today" ? "active" : ""}`} onClick={() => setView("today")}>📌 Shop được chia - Chuẩn bị kiểm kê</div>
+              {can("/lich-lam-viec::list") && (
+                <div className={`month-tab ${view === "list" ? "active" : ""}`} onClick={() => setView("list")}>📋 Danh sách shop</div>
+              )}
+              {can("/lich-lam-viec::schedule") && (
+                <div className={`month-tab ${view === "schedule" ? "active" : ""}`} onClick={() => setView("schedule")}>🗓️ Cần chia lịch</div>
+              )}
+              {can("/lich-lam-viec::today") && (
+                <div className={`month-tab ${view === "today" ? "active" : ""}`} onClick={() => setView("today")}>📌 Shop được chia - Chuẩn bị kiểm kê</div>
+              )}
             </>
           )}
         </div>
+        {!can(`/lich-lam-viec::${view}`) && (
+          <div className="placeholder-box" style={{ marginBottom: 16 }}>Bạn không có quyền xem tab này — chọn 1 tab khác ở trên.</div>
+        )}
 
         {error && <div className="placeholder-box" style={{ marginBottom: 16 }}>Lỗi: {error}</div>}
         {loading && <div style={{ fontSize: 13, color: "var(--text-600)", marginBottom: 12 }}><span className="tiny-spinner" /> Đang tải...</div>}
 
-        {view === "thong_ke" && (
+        {view === "thong_ke" && can("/lich-lam-viec::thong_ke") && (
           <ThongKeThangView data={thongKeData} month={thongKeMonth} onMonthChange={setThongKeMonth} group={group} />
         )}
-        {view === "list" && shops && <ShopListView data={shops} onReload={reload} />}
-        {view === "schedule" && candidates && <ScheduleView data={candidates} group={group} onDone={reload} />}
-        {view === "today" && scheduledToday && <TodayScheduledView data={scheduledToday} group={group} onDone={reload} />}
+        {view === "list" && shops && can("/lich-lam-viec::list") && <ShopListView data={shops} onReload={reload} />}
+        {view === "schedule" && candidates && can("/lich-lam-viec::schedule") && <ScheduleView data={candidates} group={group} onDone={reload} />}
+        {view === "today" && scheduledToday && can("/lich-lam-viec::today") && <TodayScheduledView data={scheduledToday} group={group} onDone={reload} />}
 
         <style jsx global>{`
           .llv-page .llv-scroll { overflow: auto; }

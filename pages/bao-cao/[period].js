@@ -4,6 +4,7 @@ import {
   BarChart, Bar, Cell, LabelList, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import Layout from "../../components/Layout";
+import { useAllowedKeys } from "../../lib/permissions";
 import BlockRenderer from "../../components/ReportBlocks";
 import BlockEditor from "../../components/BlockEditor";
 import {
@@ -81,12 +82,19 @@ export default function BaoCaoDetailPage() {
   const [savingChuDe, setSavingChuDe] = useState(false);
   const [chuDeSaveError, setChuDeSaveError] = useState("");
   const isAdmin = ["admin", "super_admin"].includes(getUser()?.role);
+  const { can, ready: permReady } = useAllowedKeys();
 
   useEffect(() => {
     if (getUser()?.role === "editor_base") {
       router.replace("/");
     }
   }, []);
+
+  useEffect(() => {
+    if (!permReady || editMode || can(`/bao-cao::${tab}`)) return;
+    const first = ["kiem-ke", "chu-de"].find((k) => can(`/bao-cao::${k}`));
+    if (first) setTab(first);
+  }, [permReady, editMode, tab]);
 
   useEffect(() => {
     listReports().then(setAllPeriods).catch((err) => setError(err.message));
@@ -315,16 +323,20 @@ export default function BaoCaoDetailPage() {
       {report && (
         <>
           <div className="month-tabs">
-            <div className={`month-tab ${tab === "kiem-ke" ? "active" : ""}`} onClick={() => !editMode && setTab("kiem-ke")}>
-              📦 Báo cáo kiểm kê
-            </div>
-            <div className={`month-tab ${tab === "chu-de" ? "active" : ""}`} onClick={() => !editMode && setTab("chu-de")}>
-              🗂️ Báo cáo kiểm soát theo chủ đề{cd.ten_chu_de ? `: ${cd.ten_chu_de}` : ""}
-            </div>
+            {can("/bao-cao::kiem-ke") && (
+              <div className={`month-tab ${tab === "kiem-ke" ? "active" : ""}`} onClick={() => !editMode && setTab("kiem-ke")}>
+                📦 Báo cáo kiểm kê
+              </div>
+            )}
+            {can("/bao-cao::chu-de") && (
+              <div className={`month-tab ${tab === "chu-de" ? "active" : ""}`} onClick={() => !editMode && setTab("chu-de")}>
+                🗂️ Báo cáo kiểm soát theo chủ đề{cd.ten_chu_de ? `: ${cd.ten_chu_de}` : ""}
+              </div>
+            )}
           </div>
 
           {/* ================= TAB: BÁO CÁO KIỂM KÊ ================= */}
-          {tab === "kiem-ke" && (
+          {tab === "kiem-ke" && can("/bao-cao::kiem-ke") && (
             <>
               {kk.ky_kiem_ke && (
                 <p style={{ fontSize: 13, color: "var(--text-600)", marginBottom: 16 }}>
@@ -625,7 +637,7 @@ export default function BaoCaoDetailPage() {
           )}
 
           {/* ================= TAB: BÁO CÁO CHỦ ĐỀ ================= */}
-          {tab === "chu-de" && (
+          {tab === "chu-de" && can("/bao-cao::chu-de") && (
             <>
               {isAdmin && !chuDeEditMode && (
                 <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>

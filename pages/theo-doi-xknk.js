@@ -3,6 +3,7 @@ import Layout from "../components/Layout";
 import {
   getUser, getXknkCanTon, getXknkCanTonMonths, checkXknkCanTonRow, downloadXknkCanTonRow, updateXknkCanTonResult,
 } from "../lib/api";
+import { useAllowedKeys } from "../lib/permissions";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
 
@@ -281,7 +282,15 @@ function CanTonTab({ isAdmin, me }) {
 export default function TheoDoiXknkPage() {
   const me = getUser();
   const isAdmin = me && ADMIN_ROLES.includes(me.role);
+  const { can, ready: permReady } = useAllowedKeys();
   const [tab, setTab] = useState("can_ton");
+
+  // Chốt 01/09 — tự chuyển tab đầu tiên còn quyền nếu tab đang mở bị gỡ quyền.
+  useEffect(() => {
+    if (!permReady || can(`/theo-doi-xknk::${tab}`)) return;
+    const first = TABS.map((t) => t.key).find((k) => can(`/theo-doi-xknk::${k}`));
+    if (first) setTab(first);
+  }, [permReady, tab]);
 
   return (
     <Layout crumb="Theo dõi XK-NK">
@@ -290,7 +299,7 @@ export default function TheoDoiXknkPage() {
       </div>
 
       <div className="month-tabs">
-        {TABS.map((t) => (
+        {TABS.filter((t) => can(`/theo-doi-xknk::${t.key}`)).map((t) => (
           <div key={t.key} className={`month-tab ${tab === t.key ? "active" : ""}`} onClick={() => setTab(t.key)}>
             {t.label}
           </div>

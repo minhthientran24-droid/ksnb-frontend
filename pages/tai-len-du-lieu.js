@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import ReferenceFilesPanel, { REFERENCE_ITEMS } from "../components/ReferenceFilesPanel";
+import { useAllowedKeys } from "../lib/permissions";
 import {
   listPendingUploads, uploadPendingFile, deletePendingUpload, uploadKiemKeThangReport, getUser,
   getLuyKeStatus, uploadLuyKe, getXknkCanTonMonths, uploadXknkCanTon, downloadReferenceFilesTemplate,
@@ -46,6 +47,7 @@ const YEAR_OPTIONS = [CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1];
 
 export default function TaiLenDuLieuPage() {
   const router = useRouter();
+  const { can } = useAllowedKeys();
   const [checked, setChecked] = useState(false);
   const [rows, setRows] = useState([]);
   const [error, setError] = useState("");
@@ -226,7 +228,7 @@ export default function TaiLenDuLieuPage() {
           BCKS/Cắt liều/VX) thành 1 lưới duy nhất, bỏ hết tiêu đề/ghi chú
           riêng từng nhóm (chốt 27/08 lần 23 — trước đó mỗi nhóm 1 khối
           tiêu đề riêng bên trong). ---- */}
-      <div className="card">
+      <div className="card" style={{ display: can("/tai-len-du-lieu::tham-chieu") ? undefined : "none" }}>
         <div className="card-head">
           <h3>🗂️ Dữ liệu tham chiếu</h3>
           <button className="fbtn" disabled={refTemplateBusy} onClick={handleDownloadRefTemplate}>
@@ -240,10 +242,10 @@ export default function TaiLenDuLieuPage() {
 
       {/* ---- Danh sách shop (Phân công KSNB kiểm kê) — dời từ "Phân công
           KSNB kiểm kê" sang đây (chốt 27/08 lần 21). ---- */}
-      <DanhSachShopUploadBar />
+      {can("/tai-len-du-lieu::danh-sach-shop") && <DanhSachShopUploadBar />}
 
       {/* ---- Báo cáo kiểm kê (tháng) — xử lý ngay ---- */}
-      <div className="card">
+      <div className="card" style={{ display: can("/tai-len-du-lieu::kiem-ke-thang") ? undefined : "none" }}>
         <div className="card-head"><h3>Báo cáo kiểm kê (tháng)</h3></div>
         <div className="card-body" style={{ padding: "16px 20px" }}>
           <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 12 }}>
@@ -311,7 +313,7 @@ export default function TaiLenDuLieuPage() {
       </div>
 
       {/* ---- Báo cáo kiểm soát chủ đề (tháng) — vẫn qua PC xử lý ---- */}
-      <div className="card">
+      <div className="card" style={{ display: can("/tai-len-du-lieu::chu-de-thang") ? undefined : "none" }}>
         <div className="card-head">
           <h3>Báo cáo kiểm soát chủ đề (tháng)</h3>
           <span className="note">{chuDeRows.length} file chờ xử lý</span>
@@ -395,7 +397,7 @@ export default function TaiLenDuLieuPage() {
 
       {/* ---- Dữ liệu Lũy Kế — mỗi THÁNG 1 bộ data riêng, up tháng nào chỉ
           xóa/ghi đúng tháng đó, không đụng các tháng khác (chốt 27/08 lần 2) ---- */}
-      <div className="card">
+      <div className="card" style={{ display: can("/tai-len-du-lieu::luy-ke") ? undefined : "none" }}>
         <div className="card-head">
           <h3>Dữ liệu Lũy Kế</h3>
           <span className="note">{luyKeMonths.length > 0 ? `${luyKeMonths.length} tháng đã có data` : "Chưa có dữ liệu"}</span>
@@ -480,7 +482,7 @@ export default function TaiLenDuLieuPage() {
       {/* ---- Data Cân tồn XK-NK — dời từ "Theo dõi XK-NK" sang đây, mỗi
           THÁNG 1 bộ data riêng, up tháng nào chỉ xóa/ghi đúng tháng đó
           (chốt 27/08 lần 5) ---- */}
-      <div className="card">
+      <div className="card" style={{ display: can("/tai-len-du-lieu::can-ton-xknk") ? undefined : "none" }}>
         <div className="card-head">
           <h3>Data Cân tồn XK-NK</h3>
           <span className="note">{xknkMonths.length > 0 ? `${xknkMonths.length} tháng đã có data` : "Chưa có dữ liệu"}</span>

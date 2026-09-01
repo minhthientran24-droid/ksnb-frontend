@@ -1,9 +1,10 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
 import {
   checkKiemKeCanDate, capNhatKetQuaKiemKe, tongHopBcksFromXknk, processHoTroVx, tongHopBcksTttc,
   getUser,
 } from "../lib/api";
+import { useAllowedKeys } from "../lib/permissions";
 
 // TOÀN BỘ "Dữ liệu tham chiếu (Admin)" (mặc định + Cắt liều + VX) đã dời
 // sang menu "Tải lên dữ liệu" (chốt 27/08 lần 18-20) — xem
@@ -20,8 +21,18 @@ function downloadBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
+const HO_TRO_TAB_KEYS = ["thanh-ly", "khac", "vx"];
+
 export default function HoTroKiemKePage() {
+  const { can, ready: permReady } = useAllowedKeys();
   const [tab, setTab] = useState("thanh-ly"); // "thanh-ly" | "khac" | "vx"
+
+  // Chốt 01/09 — tự chuyển tab đầu tiên còn quyền nếu tab đang mở bị gỡ quyền.
+  useEffect(() => {
+    if (!permReady || can(`/ho-tro-kiem-ke::${tab}`)) return;
+    const first = HO_TRO_TAB_KEYS.find((k) => can(`/ho-tro-kiem-ke::${k}`));
+    if (first) setTab(first);
+  }, [permReady, tab]);
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState(null); // { filename, blob } | null
   const [error, setError] = useState("");
@@ -232,15 +243,21 @@ export default function HoTroKiemKePage() {
       </div>
 
       <div className="month-tabs">
+        {can("/ho-tro-kiem-ke::thanh-ly") && (
         <div className={`month-tab ${tab === "thanh-ly" ? "active" : ""}`} onClick={() => setTab("thanh-ly")}>
           Kiểm kê Thanh Lý
         </div>
+        )}
+        {can("/ho-tro-kiem-ke::khac") && (
         <div className={`month-tab ${tab === "khac" ? "active" : ""}`} onClick={() => setTab("khac")}>
           Tổng hợp Báo cáo Kiểm Soát Sau Kiểm Kê
         </div>
+        )}
+        {can("/ho-tro-kiem-ke::vx") && (
         <div className={`month-tab ${tab === "vx" ? "active" : ""}`} onClick={() => setTab("vx")}>
           Hỗ trợ kiểm kê shop VX
         </div>
+        )}
       </div>
 
       {tab === "thanh-ly" && (

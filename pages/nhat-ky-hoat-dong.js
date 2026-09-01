@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import { getActivityLogSummary, getInactiveUsers, getUser } from "../lib/api";
+import { useAllowedKeys } from "../lib/permissions";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
 
@@ -22,6 +23,7 @@ export default function NhatKyHoatDongPage() {
   const router = useRouter();
   const [checked, setChecked] = useState(false);
   const [tab, setTab] = useState("theo-ngay"); // "theo-ngay" | "khong-hoat-dong"
+  const { can, ready: permReady } = useAllowedKeys();
 
   useEffect(() => {
     const user = getUser();
@@ -31,6 +33,12 @@ export default function NhatKyHoatDongPage() {
     }
     setChecked(true);
   }, []);
+
+  useEffect(() => {
+    if (!permReady || can(`/nhat-ky-hoat-dong::${tab}`)) return;
+    const first = ["theo-ngay", "khong-hoat-dong"].find((k) => can(`/nhat-ky-hoat-dong::${k}`));
+    if (first) setTab(first);
+  }, [permReady, tab]);
 
   if (!checked) return null;
 
@@ -42,16 +50,20 @@ export default function NhatKyHoatDongPage() {
       </div>
 
       <div className="month-tabs">
-        <div className={`month-tab ${tab === "theo-ngay" ? "active" : ""}`} onClick={() => setTab("theo-ngay")}>
-          📊 Theo ngày
-        </div>
-        <div className={`month-tab ${tab === "khong-hoat-dong" ? "active" : ""}`} onClick={() => setTab("khong-hoat-dong")}>
-          🚨 Không hoạt động
-        </div>
+        {can("/nhat-ky-hoat-dong::theo-ngay") && (
+          <div className={`month-tab ${tab === "theo-ngay" ? "active" : ""}`} onClick={() => setTab("theo-ngay")}>
+            📊 Theo ngày
+          </div>
+        )}
+        {can("/nhat-ky-hoat-dong::khong-hoat-dong") && (
+          <div className={`month-tab ${tab === "khong-hoat-dong" ? "active" : ""}`} onClick={() => setTab("khong-hoat-dong")}>
+            🚨 Không hoạt động
+          </div>
+        )}
       </div>
 
-      {tab === "theo-ngay" && <TheoNgayTab />}
-      {tab === "khong-hoat-dong" && <KhongHoatDongTab />}
+      {tab === "theo-ngay" && can("/nhat-ky-hoat-dong::theo-ngay") && <TheoNgayTab />}
+      {tab === "khong-hoat-dong" && can("/nhat-ky-hoat-dong::khong-hoat-dong") && <KhongHoatDongTab />}
     </Layout>
   );
 }

@@ -3,6 +3,7 @@ import Layout from "../components/Layout";
 import {
   getUser, listMyLeaveDays, createLeaveDay, deleteLeaveDay, listAllLeaveDays,
 } from "../lib/api";
+import { useAllowedKeys } from "../lib/permissions";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
 // Xem tab "Lịch bố trí" (chốt 29/08) — mở thêm cho "editor", không mở cho
@@ -27,6 +28,7 @@ function formatDateVn(iso) {
 }
 
 export default function LichNghiPage() {
+  const { can, ready: permReady } = useAllowedKeys();
   const [role, setRole] = useState(null);
   const [tab, setTab] = useState("dang-ky");
 
@@ -36,7 +38,15 @@ export default function LichNghiPage() {
   }, []);
 
   const isAdmin = ADMIN_ROLES.includes(role);
-  const canViewAll = VIEW_ALL_ROLES.includes(role);
+  // Kết hợp CẢ 2: role phải nằm trong VIEW_ALL_ROLES (khớp đúng quyền thật
+  // của API backend GET /leave-days/all) VÀ chưa bị super_admin gỡ thêm ở
+  // "Quản lý phân quyền" (cấp 2) — chốt 01/09.
+  const canViewAll = VIEW_ALL_ROLES.includes(role) && can("/lich-nghi::lich-bo-tri");
+
+  // Tự chuyển về tab "Đăng ký nghỉ" nếu đang ở "Lịch bố trí" mà bị gỡ quyền.
+  useEffect(() => {
+    if (permReady && tab === "lich-bo-tri" && !canViewAll) setTab("dang-ky");
+  }, [permReady, canViewAll, tab]);
 
   return (
     <Layout crumb="Lịch làm việc & nghỉ phép">
