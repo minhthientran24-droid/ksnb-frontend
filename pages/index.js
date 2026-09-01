@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Layout from "../components/Layout";
 import { getHomepageContent, updateHomepageContent, getUser } from "../lib/api";
+import { useAllowedKeys } from "../lib/permissions";
 
 // Chốt 28/08 — thay toàn bộ "Truy cập nhanh" theo đúng 5 menu anh chọn
 // (icon lấy đúng như Sidebar.js để đồng bộ toàn web).
@@ -19,6 +20,7 @@ export default function HomePage() {
   const [draft, setDraft] = useState(null);
   const [saving, setSaving] = useState(false);
   const isAdmin = ["admin", "super_admin"].includes(getUser()?.role);
+  const { can } = useAllowedKeys();
 
   useEffect(() => {
     getHomepageContent().then(setContent).catch(() => {});
@@ -55,7 +57,7 @@ export default function HomePage() {
   return (
     <Layout crumb="Trang chủ">
       <div className="intro-hero" style={{ position: "relative" }}>
-        {isAdmin && !editing && content && (
+        {isAdmin && !editing && content && can("/::sua-noi-dung") && (
           <button onClick={startEdit} style={editBtnStyle}>✏️ Sửa nội dung</button>
         )}
         {editing ? (

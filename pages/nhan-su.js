@@ -5,6 +5,7 @@ import {
   listPersonnel, saveOwnPersonnel, updatePersonnel, deletePersonnel, getUser, uploadAvatar,
   getMySignature, saveMySignature, listAllSignatures, adminSaveSignature,
 } from "../lib/api";
+import { useAllowedKeys } from "../lib/permissions";
 
 const emptyForm = {
   full_name: "", position: "", email: "", phone: "",
@@ -202,6 +203,7 @@ export default function NhanSuPage() {
     load();
   }, []);
 
+  const { can } = useAllowedKeys();
   const isAdmin = me && ADMIN_ROLES.includes(me.role);
   const myProfile = me ? list.find((p) => p.owner_user_id === me.id) : null;
 
@@ -351,7 +353,7 @@ export default function NhanSuPage() {
       <div className="org-grid">
         {list.map((p) => {
           const mine = me && p.owner_user_id === me.id;
-          const canEdit = mine || isAdmin;
+          const canEdit = mine || (isAdmin && can("/nhan-su::sua-xoa-nguoi-khac"));
           return (
             <div className="card" key={p.id} style={{ padding: 18 }}>
               <div style={{ display: "flex", gap: 12, alignItems: "center" }}>

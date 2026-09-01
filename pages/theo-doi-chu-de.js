@@ -841,10 +841,14 @@ export default function TheoDoiChuDePage() {
                               {busy ? "Đang trả..." : "↩️ Trả lại (chờ nhận)"}
                             </button>
                           )}
-                          {isAdmin && (
+                          {isAdmin && (can("/theo-doi-chu-de::sua-job") || can("/theo-doi-chu-de::xoa-job")) && (
                             <div style={{ display: "flex", gap: 6 }}>
-                              <button className="fbtn" onClick={() => { setEditingJob(job); setShowForm(true); }}>Sửa</button>
-                              <button className="fbtn danger" onClick={() => handleDelete(job)}>Xóa</button>
+                              {can("/theo-doi-chu-de::sua-job") && (
+                                <button className="fbtn" onClick={() => { setEditingJob(job); setShowForm(true); }}>Sửa</button>
+                              )}
+                              {can("/theo-doi-chu-de::xoa-job") && (
+                                <button className="fbtn danger" onClick={() => handleDelete(job)}>Xóa</button>
+                              )}
                             </div>
                           )}
                         </div>

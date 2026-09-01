@@ -81,6 +81,7 @@ export default function DeXuatKiemKePage() {
 }
 
 function ShopProposalPanel() {
+  const { can } = useAllowedKeys();
   const [rows, setRows] = useState([]);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -330,7 +331,7 @@ function ShopProposalPanel() {
                   <td style={tdStyle}>{formatThangKiemKe(r.thang_kiem_ke)}</td>
                   <td style={tdStyle}>{r.de_xuat_boi || "—"}</td>
                   <td style={tdStyle}>{formatDateVn(r.updated_at)}</td>
-                  <td style={tdStyle}><button className="fbtn danger" onClick={() => handleDelete(r.id)}>Xóa</button></td>
+                  <td style={tdStyle}>{can("/de-xuat-kiem-ke::shop::xoa") && <button className="fbtn danger" onClick={() => handleDelete(r.id)}>Xóa</button>}</td>
                 </tr>
               ))}
               {!rows.length && (
@@ -345,6 +346,7 @@ function ShopProposalPanel() {
 }
 
 function KsnbProposalPanel() {
+  const { can } = useAllowedKeys();
   const [rows, setRows] = useState([]);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -463,7 +465,7 @@ function KsnbProposalPanel() {
                   <td style={tdStyle}>{formatThangKiemKe(r.thang_kiem_ke)}</td>
                   <td style={tdStyle}>{r.de_xuat_boi || "—"}</td>
                   <td style={tdStyle}>{formatDateVn(r.updated_at)}</td>
-                  <td style={tdStyle}><button className="fbtn danger" onClick={() => handleDelete(r.id)}>Xóa</button></td>
+                  <td style={tdStyle}>{can("/de-xuat-kiem-ke::ksnb::xoa") && <button className="fbtn danger" onClick={() => handleDelete(r.id)}>Xóa</button>}</td>
                 </tr>
               ))}
               {!rows.length && (

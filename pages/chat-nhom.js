@@ -6,6 +6,7 @@ import {
   downloadChatMessageFile, fetchChatMessageImageUrl, reactToChatMessage,
   getMyChatNickname, updateMyChatNickname, listUsers, getUser,
 } from "../lib/api";
+import { useAllowedKeys } from "../lib/permissions";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
 
@@ -231,6 +232,7 @@ function NicknameModal({ initial, onClose, onSave }) {
 export default function ChatNhomPage() {
   const me = getUser();
   const isAdmin = me && ADMIN_ROLES.includes(me.role);
+  const { can } = useAllowedKeys();
 
   const [groups, setGroups] = useState([]);
   const [activeGroupId, setActiveGroupId] = useState(null);
@@ -579,7 +581,7 @@ export default function ChatNhomPage() {
                   <div className="chat-group-name">{g.name}</div>
                   <div className="chat-group-preview">{friendlyPreview(g.last_message_preview) || "Chưa có tin nhắn"}</div>
                 </div>
-                {isAdmin && !g.is_default && (
+                {isAdmin && !g.is_default && can("/chat-nhom::sua-xoa-nhom") && (
                   <div className="chat-group-actions">
                     <button className="chat-icon-btn" title="Sửa nhóm" onClick={(e) => { e.stopPropagation(); openEditGroup(g); }}>⚙</button>
                     <button className="chat-icon-btn" title="Xóa nhóm" onClick={(e) => { e.stopPropagation(); handleDeleteGroup(g); }}>🗑</button>

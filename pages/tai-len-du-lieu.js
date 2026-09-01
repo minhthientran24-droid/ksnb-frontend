@@ -385,7 +385,9 @@ export default function TaiLenDuLieuPage() {
                       </span>
                     </td>
                     <td>
-                      <button onClick={() => handleDelete(r.id)} style={deleteBtnStyle}>Xóa</button>
+                      {can("/tai-len-du-lieu::chu-de-thang::xoa") && (
+                        <button onClick={() => handleDelete(r.id)} style={deleteBtnStyle}>Xóa</button>
+                      )}
                     </td>
                   </tr>
                 ))}

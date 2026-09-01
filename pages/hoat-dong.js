@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import { listActivities, createActivity, updateActivity, deleteActivity, getUser } from "../lib/api";
+import { useAllowedKeys } from "../lib/permissions";
 
 const emptyForm = { title: "", description: "", activity_date: "", image_url: "" };
 const ADMIN_ROLES = ["admin", "super_admin"];
@@ -25,6 +26,7 @@ export default function HoatDongPage() {
   }, []);
 
   const isAdmin = me && ADMIN_ROLES.includes(me.role);
+  const { can } = useAllowedKeys();
 
   function openCreate() {
     setForm(emptyForm);
@@ -126,7 +128,7 @@ export default function HoatDongPage() {
       <div className="org-grid">
         {list.map((a) => {
           const mine = me && a.owner_user_id === me.id;
-          const canEdit = mine || isAdmin;
+          const canEdit = mine || (isAdmin && can("/hoat-dong::sua-xoa-nguoi-khac"));
           return (
             <div className="card" key={a.id} style={{ overflow: "hidden" }}>
               {a.image_url && (

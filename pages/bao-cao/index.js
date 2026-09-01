@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import Layout from "../../components/Layout";
 import { listReports, deleteReport, getUser } from "../../lib/api";
+import { useAllowedKeys } from "../../lib/permissions";
 
 export default function BaoCaoListPage() {
   const router = useRouter();
@@ -11,6 +12,7 @@ export default function BaoCaoListPage() {
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState(null);
   const isAdmin = ["admin", "super_admin"].includes(getUser()?.role);
+  const { can } = useAllowedKeys();
 
   function load() {
     listReports()
@@ -63,7 +65,7 @@ export default function BaoCaoListPage() {
                 <th>Kỳ báo cáo</th>
                 <th>Trạng thái</th>
                 <th></th>
-                {isAdmin && <th></th>}
+                {isAdmin && can("/bao-cao::xoa-bao-cao") && <th></th>}
               </tr>
             </thead>
             <tbody>
@@ -74,7 +76,7 @@ export default function BaoCaoListPage() {
                   <td>
                     <Link href={`/bao-cao/${r.period_label}`}>Xem chi tiết →</Link>
                   </td>
-                  {isAdmin && (
+                  {isAdmin && can("/bao-cao::xoa-bao-cao") && (
                     <td>
                       <button
                         onClick={() => handleDelete(r.period_label, r.display_name)}

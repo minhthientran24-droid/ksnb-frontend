@@ -4,6 +4,7 @@ import {
   listViolationCases, createViolationCase, updateViolationCase, deleteViolationCase,
   importViolationCasesFiles, getUser,
 } from "../lib/api";
+import { useAllowedKeys } from "../lib/permissions";
 
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
 const now = new Date();
@@ -60,6 +61,7 @@ export default function GhiNhanCasePage() {
   const me = getUser();
   const isAdmin = ["admin", "super_admin"].includes(me?.role);
   const canCreate = ["editor", "editor_base", "admin", "super_admin"].includes(me?.role);
+  const { can } = useAllowedKeys();
 
   const periodLabel = `${period.year}-${period.month}`;
 
@@ -264,7 +266,7 @@ export default function GhiNhanCasePage() {
 
       {cases.map((c) => {
         const md = mucDoInfo(c.muc_do);
-        const canEdit = isAdmin || c.created_by_user_id === me?.id;
+        const canEdit = (isAdmin && can("/ghi-nhan-case::sua-xoa-nguoi-khac")) || c.created_by_user_id === me?.id;
         const editing = editingId === c.id;
         return (
           <div className="card" key={c.id}>

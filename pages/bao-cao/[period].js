@@ -286,7 +286,7 @@ export default function BaoCaoDetailPage() {
         {isAdmin && tab === "kiem-ke" && report && (
           <div style={{ display: "flex", gap: 8 }}>
             {!editMode ? (
-              <button onClick={startEdit} style={editToggleBtnStyle}>✏️ Sửa nhanh</button>
+              can("/bao-cao::kiem-ke::sua") && <button onClick={startEdit} style={editToggleBtnStyle}>✏️ Sửa nhanh</button>
             ) : (
               <>
                 <button onClick={saveEdit} disabled={saving} style={saveBtnStyle}>
@@ -649,7 +649,7 @@ export default function BaoCaoDetailPage() {
                   <button onClick={handleAiSynthesize} disabled={aiSynthesizing} style={editToggleBtnStyle}>
                     {aiSynthesizing ? "AI đang tổng hợp..." : "✨ Nhờ AI tổng hợp"}
                   </button>
-                  {cd.blocks && (
+                  {cd.blocks && can("/bao-cao::chu-de::sua") && (
                     <button onClick={startChuDeEdit} style={{ ...editToggleBtnStyle, background: "var(--surface)", color: "var(--text-900)", border: "1px solid var(--border)" }}>
                       ✏️ Sửa bản đã công bố
                     </button>

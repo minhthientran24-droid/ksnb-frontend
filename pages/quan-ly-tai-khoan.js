@@ -5,6 +5,7 @@ import {
   listUsers, createUserAccount, updateUserAccount, deleteUserAccount, exportUsersExcel, getUser,
   getMenuPermissionCatalog, saveMenuPermissions,
 } from "../lib/api";
+import { useAllowedKeys } from "../lib/permissions";
 
 const emptyForm = { email: "", full_name: "", position: "", password: "", role: "viewer", xlkk_app_access: false, kiem_ke_permission: false, khu_vuc: "" };
 const ADMIN_ROLES = ["admin", "super_admin"];
@@ -44,6 +45,7 @@ export default function QuanLyTaiKhoanPage() {
   const [editError, setEditError] = useState("");
   const [exporting, setExporting] = useState(false);
   const [tab, setTab] = useState("danh-sach");
+  const { can } = useAllowedKeys();
 
   useEffect(() => {
     const user = getUser();
@@ -358,15 +360,19 @@ export default function QuanLyTaiKhoanPage() {
                       </button>
                     </td>
                     <td style={{ display: "flex", gap: 8 }}>
-                      <button onClick={() => startEdit(u)} style={btnStyle}>
-                        Sửa
-                      </button>
+                      {can("/quan-ly-tai-khoan::sua-tai-khoan") && (
+                        <button onClick={() => startEdit(u)} style={btnStyle}>
+                          Sửa
+                        </button>
+                      )}
                       <button onClick={() => handleToggleActive(u)} style={btnStyle} disabled={u.id === me?.id}>
                         {u.is_active ? "Khóa" : "Mở khóa"}
                       </button>
-                      <button onClick={() => handleDelete(u.id)} style={{ ...btnStyle, color: "var(--danger)" }} disabled={u.id === me?.id}>
-                        Xóa
-                      </button>
+                      {can("/quan-ly-tai-khoan::xoa-tai-khoan") && (
+                        <button onClick={() => handleDelete(u.id)} style={{ ...btnStyle, color: "var(--danger)" }} disabled={u.id === me?.id}>
+                          Xóa
+                        </button>
+                      )}
                     </td>
                   </tr>
                   {editingId === u.id && (
@@ -422,6 +428,47 @@ export default function QuanLyTaiKhoanPage() {
 // bấm mũi tên để mở ra các tab/khu vực con (cấp 2) bên trong, tick chọn
 // role nào được xem menu/tab đó. super_admin luôn full quyền, không hiện
 // trong bảng. Cấp 2 chỉ thật sự có hiệu lực khi role đó ĐÃ có quyền cấp 1. ----------
+// 1 dòng trong cây phân quyền (menu cấp 1 / tab cấp 2 / nút Xóa-Sửa cấp 3) —
+// đệ quy tự gọi lại chính nó cho con, sâu bao nhiêu cấp cũng render được.
+function PhanQuyenRow({ node, depth, data, expanded, toggleExpand, toggle }) {
+  const children = node.children || [];
+  const hasChildren = children.length > 0;
+  const isOpen = expanded.has(node.key);
+  const icon = depth === 0 ? "📁" : hasChildren ? "📁" : "📄";
+  return (
+    <Fragment>
+      <tr style={depth > 0 ? { background: "var(--bg)" } : undefined}>
+        <td
+          style={{
+            textAlign: "left", paddingLeft: 12 + depth * 24,
+            cursor: hasChildren ? "pointer" : "default",
+            color: depth > 0 ? "var(--text-600)" : undefined,
+          }}
+          onClick={() => hasChildren && toggleExpand(node.key)}
+        >
+          {hasChildren ? (isOpen ? "▾" : "▸") : "　"} {icon} {node.label}
+        </td>
+        {data.roles.map((role) => (
+          <td key={role}>
+            <input
+              type="checkbox"
+              checked={!!data.matrix[role][node.key]}
+              onChange={() => toggle(role, node.key)}
+              style={{ width: 16, height: 16, cursor: "pointer" }}
+            />
+          </td>
+        ))}
+      </tr>
+      {hasChildren && isOpen && children.map((c) => (
+        <PhanQuyenRow
+          key={c.key} node={c} depth={depth + 1} data={data}
+          expanded={expanded} toggleExpand={toggleExpand} toggle={toggle}
+        />
+      ))}
+    </Fragment>
+  );
+}
+
 function PhanQuyenPanel() {
   const [data, setData] = useState(null); // {menus, roles, role_labels, matrix}
   const [error, setError] = useState("");
@@ -435,7 +482,17 @@ function PhanQuyenPanel() {
     setSaveMsg("");
     getMenuPermissionCatalog().then((d) => {
       setData(d);
-      setExpanded(new Set(d.menus.filter((m) => m.children.length).map((m) => m.key)));
+      // Mở sẵn hết mọi cấp (2 lẫn 3) có con, để rà soát tổng quan dễ hơn.
+      const expandable = [];
+      (function collect(nodes) {
+        for (const n of nodes) {
+          if ((n.children || []).length) {
+            expandable.push(n.key);
+            collect(n.children);
+          }
+        }
+      })(d.menus);
+      setExpanded(new Set(expandable));
     }).catch((err) => setError(err.message));
   }
   useEffect(load, []);
@@ -483,8 +540,9 @@ function PhanQuyenPanel() {
       <div className="card-body">
         <div style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 14, lineHeight: 1.6 }}>
           Tick chọn role nào được xem/vào 1 menu — bỏ tick thì role đó không thấy menu này trên sidebar
-          và cũng không vào được dù gõ thẳng link. Bấm ▸/▾ để mở ra các tab/khu vực con (cấp 2) bên trong
-          từng menu — cấp 2 chỉ thật sự có hiệu lực khi role đó ĐÃ được tick ở menu cha (cấp 1).
+          và cũng không vào được dù gõ thẳng link. Bấm ▸/▾ để mở ra các cấp con: cấp 2 là tab/khu vực bên
+          trong menu, cấp 3 (nếu có) là từng nút Xóa/Sửa lẻ bên trong 1 tab — mỗi cấp chỉ thật sự có hiệu
+          lực khi role đó ĐÃ được tick ở TẤT CẢ cấp cha phía trên.
         </div>
         <div style={{ overflowX: "auto" }}>
           <table style={{ fontSize: 12.5 }}>
@@ -497,49 +555,12 @@ function PhanQuyenPanel() {
               </tr>
             </thead>
             <tbody>
-              {data.menus.map((m) => {
-                const hasChildren = m.children.length > 0;
-                const isOpen = expanded.has(m.key);
-                return (
-                  <Fragment key={m.key}>
-                    <tr>
-                      <td
-                        style={{ textAlign: "left", cursor: hasChildren ? "pointer" : "default" }}
-                        onClick={() => hasChildren && toggleExpand(m.key)}
-                      >
-                        {hasChildren ? (isOpen ? "▾" : "▸") : "　"} 📁 {m.label}
-                      </td>
-                      {data.roles.map((role) => (
-                        <td key={role}>
-                          <input
-                            type="checkbox"
-                            checked={!!data.matrix[role][m.key]}
-                            onChange={() => toggle(role, m.key)}
-                            style={{ width: 16, height: 16, cursor: "pointer" }}
-                          />
-                        </td>
-                      ))}
-                    </tr>
-                    {hasChildren && isOpen && m.children.map((c) => (
-                      <tr key={c.key} style={{ background: "var(--bg)" }}>
-                        <td style={{ textAlign: "left", paddingLeft: 36, color: "var(--text-600)" }}>
-                          📄 {c.label}
-                        </td>
-                        {data.roles.map((role) => (
-                          <td key={role}>
-                            <input
-                              type="checkbox"
-                              checked={!!data.matrix[role][c.key]}
-                              onChange={() => toggle(role, c.key)}
-                              style={{ width: 16, height: 16, cursor: "pointer" }}
-                            />
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </Fragment>
-                );
-              })}
+              {data.menus.map((m) => (
+                <PhanQuyenRow
+                  key={m.key} node={m} depth={0} data={data}
+                  expanded={expanded} toggleExpand={toggleExpand} toggle={toggle}
+                />
+              ))}
             </tbody>
           </table>
         </div>

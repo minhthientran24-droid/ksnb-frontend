@@ -82,6 +82,7 @@ export default function LichNghiPage() {
 }
 
 function MyLeavePanel() {
+  const { can } = useAllowedKeys();
   const [rows, setRows] = useState([]);
   const [error, setError] = useState("");
   const [ngayNghi, setNgayNghi] = useState(todayStr());
@@ -166,7 +167,7 @@ function MyLeavePanel() {
                 </span>
                 <span className="leave-row-note">{r.ghi_chu || "—"}</span>
                 <span className="leave-row-actions">
-                  <button className="fbtn danger" onClick={() => handleDelete(r.id)}>Xóa</button>
+                  {can("/lich-nghi::dang-ky::xoa") && <button className="fbtn danger" onClick={() => handleDelete(r.id)}>Xóa</button>}
                 </span>
               </div>
             ))}
