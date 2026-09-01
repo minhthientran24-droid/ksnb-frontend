@@ -1,7 +1,10 @@
 import { Fragment, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
-import { listUsers, createUserAccount, updateUserAccount, deleteUserAccount, exportUsersExcel, getUser } from "../lib/api";
+import {
+  listUsers, createUserAccount, updateUserAccount, deleteUserAccount, exportUsersExcel, getUser,
+  getMenuPermissionCatalog, saveMenuPermissions,
+} from "../lib/api";
 
 const emptyForm = { email: "", full_name: "", position: "", password: "", role: "viewer", xlkk_app_access: false, kiem_ke_permission: false, khu_vuc: "" };
 const ADMIN_ROLES = ["admin", "super_admin"];
@@ -40,6 +43,7 @@ export default function QuanLyTaiKhoanPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [tab, setTab] = useState("danh-sach");
 
   useEffect(() => {
     const user = getUser();
@@ -197,6 +201,22 @@ export default function QuanLyTaiKhoanPage() {
           Chỉ Admin/Super Admin truy cập được mục này.
         </p>
       </div>
+
+      {me?.role === "super_admin" && (
+        <div className="month-tabs">
+          <div className={`month-tab ${tab === "danh-sach" ? "active" : ""}`} onClick={() => setTab("danh-sach")}>
+            Danh sách tài khoản
+          </div>
+          <div className={`month-tab ${tab === "phan-quyen" ? "active" : ""}`} onClick={() => setTab("phan-quyen")}>
+            🔐 Quản lý phân quyền
+          </div>
+        </div>
+      )}
+
+      {tab === "phan-quyen" && me?.role === "super_admin" ? (
+        <PhanQuyenPanel />
+      ) : (
+        <>
 
       <div className="card">
         <div className="card-body" style={{ padding: "16px 20px", display: "flex", gap: 10 }}>
@@ -391,7 +411,104 @@ export default function QuanLyTaiKhoanPage() {
           </table>
         </div>
       </div>
+        </>
+      )}
     </Layout>
+  );
+}
+
+// ---------- Tab "Quản lý phân quyền" (chốt 31/08) — chỉ super_admin. Bố
+// trí dạng cây: mỗi menu 1 hàng ("thư mục"), tick chọn role nào được xem
+// menu đó. Phase 1: chỉ cấp menu, chưa xuống tới chức năng con bên trong
+// từng trang (super_admin luôn full quyền, không hiện trong bảng). ----------
+function PhanQuyenPanel() {
+  const [data, setData] = useState(null); // {menus, roles, role_labels, matrix}
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState("");
+  const [dirty, setDirty] = useState(false);
+
+  function load() {
+    setSaveMsg("");
+    getMenuPermissionCatalog().then(setData).catch((err) => setError(err.message));
+  }
+  useEffect(load, []);
+
+  function toggle(role, menuKey) {
+    setData((d) => ({
+      ...d,
+      matrix: { ...d.matrix, [role]: { ...d.matrix[role], [menuKey]: !d.matrix[role][menuKey] } },
+    }));
+    setDirty(true);
+    setSaveMsg("");
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setSaveMsg("");
+    try {
+      await saveMenuPermissions(data.matrix);
+      setSaveMsg("✅ Đã lưu — role bị đổi quyền cần đăng nhập lại (hoặc tải lại trang) mới thấy đúng menu mới.");
+      setDirty(false);
+    } catch (err) {
+      setSaveMsg("❌ " + err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (error) return <div className="placeholder-box">Không tải được dữ liệu: {error}</div>;
+  if (!data) return null;
+
+  return (
+    <div className="card">
+      <div className="card-head">
+        <h3>🔐 Quản lý phân quyền — theo Menu</h3>
+        <span className="note">Super Admin luôn toàn quyền, không cần cấu hình riêng</span>
+      </div>
+      <div className="card-body">
+        <div style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 14, lineHeight: 1.6 }}>
+          Tick chọn role nào được xem/vào 1 menu — bỏ tick thì role đó không thấy menu này trên sidebar
+          và cũng không vào được dù gõ thẳng link. Chưa tick gì cho 1 menu = role đó không được truy cập.
+        </div>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ fontSize: 12.5 }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left" }}>Menu</th>
+                {data.roles.map((role) => (
+                  <th key={role}>{data.role_labels[role] || role}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.menus.map((m) => (
+                <tr key={m.key}>
+                  <td style={{ textAlign: "left" }}>📁 {m.label}</td>
+                  {data.roles.map((role) => (
+                    <td key={role}>
+                      <input
+                        type="checkbox"
+                        checked={!!data.matrix[role][m.key]}
+                        onChange={() => toggle(role, m.key)}
+                        style={{ width: 16, height: 16, cursor: "pointer" }}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 12 }}>
+          <button className="login-btn" style={{ width: "auto", padding: "10px 24px" }} disabled={saving || !dirty} onClick={handleSave}>
+            {saving ? "Đang lưu..." : "💾 Lưu thay đổi"}
+          </button>
+          {saveMsg && <span style={{ fontSize: 12.5, color: saveMsg.startsWith("❌") ? "var(--danger)" : "#3E7A2A" }}>{saveMsg}</span>}
+        </div>
+      </div>
+    </div>
   );
 }
 

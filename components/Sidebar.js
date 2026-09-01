@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import { getUser } from "../lib/api";
+import { getUser, getMyAllowedMenusCached } from "../lib/api";
 
 const NAV_ITEMS = [
   { href: "/", icon: "🏠", label: "Trang chủ" },
@@ -24,17 +24,20 @@ const NAV_ITEMS = [
 ];
 
 const ADMIN_ITEMS = [
-  { href: "/tai-len-du-lieu", icon: "⬆️", label: "Tải lên dữ liệu" },
-  { href: "/quan-ly-tai-khoan", icon: "🔑", label: "Quản lý tài khoản" },
-  { href: "/nhat-ky-hoat-dong", icon: "📊", label: "Nhật ký hoạt động" },
+  { href: "/tai-len-du-lieu", icon: "⬆️", label: "Tải lên dữ liệu", hideForRoles: ["editor", "editor_base", "viewer"] },
+  { href: "/quan-ly-tai-khoan", icon: "🔑", label: "Quản lý tài khoản", hideForRoles: ["editor", "editor_base", "viewer"] },
+  { href: "/nhat-ky-hoat-dong", icon: "📊", label: "Nhật ký hoạt động", hideForRoles: ["editor", "editor_base", "viewer"] },
 ];
-const ADMIN_ROLES = ["admin", "super_admin"];
 const STORAGE_KEY = "ksnb_sidebar_collapsed";
 
 export default function Sidebar() {
   const router = useRouter();
-  const [isAdmin, setIsAdmin] = useState(false);
   const [myRole, setMyRole] = useState(null);
+  // Danh sách menu_key được phép — cấu hình động qua "Quản lý phân quyền"
+  // (chốt 31/08). null = chưa tải xong, tạm dùng hideForRoles hardcode ở
+  // trên làm phương án hiển thị ngay (đỡ chớp menu rỗng lúc đầu) — super_admin
+  // luôn full quyền, khỏi cần gọi API.
+  const [allowedMenus, setAllowedMenus] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
   // Menu dạng ngăn kéo (drawer) riêng cho mobile — độc lập với "collapsed"
   // (tính năng thu gọn còn icon dành cho desktop, không dùng trên mobile).
@@ -48,10 +51,12 @@ export default function Sidebar() {
 
   useEffect(() => {
     const me = getUser();
-    setIsAdmin(!!me && ADMIN_ROLES.includes(me.role));
     setMyRole(me?.role || null);
     const saved = typeof window !== "undefined" && localStorage.getItem(STORAGE_KEY);
     if (saved === "1") setCollapsed(true);
+    if (me && me.role !== "super_admin") {
+      getMyAllowedMenusCached().then((r) => setAllowedMenus(r.allowed_menus || [])).catch(() => {});
+    }
   }, []);
 
   // Tự đóng menu ngăn kéo mỗi khi chuyển trang, đỡ phải tự tay đóng.
@@ -68,6 +73,14 @@ export default function Sidebar() {
 
   const isActive = (href) =>
     href === "/" ? router.pathname === "/" : router.pathname.startsWith(href);
+
+  // super_admin: luôn thấy hết. Đã tải xong danh sách động: theo đúng danh
+  // sách đó. Chưa tải xong: tạm theo hideForRoles hardcode (không chớp menu).
+  function isVisible(item) {
+    if (myRole === "super_admin") return true;
+    if (allowedMenus) return allowedMenus.includes(item.href);
+    return !item.hideForRoles?.includes(myRole);
+  }
 
   function handleItemMouseEnter(e, item) {
     if (!collapsed) return;
@@ -93,6 +106,9 @@ export default function Sidebar() {
     );
   }
 
+  const visibleNavItems = NAV_ITEMS.filter(isVisible);
+  const visibleAdminItems = ADMIN_ITEMS.filter(isVisible);
+
   return (
     <>
       <button
@@ -110,12 +126,12 @@ export default function Sidebar() {
         </div>
 
         <nav className="sb-nav">
-          {NAV_ITEMS.filter((item) => !item.hideForRoles?.includes(myRole)).map(renderItem)}
+          {visibleNavItems.map(renderItem)}
 
-          {isAdmin && (
+          {visibleAdminItems.length > 0 && (
             <>
               <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "10px 14px" }} />
-              {ADMIN_ITEMS.map(renderItem)}
+              {visibleAdminItems.map(renderItem)}
             </>
           )}
         </nav>
