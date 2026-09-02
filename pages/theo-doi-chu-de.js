@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import {
   getUser, listChuDeJobs, createChuDeJob, updateChuDeJob, deleteChuDeJob,
@@ -247,12 +248,31 @@ function AddSupportersModal({ job, onDone, onCancel }) {
 }
 
 // ---------- Popup: đánh dấu Hoàn tất — chọn kết quả + upload file kết quả ----------
+// Chọn "Có vi phạm" (chốt 02/09): KHÔNG hoàn tất job ngay tại đây nữa — thay
+// vào đó chuyển thẳng sang "Ghi nhận case vi phạm" (điền sẵn Chủ đề/Đối
+// tượng/Vùng theo đúng job), bắt buộc nhập đủ thông tin case rồi Lưu; job
+// bên này sẽ TỰ ĐỘNG được đánh dấu Hoàn tất + Có vi phạm ngay sau khi lưu
+// case xong (xem ghi-nhan-case.js — đọc query "jobId"), tránh trường hợp
+// đánh dấu hoàn tất mà quên ghi case. Chọn "Không vi phạm" thì giữ nguyên
+// luồng cũ (hoàn tất ngay tại popup này, có thể kèm file kết quả).
 function CompleteJobModal({ job, onDone, onCancel }) {
+  const router = useRouter();
   const [ketQua, setKetQua] = useState("Không vi phạm");
   const [file, setFile] = useState(null);
   const fileInputRef = useRef(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  function chonCoViPham() {
+    setKetQua("Có vi phạm");
+    const params = new URLSearchParams({
+      jobId: String(job.id),
+      chu_de: job.ten_chu_de || "",
+      doi_tuong: [job.ma_shop, job.ten_shop].filter(Boolean).join(" - "),
+      vung: job.vung || "",
+    });
+    router.push(`/ghi-nhan-case?${params.toString()}`);
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -279,33 +299,45 @@ function CompleteJobModal({ job, onDone, onCancel }) {
             <div style={{ display: "flex", gap: 18 }}>
               {VI_PHAM_OPTIONS.map((opt) => (
                 <label key={opt} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
-                  <input type="radio" name="ket_qua_vi_pham" checked={ketQua === opt} onChange={() => setKetQua(opt)} />
+                  <input
+                    type="radio" name="ket_qua_vi_pham" checked={ketQua === opt}
+                    onChange={() => (opt === "Có vi phạm" ? chonCoViPham() : setKetQua(opt))}
+                  />
                   {opt}
                 </label>
               ))}
             </div>
           </div>
-          <div style={{ marginBottom: 16 }}>
-            <label style={labelStyle}>File kết quả (tuỳ chọn)</label>
-            <div>
-              <input
-                ref={fileInputRef} type="file" style={{ display: "none" }}
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-              />
-              <button type="button" className="upload-btn" onClick={() => fileInputRef.current?.click()}>
-                📤 {file ? "Đổi file khác" : "Chọn file kết quả"}
-              </button>
-              {file && <span style={{ fontSize: 11, color: "var(--text-400)", marginLeft: 10 }}>{file.name}</span>}
-            </div>
-          </div>
 
-          {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14 }}>{error}</div>}
-          <div style={{ display: "flex", gap: 10 }}>
-            <button type="submit" disabled={saving} className="login-btn" style={{ width: "auto", padding: "9px 22px" }}>
-              {saving ? "Đang lưu..." : "Xác nhận hoàn tất"}
-            </button>
-            <button type="button" onClick={onCancel} style={{ ...deleteBtnStyle, padding: "9px 18px" }}>Hủy</button>
-          </div>
+          {ketQua === "Có vi phạm" ? (
+            <div style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 16 }}>
+              Đang chuyển sang "Ghi nhận case vi phạm"...
+            </div>
+          ) : (
+            <>
+              <div style={{ marginBottom: 16 }}>
+                <label style={labelStyle}>File kết quả (tuỳ chọn)</label>
+                <div>
+                  <input
+                    ref={fileInputRef} type="file" style={{ display: "none" }}
+                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  />
+                  <button type="button" className="upload-btn" onClick={() => fileInputRef.current?.click()}>
+                    📤 {file ? "Đổi file khác" : "Chọn file kết quả"}
+                  </button>
+                  {file && <span style={{ fontSize: 11, color: "var(--text-400)", marginLeft: 10 }}>{file.name}</span>}
+                </div>
+              </div>
+
+              {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14 }}>{error}</div>}
+              <div style={{ display: "flex", gap: 10 }}>
+                <button type="submit" disabled={saving} className="login-btn" style={{ width: "auto", padding: "9px 22px" }}>
+                  {saving ? "Đang lưu..." : "Xác nhận hoàn tất"}
+                </button>
+                <button type="button" onClick={onCancel} style={{ ...deleteBtnStyle, padding: "9px 18px" }}>Hủy</button>
+              </div>
+            </>
+          )}
         </form>
       </div>
     </div>

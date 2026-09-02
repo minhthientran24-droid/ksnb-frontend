@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import {
   listViolationCases, createViolationCase, updateViolationCase, deleteViolationCase,
-  importViolationCasesFiles, getUser,
+  importViolationCasesFiles, completeChuDeJob, getUser,
 } from "../lib/api";
 import { useAllowedKeys } from "../lib/permissions";
 
@@ -47,6 +48,7 @@ function hinhThucXlklLabel(value) {
 }
 
 export default function GhiNhanCasePage() {
+  const router = useRouter();
   const [period, setPeriod] = useState({ month: CURRENT_MONTH, year: CURRENT_YEAR });
   const [cases, setCases] = useState([]);
   const [error, setError] = useState("");
@@ -62,6 +64,25 @@ export default function GhiNhanCasePage() {
   const isAdmin = ["admin", "super_admin"].includes(me?.role);
   const canCreate = ["editor", "editor_base", "admin", "super_admin"].includes(me?.role);
   const { can } = useAllowedKeys();
+
+  // Sang từ popup "Cập nhật kết quả xử lý" bên Theo dõi chủ đề khi chọn "Có
+  // vi phạm" (chốt 02/09, xem CompleteJobModal trong theo-doi-chu-de.js) —
+  // điền sẵn Chủ đề/Đối tượng/Vùng theo đúng job, bắt buộc nhập đủ case rồi
+  // Lưu; job đó sẽ TỰ ĐỘNG được đánh dấu Hoàn tất + Có vi phạm ngay sau đó.
+  const [linkedJobId, setLinkedJobId] = useState(null);
+  const [linkedJobDone, setLinkedJobDone] = useState(false);
+  useEffect(() => {
+    if (!router.isReady) return;
+    const { jobId, chu_de, doi_tuong, vung } = router.query;
+    if (!jobId) return;
+    setLinkedJobId(jobId);
+    setForm((f) => ({
+      ...f,
+      chu_de: chu_de || f.chu_de,
+      doi_tuong: doi_tuong || f.doi_tuong,
+      vung: vung || f.vung,
+    }));
+  }, [router.isReady]);
 
   const periodLabel = `${period.year}-${period.month}`;
 
@@ -83,6 +104,19 @@ export default function GhiNhanCasePage() {
       });
       setForm(EMPTY_FORM);
       load();
+      if (linkedJobId) {
+        try {
+          await completeChuDeJob(linkedJobId, { ket_qua_vi_pham: "Có vi phạm" });
+          setLinkedJobDone(true);
+        } catch (err) {
+          alert(
+            "Đã ghi nhận case thành công, nhưng đánh dấu Hoàn tất job bên Theo dõi chủ đề bị lỗi: " +
+            (err.message || "không rõ nguyên nhân") + " — anh vào Theo dõi chủ đề đánh dấu tay giúp em."
+          );
+        } finally {
+          setLinkedJobId(null);
+        }
+      }
     } catch (err) {
       alert(err.message || "Ghi nhận thất bại");
     } finally {
@@ -146,6 +180,24 @@ export default function GhiNhanCasePage() {
           Cuối tháng, các case này sẽ được gom lại thành báo cáo kiểm soát theo chủ đề.
         </p>
       </div>
+
+      {linkedJobId && canCreate && (
+        <div className="placeholder-box" style={{ borderColor: "var(--orange)", color: "var(--orange)", marginBottom: 16 }}>
+          🔗 Đang ghi nhận case cho job "Có vi phạm" bên Theo dõi chủ đề — điền đủ thông tin bên dưới rồi bấm
+          "+ Ghi nhận case" là job đó sẽ tự động được đánh dấu <strong>Hoàn tất</strong>.
+        </div>
+      )}
+      {linkedJobId && !canCreate && (
+        <div className="placeholder-box" style={{ borderColor: "var(--danger)", color: "var(--danger)", marginBottom: 16 }}>
+          ⚠️ Tài khoản của anh (Viewer) không có quyền ghi nhận case — job bên Theo dõi chủ đề vẫn đang ở "Đang xử lý",
+          chưa được đánh dấu Hoàn tất. Nhờ Editor/Admin ghi nhận case cho job này giúp.
+        </div>
+      )}
+      {linkedJobDone && (
+        <div className="placeholder-box" style={{ borderColor: "#4C9A2A", color: "#4C9A2A", marginBottom: 16 }}>
+          ✅ Đã ghi nhận case và đánh dấu Hoàn tất job bên Theo dõi chủ đề.
+        </div>
+      )}
 
       <div className="month-tabs">
         {MONTH_OPTIONS.map((m) => (
