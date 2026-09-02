@@ -617,7 +617,9 @@ export default function TheoDoiChuDePage() {
     ngay_bat_dau_check: (j) => (j.ngay_bat_dau_check ? new Date(j.ngay_bat_dau_check).getTime() : -Infinity),
     so_ngay_xu_ly: (j) => soNgayXuLy(j.ngay_bat_dau_check) ?? -Infinity,
     ket_qua_vi_pham: (j) => j.ket_qua_vi_pham || "",
+    nguoi_upload: (j) => j.nguoi_upload || "",
   });
+  const canSeeUploader = can("/theo-doi-chu-de::xem-nguoi-upload");
 
   function closeForm() {
     setShowForm(false);
@@ -772,12 +774,15 @@ export default function TheoDoiChuDePage() {
                   <SortTh label="Ngày Check" sortKey="ngay_bat_dau_check" sortState={sort.state} onSort={sort.onSort} />
                   <SortTh label="Số ngày xử lý" sortKey="so_ngay_xu_ly" sortState={sort.state} onSort={sort.onSort} />
                   <SortTh label="Kết quả" sortKey="ket_qua_vi_pham" sortState={sort.state} onSort={sort.onSort} />
+                  {canSeeUploader && (
+                    <SortTh label="Người upload" sortKey="nguoi_upload" sortState={sort.state} onSort={sort.onSort} align="left" />
+                  )}
                   <th></th>
                 </tr>
               </thead>
               <tbody>
                 {visibleJobs.length === 0 && (
-                  <tr><td colSpan={9} style={{ textAlign: "center", color: "var(--text-400)" }}>Không có job nào ở tình trạng này.</td></tr>
+                  <tr><td colSpan={canSeeUploader ? 10 : 9} style={{ textAlign: "center", color: "var(--text-400)" }}>Không có job nào ở tình trạng này.</td></tr>
                 )}
                 {sortedJobs.map((job) => {
                   const supporters = job.supporters || [];
@@ -809,6 +814,7 @@ export default function TheoDoiChuDePage() {
                       <td>{fmtDateTime(job.ngay_bat_dau_check) || "-"}</td>
                       <td>{soNgay === null ? "-" : `${soNgay} ngày`}</td>
                       <td>{job.ket_qua_vi_pham || "-"}</td>
+                      {canSeeUploader && <td style={{ textAlign: "left" }}>{job.nguoi_upload || "-"}</td>}
                       <td>
                         <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "stretch" }}>
                           {job.trang_thai === "Chưa nhận" && (
