@@ -7,7 +7,7 @@ import {
 } from "../lib/api";
 import { useAllowedKeys } from "../lib/permissions";
 
-const emptyForm = { email: "", full_name: "", position: "", password: "", role: "viewer", xlkk_app_access: false, kiem_ke_permission: false, khu_vuc: "" };
+const emptyForm = { email: "", full_name: "", position: "", password: "", role: "viewer", kiem_ke_permission: false, khu_vuc: "" };
 const ADMIN_ROLES = ["admin", "super_admin"];
 const ROLE_LABELS = { super_admin: "Super Admin", admin: "Admin", editor: "Editor", viewer: "Viewer" };
 const KHU_VUC_OPTIONS = ["VP HCM", "VP HNI"];
@@ -105,15 +105,6 @@ export default function QuanLyTaiKhoanPage() {
     if (value === (u.position || "")) return;
     try {
       await updateUserAccount(u.id, { position: value });
-      load();
-    } catch (err) {
-      alert(err.message || "Cập nhật thất bại");
-    }
-  }
-
-  async function handleToggleXlkkAccess(u) {
-    try {
-      await updateUserAccount(u.id, { xlkk_app_access: !u.xlkk_app_access });
       load();
     } catch (err) {
       alert(err.message || "Cập nhật thất bại");
@@ -258,17 +249,6 @@ export default function QuanLyTaiKhoanPage() {
               </select></div>
             <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 8 }}>
               <input
-                id="xlkk_app_access"
-                type="checkbox"
-                checked={form.xlkk_app_access}
-                onChange={(e) => setForm({ ...form, xlkk_app_access: e.target.checked })}
-              />
-              <label htmlFor="xlkk_app_access" style={{ fontSize: 13, color: "var(--text-600)", cursor: "pointer" }}>
-                Cấp quyền dùng App Kiểm kê (XLKK) — cho phép đăng nhập app desktop kiểm kê bằng tài khoản này
-              </label>
-            </div>
-            <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 8 }}>
-              <input
                 id="kiem_ke_permission"
                 type="checkbox"
                 checked={form.kiem_ke_permission}
@@ -296,7 +276,7 @@ export default function QuanLyTaiKhoanPage() {
           <table>
             <thead>
               <tr>
-                {["STT", "Email", "Họ tên", "Chức danh", "Khu vực", "Quyền", "Trạng thái", "App XLKK", "Quyền Kiểm Kê", ""].map((h) => (
+                {["STT", "Email", "Họ tên", "Chức danh", "Khu vực", "Quyền", "Trạng thái", "Quyền Kiểm Kê", ""].map((h) => (
                   <th key={h} style={{ position: "sticky", top: 0, zIndex: 2, background: "#eaf1fc" }}>{h}</th>
                 ))}
               </tr>
@@ -346,13 +326,6 @@ export default function QuanLyTaiKhoanPage() {
                       </span>
                     </td>
                     <td>
-                      <button onClick={() => handleToggleXlkkAccess(u)} style={btnStyle}>
-                        <span className={`pill ${u.xlkk_app_access ? "ok" : "warn"}`}>
-                          {u.xlkk_app_access ? "Đã cấp quyền" : "Chưa cấp quyền"}
-                        </span>
-                      </button>
-                    </td>
-                    <td>
                       <button onClick={() => handleToggleKiemKePermission(u)} style={btnStyle}>
                         <span className={`pill ${u.kiem_ke_permission ? "ok" : "warn"}`}>
                           {u.kiem_ke_permission ? "Đã cấp quyền" : "Chưa cấp quyền"}
@@ -377,7 +350,7 @@ export default function QuanLyTaiKhoanPage() {
                   </tr>
                   {editingId === u.id && (
                     <tr>
-                      <td colSpan={10} style={{ background: "var(--bg)", padding: "14px 16px" }}>
+                      <td colSpan={9} style={{ background: "var(--bg)", padding: "14px 16px" }}>
                         <div style={{ display: "flex", gap: 14, alignItems: "flex-end", flexWrap: "wrap" }}>
                           <div>
                             <label style={labelStyle}>Họ tên</label>
