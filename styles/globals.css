@@ -188,9 +188,15 @@ td.neg{color:var(--danger); font-weight:600;}
 /* Lưới 2/3 cột dùng chung cho form nhập liệu + card đặt cạnh nhau — thay
    cho kiểu gridTemplateColumns viết tay trong từng trang (không tự co
    lại được trên mobile vì là inline style, media query ngoài không đè
-   được). Alias .grid-2/.grid-3 giữ đúng số cột cho khối không phải form. */
-.form-grid-2, .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
-.form-grid-3, .grid-3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;}
+   được). Alias .grid-2/.grid-3 giữ đúng số cột cho khối không phải form.
+   Dùng minmax(0,1fr) thay vì 1fr trần (chốt 03/09) — "1fr" trần vẫn ngầm
+   là minmax(auto,1fr), tức cột KHÔNG co nhỏ hơn kích thước nội dung con;
+   input[type=date] có min-content width khá lớn (đặc biệt trên mobile,
+   layout khay giờ/spinner nội bộ của trình duyệt) nên đẩy tràn cả cột +
+   card ra ngoài viền dù input đã có width:100%. minmax(0,1fr) cho phép
+   cột co xuống 0, buộc input co theo đúng width:100% như mong muốn. */
+.form-grid-2, .grid-2{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px;}
+.form-grid-3, .grid-3{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr); gap:14px;}
 
 .flabel{font-size:12px; font-weight:600; color:var(--text-600); display:block; margin-bottom:6px;}
 .finput{padding:9px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:13.5px; background:#FAFBFD; font-family:inherit;}
