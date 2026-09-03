@@ -27,6 +27,9 @@ const ADMIN_ITEMS = [
   { href: "/tai-len-du-lieu", icon: "⬆️", label: "Tải lên dữ liệu", hideForRoles: ["editor", "editor_base", "viewer"] },
   { href: "/quan-ly-tai-khoan", icon: "🔑", label: "Quản lý tài khoản", hideForRoles: ["editor", "editor_base", "viewer"] },
   { href: "/nhat-ky-hoat-dong", icon: "📊", label: "Nhật ký hoạt động", hideForRoles: ["editor", "editor_base", "viewer"] },
+  // Menu thử nghiệm (chốt 03/09) — chỉ admin/super_admin, dùng để thiết kế
+  // tính năng mới cho "Theo dõi chủ đề" trước khi đưa vào bản thật.
+  { href: "/theo-doi-chu-de-v2", icon: "🧪", label: "Theo dõi chủ đề Ver2", hideForRoles: ["editor", "editor_base", "viewer"] },
 ];
 const STORAGE_KEY = "ksnb_sidebar_collapsed";
 
