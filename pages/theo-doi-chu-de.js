@@ -117,7 +117,7 @@ function ClaimJobModal({ job, meId, onDone, onCancel }) {
       await claimChuDeJob(job.id, supporterIds);
       onDone();
     } catch (err) {
-      setError(err.message || "Nhận job thất bại");
+      setError(err.message || "Nhận task thất bại");
     } finally {
       setSaving(false);
     }
@@ -128,15 +128,15 @@ function ClaimJobModal({ job, meId, onDone, onCancel }) {
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         {step === "confirm" && (
           <>
-            <h3 style={{ marginBottom: 4 }}>📌 Nhận Job</h3>
+            <h3 style={{ marginBottom: 4 }}>📌 Nhận Task</h3>
             <p style={{ fontSize: 13, color: "var(--text-600)", marginBottom: 18 }}>
-              Xác nhận nhận xử lý job <strong>"{job.ten_chu_de}"</strong>
+              Xác nhận nhận xử lý task <strong>"{job.ten_chu_de}"</strong>
               {job.ten_shop ? ` — shop ${job.ten_shop}` : ""}?
             </p>
             {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14 }}>{error}</div>}
             <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-start" }}>
               <button disabled={saving} className="login-btn" style={{ width: "auto", padding: "9px 22px", margin: 0 }} onClick={() => submit([])}>
-                {saving ? "Đang nhận..." : "✅ Xác nhận Nhận Job"}
+                {saving ? "Đang nhận..." : "✅ Xác nhận Nhận Task"}
               </button>
               <button type="button" disabled={saving} className="upload-btn" onClick={openPickSupporters}>
                 ➕ Nhận + thêm người hỗ trợ
@@ -149,7 +149,7 @@ function ClaimJobModal({ job, meId, onDone, onCancel }) {
           <>
             <h3 style={{ marginBottom: 4 }}>👥 Chọn người hỗ trợ</h3>
             <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 14 }}>
-              Job <strong>"{job.ten_chu_de}"</strong> — chọn 1 hoặc nhiều KSNB cùng hỗ trợ xử lý (anh/chị vẫn là người phụ trách chính).
+              Task <strong>"{job.ten_chu_de}"</strong> — chọn 1 hoặc nhiều KSNB cùng hỗ trợ xử lý (anh/chị vẫn là người phụ trách chính).
             </p>
             <div style={{ maxHeight: 300, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 8, padding: "4px 2px", marginBottom: 14 }}>
               {loadingList && <div style={{ fontSize: 12.5, color: "var(--text-400)", padding: 10 }}>Đang tải danh sách...</div>}
@@ -221,7 +221,7 @@ function AddSupportersModal({ job, onDone, onCancel }) {
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         <h3 style={{ marginBottom: 4 }}>➕ Thêm người hỗ trợ</h3>
         <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 14 }}>
-          Job <strong>"{job.ten_chu_de}"</strong> — chọn thêm 1 hoặc nhiều KSNB cùng hỗ trợ xử lý.
+          Task <strong>"{job.ten_chu_de}"</strong> — chọn thêm 1 hoặc nhiều KSNB cùng hỗ trợ xử lý.
         </p>
         <div style={{ maxHeight: 300, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 8, padding: "4px 2px", marginBottom: 14 }}>
           {loadingList && <div style={{ fontSize: 12.5, color: "var(--text-400)", padding: 10 }}>Đang tải danh sách...</div>}
@@ -401,7 +401,7 @@ function JobFormCard({ editingJob, onDone, onCancel }) {
   return (
     <div className="card">
       <div className="card-head">
-        <h3>{editingJob ? `✏️ Sửa job: ${editingJob.ten_chu_de}` : "Thêm chủ đề mới"}</h3>
+        <h3>{editingJob ? `✏️ Sửa task: ${editingJob.ten_chu_de}` : "Thêm chủ đề mới"}</h3>
       </div>
       <form onSubmit={handleSubmit} className="form-grid-2" style={{ padding: "16px 20px" }}>
         {(looking || lookupMsg) && (
@@ -455,7 +455,7 @@ function JobFormCard({ editingJob, onDone, onCancel }) {
         {error && <div style={{ gridColumn: "1 / -1", fontSize: 12.5, color: "var(--danger)" }}>{error}</div>}
         <div style={{ gridColumn: "1 / -1", display: "flex", gap: 10 }}>
           <button type="submit" disabled={saving} className="login-btn" style={{ width: "auto", padding: "10px 24px" }}>
-            {saving ? "Đang lưu..." : editingJob ? "Lưu thay đổi" : "Đăng job"}
+            {saving ? "Đang lưu..." : editingJob ? "Lưu thay đổi" : "Đăng task"}
           </button>
           <button type="button" onClick={onCancel} style={{ ...deleteBtnStyle, color: "var(--text-600)", padding: "10px 20px" }}>
             Hủy
@@ -484,7 +484,7 @@ function BulkUploadCard({ onDone, onOpenForm, thang, setThang, months, exporting
     setResultMsg("");
     try {
       const r = await bulkUploadChuDeJobs(file);
-      setResultMsg(`✅ Đã thêm ${r.count} job.`);
+      setResultMsg(`✅ Đã thêm ${r.count} task.`);
       onDone();
     } catch (err) {
       setError(err.message || "Upload thất bại");
@@ -676,13 +676,13 @@ export default function TheoDoiChuDePage() {
   // Trả job về "Chưa nhận" (25/08, admin/editor) — người đã nhận gặp rủi
   // ro/không xử lý được, để người khác vào nhận lại.
   async function handleUnclaim(job) {
-    if (!confirm(`Trả job "${job.ten_chu_de}" về trạng thái "Chưa nhận"? Người hỗ trợ (nếu có) cũng sẽ bị gỡ.`)) return;
+    if (!confirm(`Trả task "${job.ten_chu_de}" về trạng thái "Chưa nhận"? Người hỗ trợ (nếu có) cũng sẽ bị gỡ.`)) return;
     setBusyId(job.id);
     try {
       await unclaimChuDeJob(job.id);
       load();
     } catch (err) {
-      alert(err.message || "Trả job thất bại");
+      alert(err.message || "Trả task thất bại");
     } finally {
       setBusyId(null);
     }
@@ -710,7 +710,7 @@ export default function TheoDoiChuDePage() {
   }
 
   async function handleDelete(job) {
-    if (!confirm(`Xóa job "${job.ten_chu_de}"?`)) return;
+    if (!confirm(`Xóa task "${job.ten_chu_de}"?`)) return;
     try {
       await deleteChuDeJob(job.id);
       load();
@@ -724,7 +724,7 @@ export default function TheoDoiChuDePage() {
       <div className="page-head">
         <h1>Theo dõi chủ đề</h1>
         {!canUpload && (
-          <p>Bấm "Nhận Job" để nhận xử lý — job có file data check sẽ hiện nút tải về.</p>
+          <p>Bấm "Nhận Task" để nhận xử lý — task có file data check sẽ hiện nút tải về.</p>
         )}
       </div>
 
@@ -788,7 +788,7 @@ export default function TheoDoiChuDePage() {
 
       {error && <div className="placeholder-box">Không tải được dữ liệu: {error}</div>}
       {!error && !loading && jobs.length === 0 && (
-        <div className="placeholder-box">Chưa có job chủ đề nào được đăng.</div>
+        <div className="placeholder-box">Chưa có task chủ đề nào được đăng.</div>
       )}
 
       {!error && jobs.length > 0 && (
@@ -814,7 +814,7 @@ export default function TheoDoiChuDePage() {
               </thead>
               <tbody>
                 {visibleJobs.length === 0 && (
-                  <tr><td colSpan={canSeeUploader ? 10 : 9} style={{ textAlign: "center", color: "var(--text-400)" }}>Không có job nào ở tình trạng này.</td></tr>
+                  <tr><td colSpan={canSeeUploader ? 10 : 9} style={{ textAlign: "center", color: "var(--text-400)" }}>Không có task nào ở tình trạng này.</td></tr>
                 )}
                 {sortedJobs.map((job) => {
                   const supporters = job.supporters || [];
@@ -851,7 +851,7 @@ export default function TheoDoiChuDePage() {
                         <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "stretch" }}>
                           {job.trang_thai === "Chưa nhận" && (
                             <button className="fbtn" onClick={() => setClaimingJob(job)}>
-                              Nhận Job
+                              Nhận Task
                             </button>
                           )}
                           {job.has_data_file && canAccessFiles && (

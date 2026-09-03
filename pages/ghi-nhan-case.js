@@ -110,7 +110,7 @@ export default function GhiNhanCasePage() {
           setLinkedJobDone(true);
         } catch (err) {
           alert(
-            "Đã ghi nhận case thành công, nhưng đánh dấu Hoàn tất job bên Theo dõi chủ đề bị lỗi: " +
+            "Đã ghi nhận case thành công, nhưng đánh dấu Hoàn tất task bên Theo dõi chủ đề bị lỗi: " +
             (err.message || "không rõ nguyên nhân") + " — anh vào Theo dõi chủ đề đánh dấu tay giúp em."
           );
         } finally {
@@ -183,19 +183,19 @@ export default function GhiNhanCasePage() {
 
       {linkedJobId && canCreate && (
         <div className="placeholder-box" style={{ borderColor: "var(--orange)", color: "var(--orange)", marginBottom: 16 }}>
-          🔗 Đang ghi nhận case cho job "Có vi phạm" bên Theo dõi chủ đề — điền đủ thông tin bên dưới rồi bấm
-          "+ Ghi nhận case" là job đó sẽ tự động được đánh dấu <strong>Hoàn tất</strong>.
+          🔗 Đang ghi nhận case cho task "Có vi phạm" bên Theo dõi chủ đề — điền đủ thông tin bên dưới rồi bấm
+          "+ Ghi nhận case" là task đó sẽ tự động được đánh dấu <strong>Hoàn tất</strong>.
         </div>
       )}
       {linkedJobId && !canCreate && (
         <div className="placeholder-box" style={{ borderColor: "var(--danger)", color: "var(--danger)", marginBottom: 16 }}>
-          ⚠️ Tài khoản của anh (Viewer) không có quyền ghi nhận case — job bên Theo dõi chủ đề vẫn đang ở "Đang xử lý",
-          chưa được đánh dấu Hoàn tất. Nhờ Editor/Admin ghi nhận case cho job này giúp.
+          ⚠️ Tài khoản của anh (Viewer) không có quyền ghi nhận case — task bên Theo dõi chủ đề vẫn đang ở "Đang xử lý",
+          chưa được đánh dấu Hoàn tất. Nhờ Editor/Admin ghi nhận case cho task này giúp.
         </div>
       )}
       {linkedJobDone && (
         <div className="placeholder-box" style={{ borderColor: "#4C9A2A", color: "#4C9A2A", marginBottom: 16 }}>
-          ✅ Đã ghi nhận case và đánh dấu Hoàn tất job bên Theo dõi chủ đề.
+          ✅ Đã ghi nhận case và đánh dấu Hoàn tất task bên Theo dõi chủ đề.
         </div>
       )}
 
