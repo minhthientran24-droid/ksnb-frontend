@@ -254,7 +254,7 @@ function KsnbTrucTiepPanel() {
       return;
     }
     if (!sl || sl <= 0) {
-      setSaveError("Số lượng shop có thể nhận phải lớn hơn 0.");
+      setSaveError("Số lượng shop đề xuất phải lớn hơn 0.");
       return;
     }
     setSaving(true);
@@ -303,7 +303,7 @@ function KsnbTrucTiepPanel() {
                 <input type="month" className="finput" style={{ width: "100%" }} value={thang} onChange={(e) => setThang(e.target.value)} />
               </div>
               <div className="field">
-                <label className="flabel">Số lượng shop có thể nhận *</label>
+                <label className="flabel">Số lượng shop đề xuất *</label>
                 <input type="number" min={1} className="finput" style={{ width: "100%" }} value={soLuong} onChange={(e) => setSoLuong(e.target.value)} />
               </div>
             </div>
