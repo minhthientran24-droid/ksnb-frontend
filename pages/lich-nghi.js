@@ -287,7 +287,7 @@ function KsnbTrucTiepPanel() {
     <div className="grid-2" style={{ gap: 18, alignItems: "start" }}>
       <div className="card">
         <div className="card-head">
-          <h3>🚐 Khai báo tháng có thể đi kiểm kê trực tiếp</h3>
+          <h3>🚐 Cập nhập nhân sự kiểm kê trực tiếp</h3>
         </div>
         <div className="card-body">
           <p style={{ fontSize: 12.5, color: "var(--text-600)", marginTop: 0, marginBottom: 14 }}>
