@@ -18,8 +18,8 @@ const ADMIN_ROLES = ["admin", "super_admin"];
 // ở đây (Giá bán không cần nữa; Danh sách nhân viên dùng chung với Hỗ Trợ
 // Kiểm Kê; DM cắt liều xử lý sẵn trong chính file báo cáo bên đó rồi).
 const GUI_MAIL_REFERENCE_ITEMS = [
-  { key: "shopinfo", label: "ShopInfo (email ASM + Vùng)" },
-  { key: "cc_by_vung", label: "CC theo vùng" },
+  { key: "shopinfo", label: "Danh sách shop mở bán" },
+  { key: "cc_by_vung", label: "Danh sách email vùng" },
 ];
 
 // Dữ liệu tham chiếu riêng cho "Hỗ Trợ Kiểm Kê" (chốt 27/08 lần 20, dời
