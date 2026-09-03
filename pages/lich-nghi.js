@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import {
   getUser, listMyLeaveDays, createLeaveDay, deleteLeaveDay, listAllLeaveDays,
+  listMyDeXuatKsnb, upsertMyDeXuatKsnb, deleteMyDeXuatKsnb,
 } from "../lib/api";
 import { useAllowedKeys } from "../lib/permissions";
 
@@ -58,16 +59,19 @@ export default function LichNghiPage() {
         </p>
       </div>
 
-      {canViewAll && (
-        <div className="month-tabs">
-          <div className={`month-tab${tab === "dang-ky" ? " active" : ""}`} onClick={() => setTab("dang-ky")}>
-            Đăng ký nghỉ
-          </div>
+      <div className="month-tabs">
+        <div className={`month-tab${tab === "dang-ky" ? " active" : ""}`} onClick={() => setTab("dang-ky")}>
+          Đăng ký nghỉ
+        </div>
+        <div className={`month-tab${tab === "kiem-ke-truc-tiep" ? " active" : ""}`} onClick={() => setTab("kiem-ke-truc-tiep")}>
+          🚐 KSNB kiểm kê trực tiếp
+        </div>
+        {canViewAll && (
           <div className={`month-tab${tab === "lich-bo-tri" ? " active" : ""}`} onClick={() => setTab("lich-bo-tri")}>
             🗓️ Lịch bố trí
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {tab === "dang-ky" && (
         <div className="grid-2" style={{ gap: 18, alignItems: "start" }}>
@@ -75,6 +79,8 @@ export default function LichNghiPage() {
           {isAdmin && <AllLeavePanel />}
         </div>
       )}
+
+      {tab === "kiem-ke-truc-tiep" && <KsnbTrucTiepPanel />}
 
       {tab === "lich-bo-tri" && canViewAll && <ScheduleGridPanel />}
     </Layout>
@@ -214,6 +220,144 @@ function AllLeavePanel() {
       </div>
     </div>
   );
+}
+
+// ---------- Tab "KSNB kiểm kê trực tiếp" (03/09) — mọi user tự khai báo
+// tháng mình có thể đi công tác kiểm kê trực tiếp + số lượng shop có thể
+// nhận, đẩy thẳng vào bảng "Đề xuất kiểm kê" -> "Đề xuất KSNB kiểm kê trực
+// tiếp" cho Admin/Editor xem (dùng CHUNG bảng de_xuat_kiem_ke_ksnb — xem
+// backend routers/de_xuat_kiem_ke.py::/ksnb/self). Khai lại đúng tháng đã
+// khai trước đó thì CẬP NHẬT đè lên (upsert theo tháng), không tạo trùng. ----------
+function KsnbTrucTiepPanel() {
+  const [rows, setRows] = useState([]);
+  const [error, setError] = useState("");
+  const [thang, setThang] = useState(currentMonthStr());
+  const [soLuong, setSoLuong] = useState("");
+  const [ghiChu, setGhiChu] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [saveMsg, setSaveMsg] = useState("");
+
+  function load() {
+    listMyDeXuatKsnb().then((r) => setRows(r || [])).catch((err) => setError(err.message));
+  }
+  useEffect(load, []);
+
+  const sortedRows = [...rows].sort((a, b) => (a.thang_kiem_ke < b.thang_kiem_ke ? 1 : -1));
+  const daKhaiThangNay = rows.find((r) => r.thang_kiem_ke === thang);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    const sl = parseInt(soLuong, 10);
+    if (!thang) {
+      setSaveError("Cần chọn tháng.");
+      return;
+    }
+    if (!sl || sl <= 0) {
+      setSaveError("Số lượng shop có thể nhận phải lớn hơn 0.");
+      return;
+    }
+    setSaving(true);
+    setSaveError("");
+    setSaveMsg("");
+    try {
+      await upsertMyDeXuatKsnb({ thang_kiem_ke: thang, so_luong_shop: sl, ghi_chu: ghiChu });
+      setSaveMsg(daKhaiThangNay ? "✅ Đã cập nhật khai báo tháng này." : "✅ Đã ghi nhận khai báo, chuyển sang \"Đề xuất kiểm kê\" cho Admin xem.");
+      setSoLuong("");
+      setGhiChu("");
+      load();
+    } catch (err) {
+      setSaveError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id) {
+    if (!confirm("Xóa khai báo này?")) return;
+    try {
+      await deleteMyDeXuatKsnb(id);
+      load();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  return (
+    <div className="grid-2" style={{ gap: 18, alignItems: "start" }}>
+      <div className="card">
+        <div className="card-head">
+          <h3>🚐 Khai báo tháng có thể đi kiểm kê trực tiếp</h3>
+        </div>
+        <div className="card-body">
+          <p style={{ fontSize: 12.5, color: "var(--text-600)", marginTop: 0, marginBottom: 14 }}>
+            Khai tháng anh/chị có thể đi công tác kiểm kê trực tiếp — data sẽ tự đẩy sang menu
+            "Đề xuất kiểm kê" &gt; "Đề xuất KSNB kiểm kê trực tiếp" cho Admin sắp lịch.
+          </p>
+          {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 10 }}>{error}</div>}
+
+          <form onSubmit={handleSubmit} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "14px 16px" }}>
+            <div className="form-grid-2">
+              <div className="field">
+                <label className="flabel">Tháng *</label>
+                <input type="month" className="finput" style={{ width: "100%" }} value={thang} onChange={(e) => setThang(e.target.value)} />
+              </div>
+              <div className="field">
+                <label className="flabel">Số lượng shop có thể nhận *</label>
+                <input type="number" min={1} className="finput" style={{ width: "100%" }} value={soLuong} onChange={(e) => setSoLuong(e.target.value)} />
+              </div>
+            </div>
+            {daKhaiThangNay && (
+              <div style={{ fontSize: 11.5, color: "#9A7B00", background: "#FFF8E1", borderRadius: 6, padding: "6px 10px", marginTop: 4 }}>
+                ⚠️ Anh/chị đã khai báo tháng này rồi ({daKhaiThangNay.so_luong_shop} shop) — lưu lại sẽ cập nhật đè lên khai báo cũ.
+              </div>
+            )}
+            <div className="field" style={{ marginTop: 10 }}>
+              <label className="flabel">Ghi chú (không bắt buộc)</label>
+              <textarea className="finput" rows={2} style={{ width: "100%", resize: "vertical" }} value={ghiChu} onChange={(e) => setGhiChu(e.target.value)} />
+            </div>
+            {saveError && <div style={{ fontSize: 12, color: "var(--danger)", marginTop: 8 }}>{saveError}</div>}
+            {saveMsg && <div style={{ fontSize: 12, color: "#3E7A2A", marginTop: 8 }}>{saveMsg}</div>}
+            <div style={{ marginTop: 12 }}>
+              <button type="submit" className="login-btn" style={{ width: "auto", padding: "9px 20px" }} disabled={saving}>
+                {saving ? "Đang lưu..." : daKhaiThangNay ? "Cập nhật khai báo" : "➕ Khai báo"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-head">
+          <h3>Khai báo của tôi</h3>
+          <span className="note">Tổng số: {rows.length}</span>
+        </div>
+        <div className="card-body">
+          {!rows.length ? (
+            <div className="leave-empty">Chưa khai báo tháng nào.</div>
+          ) : (
+            <div className="leave-list">
+              {sortedRows.map((r) => (
+                <div className="leave-row" key={r.id}>
+                  <span className="leave-row-date">{formatThangVn(r.thang_kiem_ke)}</span>
+                  <span className="leave-row-note">{r.so_luong_shop} shop{r.ghi_chu ? ` — ${r.ghi_chu}` : ""}</span>
+                  <span className="leave-row-actions">
+                    <button className="fbtn danger" onClick={() => handleDelete(r.id)}>Xóa</button>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function formatThangVn(v) {
+  if (!v) return "—";
+  const [y, m] = v.split("-");
+  return m && y ? `Tháng ${m}/${y}` : v;
 }
 
 const WEEKDAY_LABELS = ["CN", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
