@@ -303,7 +303,13 @@ td.neg{color:var(--danger); font-weight:600;}
   .kpi-grid{grid-template-columns:repeat(2,1fr); gap:10px;}
   .org-grid{grid-template-columns:1fr; gap:10px;}
   .two-col{grid-template-columns:1fr;}
-  .form-grid-2, .grid-2, .form-grid-3, .grid-3{grid-template-columns:1fr;}
+  /* "1fr" trần ở đây (dù chỉ 1 cột) vẫn giữ min-width:auto cho cột — input
+     date/số trên Safari iOS có min-content width lớn hơn Chrome khá nhiều
+     (khay ngày/tháng/năm + icon lịch render native), đủ để đẩy tràn cột
+     dùng chung của CẢ 2 dòng (Grid tính track theo item RỘNG NHẤT từng đặt
+     vào cột đó, kể cả khác dòng) — y hệt lỗi đã sửa ở rule 2 cột phía trên,
+     chỉ là bản mobile 1 cột lại quên sửa. minmax(0,1fr) mới hết hẳn. */
+  .form-grid-2, .grid-2, .form-grid-3, .grid-3{grid-template-columns:minmax(0,1fr);}
 
   /* Bảng dữ liệu: cuộn ngang trong khung thay vì bị bóp méo */
   .card-body{overflow-x:auto; -webkit-overflow-scrolling:touch;}
@@ -321,8 +327,13 @@ td.neg{color:var(--danger); font-weight:600;}
   .month-tabs{gap:10px;}
   .upload-btn{padding:13px 20px; font-size:14px; min-height:44px;}
   .login-btn{padding:14px; font-size:15px; min-height:46px;}
-  .finput, .field input{padding:12px 13px; font-size:15px; min-height:44px; box-sizing:border-box;}
-  input[type="date"], input[type="number"]{min-height:44px; box-sizing:border-box;}
+  .finput, .field input{padding:12px 13px; font-size:15px; min-height:44px; box-sizing:border-box; min-width:0; max-width:100%;}
+  /* Safari iOS: input[type=date] có thể tự render RỘNG HƠN width:100% khai
+     báo — phần khay ngày/tháng/năm + icon lịch native của WebKit không co
+     theo CSS width trên màn hẹp (bug WebKit đã biết). min-width:0 +
+     max-width:100% ép cứng lại, kể cả khi cột Grid cha đã đúng (xem thêm
+     rule form-grid-2/3 phía trên). */
+  input[type="date"], input[type="number"]{min-height:44px; box-sizing:border-box; min-width:0; max-width:100%;}
   /* iOS Safari tự zoom trang khi ô nhập có font-size <16px lúc focus —
      font-size:15px ở trên vẫn dưới ngưỡng này, ép hẳn 16px riêng cho input
      text/number/date để không bị zoom giật khi bấm vào ô nhập. */
