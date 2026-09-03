@@ -329,7 +329,7 @@ function KsnbTrucTiepPanel() {
 
       <div className="card">
         <div className="card-head">
-          <h3>Khai báo của tôi</h3>
+          <h3>Đề xuất kiểm kê trực tiếp của tôi</h3>
           <span className="note">Tổng số: {rows.length}</span>
         </div>
         <div className="card-body">
