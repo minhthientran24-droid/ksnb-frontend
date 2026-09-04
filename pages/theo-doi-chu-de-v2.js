@@ -16,20 +16,12 @@ import {
 // cấp 2/3 (useAllowedKeys/can) như bản thật — mọi thứ luôn hiện đủ cho
 // admin, không có role nào khác cần ẩn/hiện.
 //
-// Khác bản thật (theo yêu cầu chốt 03/09): thêm "nhom" (Long Châu/Vaccine)
-// để phân biệt chủ đề — 2 nút lọc trên UI, chọn khi đăng/sửa job, thêm cột
-// "Nhóm" trong file mẫu/bảng/export.
+// Chốt 04/09 — BỎ phân loại "nhom" (Long Châu/Vaccine, 2 nút lọc + chọn
+// khi đăng/sửa job + cột "Nhóm" trong file mẫu/bảng/export) từng thêm ở
+// chốt 03/09 — giờ view chung tất cả chủ đề, y hệt bản thật.
 const ADMIN_ROLES = ["admin", "super_admin"];
 
-const emptyForm = { ten_chu_de: "", vung: "", ma_shop: "", ten_shop: "", noi_dung_vi_pham: "", nhom: "long_chau" };
-
-const NHOM_OPTIONS = [
-  { value: "long_chau", label: "🏥 Long Châu" },
-  { value: "vaccine", label: "💉 Vaccine" },
-];
-function nhomLabel(v) {
-  return v === "vaccine" ? "💉 Vaccine" : "🏥 Long Châu";
-}
+const emptyForm = { ten_chu_de: "", vung: "", ma_shop: "", ten_shop: "", noi_dung_vi_pham: "" };
 
 function shopDisplay(job) {
   if (job.ma_shop && job.ten_shop) return `${job.ma_shop} - ${job.ten_shop}`;
@@ -323,7 +315,7 @@ function CompleteJobModal({ job, onDone, onCancel }) {
   );
 }
 
-// ---------- Form đăng / sửa job — thêm chọn Nhóm (Long Châu/Vaccine) so với bản thật ----------
+// ---------- Form đăng / sửa job ----------
 function JobFormCard({ editingJob, onDone, onCancel }) {
   const [form, setForm] = useState(editingJob ? { ...emptyForm, ...editingJob } : emptyForm);
   const [file, setFile] = useState(null);
@@ -389,17 +381,6 @@ function JobFormCard({ editingJob, onDone, onCancel }) {
         <div>
           <label style={labelStyle}>Tên chủ đề *</label>
           <input style={inputStyle} value={form.ten_chu_de} onChange={(e) => setForm({ ...form, ten_chu_de: e.target.value })} />
-        </div>
-        <div>
-          <label style={labelStyle}>Nhóm *</label>
-          <div style={{ display: "flex", gap: 16, alignItems: "center", height: 38 }}>
-            {NHOM_OPTIONS.map((o) => (
-              <label key={o.value} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
-                <input type="radio" name="nhom" checked={form.nhom === o.value} onChange={() => setForm({ ...form, nhom: o.value })} />
-                {o.label}
-              </label>
-            ))}
-          </div>
         </div>
         <div>
           <label style={labelStyle}>Mã shop</label>
@@ -545,9 +526,6 @@ export default function TheoDoiChuDeV2Page() {
   const [me, setMe] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [activeTab, setActiveTab] = useState("Chưa nhận");
-  // Lọc theo Nhóm (chốt 03/09) — Long Châu/Vaccine, loại trừ lẫn nhau, mặc
-  // định "Long Châu" (cùng quy ước với tab "Đã kiểm" bên Theo dõi kiểm kê).
-  const [nhom, setNhom] = useState("long_chau");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -572,9 +550,9 @@ export default function TheoDoiChuDeV2Page() {
     setChecked(true);
   }, []);
 
-  function load(thangFilter = thang, nhomFilter = nhom) {
+  function load(thangFilter = thang) {
     setLoading(true);
-    listChuDeJobsV2(thangFilter || undefined, nhomFilter || undefined)
+    listChuDeJobsV2(thangFilter || undefined)
       .then(setJobs)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -588,15 +566,15 @@ export default function TheoDoiChuDeV2Page() {
 
   useEffect(() => {
     if (!checked) return;
-    load(thang, nhom);
+    load(thang);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checked, thang, nhom]);
+  }, [checked, thang]);
 
   async function handleExport() {
     setExporting(true);
     setExportError("");
     try {
-      await exportChuDeJobsV2(thang || undefined, nhom || undefined);
+      await exportChuDeJobsV2(thang || undefined);
     } catch (err) {
       setExportError(err.message || "Xuất data thất bại");
     } finally {
@@ -724,17 +702,6 @@ export default function TheoDoiChuDeV2Page() {
         <JobFormCard editingJob={editingJob} onDone={afterSave} onCancel={closeForm} />
       )}
 
-      {/* 2 nút Long Châu/Vaccine (chốt 03/09) — cùng quy ước với tab "Đã
-          kiểm" bên Theo dõi kiểm kê, loại trừ lẫn nhau. */}
-      <div className="month-tabs" style={{ alignItems: "center" }}>
-        <div className={`month-tab ${nhom === "long_chau" ? "active" : ""}`} onClick={() => setNhom("long_chau")}>
-          🏥 Long Châu
-        </div>
-        <div className={`month-tab ${nhom === "vaccine" ? "active" : ""}`} onClick={() => setNhom("vaccine")}>
-          💉 Vaccine
-        </div>
-      </div>
-
       <div className="month-tabs">
         {CHU_DE_TABS.map((t) => {
           const count = jobs.filter((j) => jobMatchesTab(j, t.key)).length;
@@ -767,7 +734,6 @@ export default function TheoDoiChuDeV2Page() {
                 <tr>
                   <SortTh label="Ngày Upload" sortKey="upload_date" sortState={sort.state} onSort={sort.onSort} />
                   <SortTh label="Tên Chủ Đề" sortKey="ten_chu_de" sortState={sort.state} onSort={sort.onSort} align="left" />
-                  <th>Nhóm</th>
                   <SortTh label="Vùng" sortKey="vung" sortState={sort.state} onSort={sort.onSort} />
                   <SortTh label="Tên Shop" sortKey="ten_shop" sortState={sort.state} onSort={sort.onSort} align="left" />
                   <SortTh label="Nội Dung Vi Phạm" sortKey="noi_dung_vi_pham" sortState={sort.state} onSort={sort.onSort} align="left" />
@@ -781,7 +747,7 @@ export default function TheoDoiChuDeV2Page() {
               </thead>
               <tbody>
                 {visibleJobs.length === 0 && (
-                  <tr><td colSpan={12} style={{ textAlign: "center", color: "var(--text-400)" }}>Không có task nào ở tình trạng này.</td></tr>
+                  <tr><td colSpan={11} style={{ textAlign: "center", color: "var(--text-400)" }}>Không có task nào ở tình trạng này.</td></tr>
                 )}
                 {sortedJobs.map((job) => {
                   const supporters = job.supporters || [];
@@ -794,7 +760,6 @@ export default function TheoDoiChuDeV2Page() {
                     <tr key={job.id}>
                       <td>{job.upload_date}</td>
                       <td style={{ textAlign: "left" }}>{job.ten_chu_de}</td>
-                      <td>{nhomLabel(job.nhom)}</td>
                       <td>{job.vung || "-"}</td>
                       <td style={{ textAlign: "left" }}>{shopDisplay(job)}</td>
                       <td style={{ textAlign: "left" }}>{job.noi_dung_vi_pham || "-"}</td>
