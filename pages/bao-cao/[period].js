@@ -10,6 +10,7 @@ import BlockEditor from "../../components/BlockEditor";
 import {
   getReport, listReports, updateReportKiemKe, generateChuDeReport,
   synthesizeChuDeReport, updateReportChuDe, getUser,
+  uploadReportChuDeFile, downloadReportChuDeFile, deleteReportChuDeFile,
 } from "../../lib/api";
 
 export async function getStaticPaths() {
@@ -81,6 +82,11 @@ export default function BaoCaoDetailPage() {
   const [draftChuDe, setDraftChuDe] = useState(null);
   const [savingChuDe, setSavingChuDe] = useState(false);
   const [chuDeSaveError, setChuDeSaveError] = useState("");
+  // Đính kèm file gốc (VD .pptx) cho "Báo cáo kiểm soát theo chủ đề" —
+  // giữ nguyên layout gốc, không qua xử lý gì (chốt 04/09).
+  const [chuDeFileBusy, setChuDeFileBusy] = useState(false);
+  const [chuDeFileMsg, setChuDeFileMsg] = useState("");
+  const [chuDeFileDownloading, setChuDeFileDownloading] = useState(false);
   const isAdmin = ["admin", "super_admin"].includes(getUser()?.role);
   const { can, ready: permReady } = useAllowedKeys();
 
@@ -230,6 +236,48 @@ export default function BaoCaoDetailPage() {
     setAiPreview(null);
     setAiPreviewEditing(false);
     setAiError("");
+  }
+
+  async function handleUploadChuDeFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setChuDeFileBusy(true);
+    setChuDeFileMsg("");
+    try {
+      const updated = await uploadReportChuDeFile(period, file);
+      setReport(updated);
+      setChuDeFileMsg(`✅ Đã tải lên ${file.name}`);
+    } catch (err) {
+      setChuDeFileMsg("❌ " + (err.message || "Tải lên thất bại"));
+    } finally {
+      setChuDeFileBusy(false);
+    }
+  }
+
+  async function handleDownloadChuDeFile() {
+    setChuDeFileDownloading(true);
+    try {
+      await downloadReportChuDeFile(period, report?.chu_de_file_name);
+    } catch (err) {
+      setChuDeFileMsg("❌ " + (err.message || "Tải về thất bại"));
+    } finally {
+      setChuDeFileDownloading(false);
+    }
+  }
+
+  async function handleDeleteChuDeFile() {
+    if (!confirm("Xóa file gốc đã đính kèm cho kỳ này?")) return;
+    setChuDeFileBusy(true);
+    setChuDeFileMsg("");
+    try {
+      const updated = await deleteReportChuDeFile(period);
+      setReport(updated);
+    } catch (err) {
+      setChuDeFileMsg("❌ " + (err.message || "Xóa thất bại"));
+    } finally {
+      setChuDeFileBusy(false);
+    }
   }
 
   function startChuDeEdit() {
@@ -639,6 +687,42 @@ export default function BaoCaoDetailPage() {
           {/* ================= TAB: BÁO CÁO CHỦ ĐỀ ================= */}
           {tab === "chu-de" && can("/bao-cao::chu-de") && (
             <>
+              {/* File gốc đính kèm (VD PowerPoint) — giữ nguyên layout gốc, KHÔNG
+                  qua xử lý/blocks gì cả (chốt 04/09). Ai xem được tab này đều tải
+                  về được; chỉ admin mới tải lên/xóa. */}
+              {(report.chu_de_file_name || isAdmin) && (
+                <div className="card" style={{ marginBottom: 16 }}>
+                  <div className="card-body" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+                    <div style={{ fontSize: 13.5 }}>
+                      {report.chu_de_file_name ? (
+                        <>📎 File gốc đính kèm: <strong>{report.chu_de_file_name}</strong></>
+                      ) : (
+                        <span style={{ color: "var(--text-400)" }}>Chưa có file gốc đính kèm cho kỳ này.</span>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                      {chuDeFileMsg && <span style={{ fontSize: 12, color: chuDeFileMsg.startsWith("✅") ? "#3E7A2A" : "var(--danger)" }}>{chuDeFileMsg}</span>}
+                      {report.chu_de_file_name && (
+                        <button className="fbtn" disabled={chuDeFileDownloading} onClick={handleDownloadChuDeFile}>
+                          {chuDeFileDownloading ? "Đang tải..." : "📥 Tải về"}
+                        </button>
+                      )}
+                      {isAdmin && (
+                        <>
+                          <label className="upload-btn" style={{ cursor: chuDeFileBusy ? "default" : "pointer", opacity: chuDeFileBusy ? 0.6 : 1 }}>
+                            {chuDeFileBusy ? "Đang xử lý..." : report.chu_de_file_name ? "📤 Thay file khác" : "📤 Tải lên file gốc"}
+                            <input type="file" style={{ display: "none" }} onChange={handleUploadChuDeFile} disabled={chuDeFileBusy} />
+                          </label>
+                          {report.chu_de_file_name && (
+                            <button className="fbtn danger" disabled={chuDeFileBusy} onClick={handleDeleteChuDeFile}>Xóa</button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {isAdmin && !chuDeEditMode && (
                 <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
                   {chuDeError && <span style={{ fontSize: 12.5, color: "var(--danger)" }}>{chuDeError}</span>}
