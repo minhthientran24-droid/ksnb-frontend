@@ -68,21 +68,6 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
-// Cộng/trừ số ngày vào 1 chuỗi ngày "YYYY-MM-DD" — dùng để so sánh "Ngày
-// kiểm" đang chọn với "Ngày cần kiểm" của shop Xin kiểm kê (ưu tiên chọn
-// đúng ngày hoặc sớm hơn 1 ngày, xem PRIORITY_LEAD_DAYS bên dưới). Tính
-// thuần theo UTC (Date.UTC/getUTCDate/toISOString đều là UTC) — KHÔNG qua
-// "new Date(iso+'T00:00:00')" (giờ địa phương) rồi mới toISOString (UTC),
-// vì vòng qua lại 2 múi giờ khác nhau đó gây lệch 1 ngày ở VN (UTC+7).
-function addDaysIso(iso, days) {
-  if (!iso) return "";
-  const [y, m, d] = iso.split("-").map(Number);
-  if (!y || !m || !d) return "";
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  dt.setUTCDate(dt.getUTCDate() + days);
-  return dt.toISOString().slice(0, 10);
-}
-
 function normSearch(s) {
   return String(s == null ? "" : s).toLowerCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -711,17 +696,6 @@ function ShopListView({ data, onReload }) {
   );
 }
 
-// Cửa sổ ngày ưu tiên chia cho shop "Xin kiểm kê" (chốt 02/09): đúng
-// "Ngày cần kiểm" hoặc sớm hơn 1 ngày — không chờ tới hạn, cũng không chia
-// trễ hơn ngày shop đã xin.
-const PRIORITY_LEAD_DAYS = 1;
-function isPriorityMatch(r, ngayKiemValue) {
-  if (r.phan_loai !== "Xin kiểm kê" || !ngayKiemValue) return false;
-  const due = r.next_due_date || r.ngay_can_kiem;
-  if (!due) return false;
-  return due === ngayKiemValue || due === addDaysIso(ngayKiemValue, PRIORITY_LEAD_DAYS);
-}
-
 function ScheduleView({ data, group, onDone }) {
   const { filters, setFilter, applyFilters, hasActive, clearFilters } = useColumnFilters();
   const [selected, setSelected] = useState(new Set());
@@ -743,24 +717,10 @@ function ScheduleView({ data, group, onDone }) {
     leaveDaysByDate(ngayKiem).then((r) => setOffNames(r.names || [])).catch(() => setOffNames([]));
   }, [ngayKiem]);
 
-  // Shop "Xin kiểm kê" nên được chia ĐÚNG "Ngày cần kiểm" hoặc SỚM HƠN 1
-  // ngày (không để trễ hơn) — mỗi khi admin đổi "Ngày kiểm", tự tick sẵn
-  // các shop khớp đúng cửa sổ này để khỏi bị bỏ sót, kèm đánh dấu nổi bật
-  // trong bảng bên dưới (badge 🎯). Không đụng tới các shop admin đã tick
-  // tay từ trước — chỉ CỘNG THÊM, không bỏ tick.
-  useEffect(() => {
-    const priorityShops = (data.rows || []).filter((r) => isPriorityMatch(r, ngayKiem)).map((r) => r.ma_shop);
-    if (!priorityShops.length) return;
-    setSelected((prev) => {
-      const next = new Set(prev);
-      let changed = false;
-      for (const ma of priorityShops) {
-        if (!next.has(ma)) { next.add(ma); changed = true; }
-      }
-      return changed ? next : prev;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ngayKiem]);
+  // Chốt 03/09 — BỎ auto-tick "Xin kiểm kê" theo Ngày cần kiểm ở đây: rule
+  // "chia đúng ngày cho Xin kiểm kê" giờ do BACKEND tự xử lý thẳng trong
+  // thuật toán random-bổ-sung (xem llv_v2_allocate_rows), không cần frontend
+  // tự tick sẵn nữa.
 
   const rows = applyFilters(data.rows || [], {
     qua_han: (r) => (r.is_overdue ? "Quá hạn" : ""),
@@ -859,31 +819,21 @@ function ScheduleView({ data, group, onDone }) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => {
-                const priority = isPriorityMatch(r, ngayKiem);
-                return (
-                  <tr
-                    key={r.ma_shop} onClick={() => toggle(r.ma_shop)}
-                    style={{
-                      cursor: "pointer",
-                      background: selected.has(r.ma_shop) ? "var(--bg)" : priority ? "#FFF8E1" : "",
-                    }}
-                  >
-                    <td><input type="checkbox" checked={selected.has(r.ma_shop)} onChange={() => toggle(r.ma_shop)} /></td>
-                    <td style={{ textAlign: "left" }}>{r.ma_shop}</td>
-                    <td style={{ textAlign: "left" }}>{r.ten_shop}</td>
-                    <td>
-                      <Pill kind={PHAN_LOAI_PILL[r.phan_loai]}>{r.phan_loai}</Pill>
-                      {priority && (
-                        <span title={`Nên chia đúng ngày cần kiểm (${r.next_due_date || r.ngay_can_kiem}) hoặc sớm hơn 1 ngày`} style={{ marginLeft: 4 }}>
-                          🎯
-                        </span>
-                      )}
-                    </td>
-                    <td>{r.is_overdue ? <Pill kind="warn">Quá hạn</Pill> : ""}</td>
-                  </tr>
-                );
-              })}
+              {rows.map((r) => (
+                <tr
+                  key={r.ma_shop} onClick={() => toggle(r.ma_shop)}
+                  style={{
+                    cursor: "pointer",
+                    background: selected.has(r.ma_shop) ? "var(--bg)" : "",
+                  }}
+                >
+                  <td><input type="checkbox" checked={selected.has(r.ma_shop)} onChange={() => toggle(r.ma_shop)} /></td>
+                  <td style={{ textAlign: "left" }}>{r.ma_shop}</td>
+                  <td style={{ textAlign: "left" }}>{r.ten_shop}</td>
+                  <td><Pill kind={PHAN_LOAI_PILL[r.phan_loai]}>{r.phan_loai}</Pill></td>
+                  <td>{r.is_overdue ? <Pill kind="warn">Quá hạn</Pill> : ""}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -893,14 +843,6 @@ function ScheduleView({ data, group, onDone }) {
         <div className="card-head"><h3>Chia lịch — đã tick đích danh {selected.size} shop</h3></div>
         <div className="card-body">
           <div className="field"><label>Ngày kiểm</label><input type="date" className="finput" style={{ width: "100%" }} value={ngayKiem} onChange={(e) => setNgayKiem(e.target.value)} /></div>
-          {(() => {
-            const priorityCount = (data.rows || []).filter((r) => isPriorityMatch(r, ngayKiem)).length;
-            return priorityCount > 0 ? (
-              <div style={{ fontSize: 11.5, color: "#9A7B00", background: "#FFF8E1", borderRadius: 6, padding: "6px 10px", marginBottom: 10 }}>
-                🎯 Đã tự tick sẵn {priorityCount} shop "Xin kiểm kê" nên chia đúng ngày này (hoặc sớm hơn 1 ngày) — anh có thể bỏ tick nếu chưa muốn chia.
-              </div>
-            ) : null;
-          })()}
           <div className="field">
             <label>Hình thức</label>
             <select className="finput" style={{ width: "100%" }} value={hinhThuc} onChange={(e) => setHinhThuc(e.target.value)}>
@@ -946,9 +888,9 @@ function ScheduleView({ data, group, onDone }) {
 
           <div style={{ fontSize: 11.5, color: "var(--text-600)", marginTop: 12, lineHeight: 1.5 }}>
             {selected.size === 0
-              ? "Chưa tick shop nào → hệ thống tự chọn đủ số lượng trong danh sách \"cần chia lịch\" (ưu tiên shop Xin kiểm kê/Đóng cửa/Vi phạm trước, trong đó ưu tiên shop gần hạn kiểm kê nhất, chỉ random giữa các shop cùng hạn)."
+              ? "Chưa tick shop nào → hệ thống tự chọn đủ số lượng trong danh sách \"cần chia lịch\" (ưu tiên shop quá hạn trước, rồi shop Xin kiểm kê đúng ngày kiểm đang chọn, còn lại theo shop gần hạn kiểm kê nhất, chỉ random giữa các shop cùng hạn)."
               : selected.size < quotaTotal
-                ? `Đã tick ${selected.size}/${quotaTotal} shop → ${quotaTotal - selected.size} shop còn lại sẽ tự bổ sung (ưu tiên shop khẩn + gần hạn kiểm kê nhất trước).`
+                ? `Đã tick ${selected.size}/${quotaTotal} shop → ${quotaTotal - selected.size} shop còn lại sẽ tự bổ sung (ưu tiên shop quá hạn + gần hạn kiểm kê nhất trước).`
                 : "Đã tick đủ/thừa số lượng → chia đúng các shop đã tick."}
           </div>
 
