@@ -7,10 +7,12 @@ import Layout from "../../components/Layout";
 import { useAllowedKeys } from "../../lib/permissions";
 import BlockRenderer from "../../components/ReportBlocks";
 import BlockEditor from "../../components/BlockEditor";
+import SlideViewer from "../../components/SlideViewer";
 import {
   getReport, listReports, updateReportKiemKe, generateChuDeReport,
   synthesizeChuDeReport, updateReportChuDe, getUser,
   uploadReportChuDeFile, downloadReportChuDeFile, deleteReportChuDeFile,
+  retryRenderReportChuDeSlides,
 } from "../../lib/api";
 
 export async function getStaticPaths() {
@@ -275,6 +277,20 @@ export default function BaoCaoDetailPage() {
       setReport(updated);
     } catch (err) {
       setChuDeFileMsg("❌ " + (err.message || "Xóa thất bại"));
+    } finally {
+      setChuDeFileBusy(false);
+    }
+  }
+
+  async function handleRetryRenderSlides() {
+    setChuDeFileBusy(true);
+    setChuDeFileMsg("");
+    try {
+      const updated = await retryRenderReportChuDeSlides(period);
+      setReport(updated);
+      if (!updated.chu_de_slide_count) setChuDeFileMsg("❌ Vẫn chưa render được — kiểm tra lại file có đúng .pptx không.");
+    } catch (err) {
+      setChuDeFileMsg("❌ " + (err.message || "Render lại thất bại"));
     } finally {
       setChuDeFileBusy(false);
     }
@@ -707,6 +723,11 @@ export default function BaoCaoDetailPage() {
                           {chuDeFileDownloading ? "Đang tải..." : "📥 Tải về"}
                         </button>
                       )}
+                      {isAdmin && report.chu_de_file_name && !report.chu_de_slide_count && (
+                        <button className="fbtn" disabled={chuDeFileBusy} onClick={handleRetryRenderSlides}>
+                          {chuDeFileBusy ? "Đang render..." : "🔄 Thử render slide lại"}
+                        </button>
+                      )}
                       {isAdmin && (
                         <>
                           <label className="upload-btn" style={{ cursor: chuDeFileBusy ? "default" : "pointer", opacity: chuDeFileBusy ? 0.6 : 1 }}>
@@ -720,6 +741,16 @@ export default function BaoCaoDetailPage() {
                       )}
                     </div>
                   </div>
+                  {report.chu_de_file_name && !report.chu_de_slide_count && (
+                    <div className="card-body" style={{ paddingTop: 0, fontSize: 12, color: "var(--text-400)" }}>
+                      Chưa xem/trình bày trực tiếp được — file chưa render ra slide (bấm &quot;Thử render slide lại&quot; ở trên, hoặc dùng nút Tải về để mở bằng PowerPoint).
+                    </div>
+                  )}
+                  {report.chu_de_slide_count > 0 && (
+                    <div className="card-body" style={{ paddingTop: 0 }}>
+                      <SlideViewer periodLabel={period} slideCount={report.chu_de_slide_count} />
+                    </div>
+                  )}
                 </div>
               )}
 
