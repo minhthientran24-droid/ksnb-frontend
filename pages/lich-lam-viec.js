@@ -9,6 +9,7 @@ import {
   llv2Schedule, llv2SetClass, llv2DeleteCycle,
   llv2UploadQuota,
   llv2BulkCreateTickets, llv2CreateDanhSachChia, llv2EhoAllShopAuditUrl,
+  llv2ManualConfirmTicket,
 } from "../lib/llv2Api";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
@@ -47,11 +48,21 @@ const JOB_STATUS_LABELS = {
   loi: "Lỗi — cần kiểm tra", can_xac_minh: "Cần xác minh", da_huy: "Đã huỷ",
 };
 const JOB_STATUS_PILL = { da_tao: "ok", loi: "danger", can_xac_minh: "warn", cho_tao: "warn" };
-function JobStatusBadge({ status, url }) {
+// `onClickCanXacMinh` (chốt 04/09) — chỉ truyền ở đúng chỗ cần bấm được
+// (bảng chính "Shop được chia"), bấm vào khi trạng thái "Cần xác minh" mở
+// popup dán link ticket thật đã tự kiểm tra trên SSC.
+function JobStatusBadge({ status, url, onClickCanXacMinh }) {
   const s = status || "";
   const kind = JOB_STATUS_PILL[s];
   const label = JOB_STATUS_LABELS[s] || s;
   if (url) return <a href={url} target="_blank" rel="noreferrer"><Pill kind={kind}>{label}</Pill></a>;
+  if (s === "can_xac_minh" && onClickCanXacMinh) {
+    return (
+      <span onClick={onClickCanXacMinh} style={{ cursor: "pointer" }} title="Bấm để dán link ticket thật (nếu đã tự kiểm tra trên SSC)">
+        <Pill kind={kind}>{label} ✏️</Pill>
+      </span>
+    );
+  }
   return <Pill kind={kind}>{label}</Pill>;
 }
 
@@ -916,6 +927,12 @@ function TodayScheduledView({ data, group, onDone }) {
   const [proc, setProc] = useState(null); // {ids:Set<number>} — popup đang xử lý ticket SSC
   const [ehoBusy, setEhoBusy] = useState(false); // đang tải file EHO
   const [ehoMsg, setEhoMsg] = useState("");
+  // Popup dán link ticket thật khi trạng thái "Cần xác minh" (chốt 04/09)
+  // — bấm trực tiếp vào badge ở bảng chính, xem JobStatusBadge.
+  const [confirmingTicket, setConfirmingTicket] = useState(null); // row đang xác nhận
+  const [confirmUrl, setConfirmUrl] = useState("");
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const [confirmMsg, setConfirmMsg] = useState("");
 
   const rows = applyFilters(data.rows || [], {
     trang_thai: (r) => statusLabel(r.display_status),
@@ -947,6 +964,30 @@ function TodayScheduledView({ data, group, onDone }) {
       setDsChiaMsg("❌ " + e.message);
     } finally {
       setDsChiaBusy(false);
+    }
+  }
+
+  function openConfirmTicket(row) {
+    setConfirmingTicket(row);
+    setConfirmUrl("");
+    setConfirmMsg("");
+  }
+
+  async function submitConfirmTicket() {
+    if (!confirmUrl.trim()) {
+      setConfirmMsg("❌ Cần nhập link ticket");
+      return;
+    }
+    setConfirmBusy(true);
+    setConfirmMsg("");
+    try {
+      await llv2ManualConfirmTicket(confirmingTicket.id, confirmUrl.trim());
+      setConfirmingTicket(null);
+      onDone();
+    } catch (e) {
+      setConfirmMsg("❌ " + e.message);
+    } finally {
+      setConfirmBusy(false);
     }
   }
 
@@ -1109,7 +1150,7 @@ function TodayScheduledView({ data, group, onDone }) {
                 <td>{r.ngay_kiem}</td>
                 <td>{r.hinh_thuc}</td>
                 <td style={{ fontSize: 11.5 }}>{statusLabel(r.display_status)}</td>
-                <td><JobStatusBadge status={r.ticket_status} url={r.ticket_url} /></td>
+                <td><JobStatusBadge status={r.ticket_status} url={r.ticket_url} onClickCanXacMinh={() => openConfirmTicket(r)} /></td>
                 <td>
                   <button className="fbtn" style={{ color: "var(--danger)", borderColor: "var(--danger)" }} onClick={() => openCancel(r)}>Hủy</button>
                 </td>
@@ -1144,6 +1185,36 @@ function TodayScheduledView({ data, group, onDone }) {
               disabled={busy} onClick={confirmCancel}
             >{busy ? "Đang hủy..." : "Xác nhận hủy"}</button>
             <button className="fbtn" onClick={() => setCancelling(null)}>Đóng</button>
+          </div>
+        </Modal>
+      )}
+
+      {confirmingTicket && (
+        <Modal
+          title={`Xác nhận ticket — shop ${confirmingTicket.ma_shop}`}
+          subtitle={`${confirmingTicket.ten_shop || ""} · KSNB: ${confirmingTicket.ksnb || ""}`}
+          onClose={() => setConfirmingTicket(null)}
+        >
+          <div style={{ fontSize: 13.5, marginBottom: 14 }}>
+            Chỉ dùng khi anh/chị đã tự vào SSC kiểm tra và thấy ticket đã tạo thành công (chương trình
+            automation báo "Cần xác minh" vì không tự đọc/xác nhận lại được link). Dán đúng link ticket
+            thật vào đây — hệ thống sẽ chuyển trạng thái thành "Đã tạo".
+          </div>
+          <div className="field">
+            <label className="flabel">Link ticket SSC *</label>
+            <input
+              className="finput" style={{ width: "100%" }}
+              value={confirmUrl} onChange={(e) => setConfirmUrl(e.target.value)}
+              placeholder="https://ssc.fptshop.com.vn/s-pro/workflow/ticket/detail/..."
+              autoFocus
+            />
+          </div>
+          {confirmMsg && <div style={{ fontSize: 12.5, marginTop: 10, color: "var(--danger)" }}>{confirmMsg}</div>}
+          <div className="llv-modal-actions">
+            <button className="login-btn" style={{ width: "auto", padding: "9px 20px" }} disabled={confirmBusy} onClick={submitConfirmTicket}>
+              {confirmBusy ? "Đang lưu..." : "Xác nhận"}
+            </button>
+            <button className="fbtn" onClick={() => setConfirmingTicket(null)}>Đóng</button>
           </div>
         </Modal>
       )}
