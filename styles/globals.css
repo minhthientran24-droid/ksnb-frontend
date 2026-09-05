@@ -176,7 +176,13 @@ a{color:inherit; text-decoration:none;}
 .card-head span.note{font-size:12px; color:var(--text-400);}
 .card-body{padding:16px 20px;}
 table{width:100%; border-collapse:collapse; font-size:15px;}
-th{text-align:center; vertical-align:middle; padding:10px 16px; background:#EAF1FC; color:var(--text-600); font-weight:700; font-size:15.5px; line-height:1; text-transform:uppercase; border-bottom:1px solid var(--border); border-right:1px solid #EEF1F6;}
+/* Size chữ tên cột (th) — chốt 06/09, lấy theo đúng size đang dùng ở menu
+   "Nhật ký hoạt động" (10.5px, xem pages/nhat-ky-hoat-dong.js::thStyle) và
+   áp dụng làm MẶC ĐỊNH CHUNG cho <th> trên toàn web — trang mới sau này cứ
+   dùng <th> thường (không tự set fontSize riêng) là tự động đúng size này,
+   không cần khai báo lại. Trang nào có thStyle/SortTh riêng đã tự đặt
+   10.5px từ trước (VD Đề xuất kiểm kê) thì giữ nguyên, không đổi gì thêm. */
+th{text-align:center; vertical-align:middle; padding:10px 16px; background:#EAF1FC; color:var(--text-600); font-weight:700; font-size:10.5px; line-height:1; text-transform:uppercase; border-bottom:1px solid var(--border); border-right:1px solid #EEF1F6;}
 th:last-child{border-right:none;}
 td{padding:11px 16px; border-bottom:1px solid #F0F2F6; border-right:1px solid #F3F5F9; text-align:center; vertical-align:middle;}
 td:last-child{border-right:none;}
