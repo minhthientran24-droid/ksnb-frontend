@@ -911,17 +911,6 @@ export default function TheoDoiChuDeV2Page() {
       )}
 
       {!showForm && (
-        <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 14, flexWrap: "wrap" }}>
-          <button className="fbtn" onClick={() => setTopicPickerOpen(true)} style={{ background: "var(--surface)", border: "1px solid var(--border)", fontWeight: 700 }}>
-            🏷️ {selectedTopic || "Tất cả chủ đề"}
-          </button>
-          {selectedTopic && (
-            <button className="fbtn" onClick={() => setSelectedTopic("")}>✕ Bỏ lọc</button>
-          )}
-        </div>
-      )}
-
-      {!showForm && (
         <BulkUploadCard
           onDone={load} onOpenForm={() => setShowForm(true)}
           thang={thang} setThang={setThang} months={months}
@@ -934,23 +923,43 @@ export default function TheoDoiChuDeV2Page() {
         <JobFormCard editingJob={editingJob} onDone={afterSave} onCancel={closeForm} topics={topicNames} />
       )}
 
-      <div className="month-tabs">
-        {CHU_DE_TABS.map((t) => {
-          const count = jobs.filter((j) => jobMatchesTab(j, t.key)).length;
-          const isActive = activeTab === t.key;
-          return (
-            <div
-              key={t.key}
-              className="month-tab"
-              onClick={() => setActiveTab(t.key)}
-              style={isActive
-                ? { background: t.color, borderColor: t.color, color: "#fff" }
-                : { background: t.bg, borderColor: t.color, color: t.color }}
-            >
-              {t.label} ({count})
-            </div>
-          );
-        })}
+      {/* "Tất cả chủ đề" canh trái, 3 nút trạng thái canh phải — cùng 1
+          hàng (chốt 06/09). Nút "Tất cả chủ đề" ẩn lúc đang mở form (giữ
+          đúng hành vi cũ), 3 nút trạng thái luôn hiện. */}
+      <div className="month-tabs" style={{ justifyContent: "space-between" }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          {!showForm && (
+            <>
+              <button
+                className="fbtn" onClick={() => setTopicPickerOpen(true)}
+                style={{ background: "#FCE4EC", border: "1px solid #F48FB1", color: "#AD1457", fontWeight: 700 }}
+              >
+                🏷️ {selectedTopic || "Tất cả chủ đề"}
+              </button>
+              {selectedTopic && (
+                <button className="fbtn" onClick={() => setSelectedTopic("")}>✕ Bỏ lọc</button>
+              )}
+            </>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {CHU_DE_TABS.map((t) => {
+            const count = jobs.filter((j) => jobMatchesTab(j, t.key)).length;
+            const isActive = activeTab === t.key;
+            return (
+              <div
+                key={t.key}
+                className="month-tab"
+                onClick={() => setActiveTab(t.key)}
+                style={isActive
+                  ? { background: t.color, borderColor: t.color, color: "#fff" }
+                  : { background: t.bg, borderColor: t.color, color: t.color }}
+              >
+                {t.label} ({count})
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {error && <div className="placeholder-box">Không tải được dữ liệu: {error}</div>}
