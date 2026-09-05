@@ -22,7 +22,7 @@ import {
 // chốt 03/09 — giờ view chung tất cả chủ đề, y hệt bản thật.
 const ADMIN_ROLES = ["admin", "super_admin"];
 
-const emptyForm = { ten_chu_de: "", vung: "", ma_shop: "", ten_shop: "", noi_dung_vi_pham: "" };
+const emptyForm = { ten_chu_de: "", loai_vi_pham: "", vung: "", ma_shop: "", ten_shop: "", noi_dung_vi_pham: "" };
 
 function currentMonthStr() {
   const d = new Date();
@@ -565,6 +565,10 @@ function JobFormCard({ editingJob, onDone, onCancel, topics }) {
           )}
         </div>
         <div>
+          <label style={labelStyle}>Loại Vi phạm</label>
+          <input style={inputStyle} value={form.loai_vi_pham} onChange={(e) => setForm({ ...form, loai_vi_pham: e.target.value })} />
+        </div>
+        <div>
           <label style={labelStyle}>Mã shop</label>
           <input
             style={inputStyle} value={form.ma_shop}
@@ -806,6 +810,7 @@ export default function TheoDoiChuDeV2Page() {
   const visibleJobs = jobs.filter((job) => jobMatchesTab(job, activeTab));
   const sortedJobs = applySort(visibleJobs, sort.state, {
     upload_date: (j) => j.upload_date || "",
+    loai_vi_pham: (j) => j.loai_vi_pham || "",
     vung: (j) => j.vung || "",
     ma_shop: (j) => j.ma_shop || "",
     ten_shop: (j) => j.ten_shop || "",
@@ -960,6 +965,7 @@ export default function TheoDoiChuDeV2Page() {
               <thead>
                 <tr>
                   <SortTh label="Ngày Upload" sortKey="upload_date" sortState={sort.state} onSort={sort.onSort} />
+                  <SortTh label="Loại Vi Phạm" sortKey="loai_vi_pham" sortState={sort.state} onSort={sort.onSort} align="left" />
                   <SortTh label="Vùng" sortKey="vung" sortState={sort.state} onSort={sort.onSort} />
                   <SortTh label="Mã Shop" sortKey="ma_shop" sortState={sort.state} onSort={sort.onSort} />
                   <SortTh label="Tên Shop" sortKey="ten_shop" sortState={sort.state} onSort={sort.onSort} align="left" />
@@ -974,7 +980,7 @@ export default function TheoDoiChuDeV2Page() {
               </thead>
               <tbody>
                 {visibleJobs.length === 0 && (
-                  <tr><td colSpan={11} style={{ textAlign: "center", color: "var(--text-400)" }}>Không có task nào ở tình trạng này.</td></tr>
+                  <tr><td colSpan={12} style={{ textAlign: "center", color: "var(--text-400)" }}>Không có task nào ở tình trạng này.</td></tr>
                 )}
                 {sortedJobs.map((job) => {
                   const supporters = job.supporters || [];
@@ -986,6 +992,7 @@ export default function TheoDoiChuDeV2Page() {
                   return (
                     <tr key={job.id}>
                       <td>{job.upload_date}</td>
+                      <td style={{ textAlign: "left" }}>{job.loai_vi_pham || "-"}</td>
                       <td>{job.vung || "-"}</td>
                       <td>{job.ma_shop || "-"}</td>
                       <td style={{ textAlign: "left" }}>{job.ten_shop || "-"}</td>
