@@ -29,6 +29,21 @@ function currentMonthStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+// Sắp xếp danh sách "Tên chủ đề" A→Z (chốt 06/09, đúng thứ tự chữ cái
+// tiếng Việt qua localeCompare("vi")) — RIÊNG tên "Khác" luôn đẩy xuống
+// CUỐI CÙNG bất kể thứ tự chữ cái. Dùng chung cho cả màn "Quản lý chủ đề"
+// lẫn dropdown "Tên chủ đề" ở form "Thêm chủ đề mới" (cả 2 đều lấy từ
+// cùng state `topics`, sort 1 lần lúc tải là đủ cho cả 2 nơi).
+function sortTopics(topics) {
+  return [...topics].sort((a, b) => {
+    const aKhac = a.ten_chu_de.trim() === "Khác";
+    const bKhac = b.ten_chu_de.trim() === "Khác";
+    if (aKhac && !bKhac) return 1;
+    if (!aKhac && bKhac) return -1;
+    return a.ten_chu_de.localeCompare(b.ten_chu_de, "vi");
+  });
+}
+
 // Mặc định chọn tháng hiện tại (chốt 06/09) — nhưng danh sách `months` chỉ
 // liệt kê tháng nào ĐÃ có job, nên tháng hiện tại (chưa có job) sẽ không
 // nằm trong đó — nếu không tự thêm option riêng, <select> hiện sai (rơi về
@@ -757,7 +772,7 @@ export default function TheoDoiChuDeV2Page() {
   }, []);
 
   function loadTopics() {
-    listChuDeTopicsV2().then(setTopics).catch(() => {});
+    listChuDeTopicsV2().then((rows) => setTopics(sortTopics(rows))).catch(() => {});
   }
 
   function load(thangFilter = thang, topicFilter = selectedTopic) {
