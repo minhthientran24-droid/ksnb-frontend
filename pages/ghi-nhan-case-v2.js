@@ -55,15 +55,26 @@ const HINH_THUC_KY_LUAT_OPTIONS = [
   { value: "", label: "(Chưa xác định)" },
   { value: "sa_thai", label: "Sa thải" },
   { value: "phat_tien", label: "Phạt tiền" },
+  { value: "phat_inc", label: "Phạt INC" },
   { value: "canh_cao_nhac_nho", label: "Cảnh cáo nhắc nhở" },
   { value: "cho_hop_xlkl", label: "Chờ họp XLKL" },
 ];
+// "Giá trị Phạt" (chốt 06/09 lần 5) — chỉ hiện với 3 hình thức này: "phat_inc"
+// nhập theo % , "phat_tien"/"sa_thai" nhập theo đồng (có dấu "," ngăn cách).
+const HINH_THUC_CO_GIA_TRI_PHAT = ["phat_inc", "phat_tien", "sa_thai"];
 
 function trangThaiInfo(value) {
   return TRANG_THAI_OPTIONS.find((t) => t.value === value) || TRANG_THAI_OPTIONS[0];
 }
 function hinhThucKyLuatLabel(value) {
   return HINH_THUC_KY_LUAT_OPTIONS.find((h) => h.value === value)?.label || "(Chưa xác định)";
+}
+// "Giá trị Phạt" hiển thị theo đúng đơn vị của hình thức kỷ luật đang lưu
+// trên case (Phạt INC = % , Phạt tiền/Sa thải = đồng) — case khác hình
+// thức thì không có giá trị này (backend luôn ép về null).
+function formatGiaTriPhat(hinhThucKyLuat, giaTriPhat) {
+  if (giaTriPhat === null || giaTriPhat === undefined || giaTriPhat === "") return null;
+  return hinhThucKyLuat === "phat_inc" ? `${giaTriPhat}%` : `${fmtMoney(giaTriPhat)} đồng`;
 }
 function fmtMoney(n) {
   if (n === null || n === undefined || n === "") return "-";
@@ -90,7 +101,7 @@ function parseMoneyInput(displayValue) {
 const EMPTY_FORM = {
   chu_de_vi_pham: "", loai_vi_pham: "", ma_shop: "", ten_shop: "", vung: "",
   nhan_vien_vi_pham: "", dien_giai_vi_pham: "", gia_tri_vi_pham: "", sl_so_vi_pham: "",
-  trang_thai: "dang_xu_ly", hinh_thuc_ky_luat: "",
+  trang_thai: "dang_xu_ly", hinh_thuc_ky_luat: "", gia_tri_phat: "",
 };
 
 // ---------- Form dùng chung cho cả "Ghi nhận case mới" và "Sửa case" ----------
@@ -194,10 +205,37 @@ function CaseForm({ form, setForm, file, setFile, existingFileName, onSubmit, on
         <div>
           <label style={labelStyle}>Hình thức kỷ luật</label>
           <select className="finput" style={inputStyle} value={form.hinh_thuc_ky_luat}
-            onChange={(e) => setForm({ ...form, hinh_thuc_ky_luat: e.target.value })}>
+            onChange={(e) => {
+              const next = e.target.value;
+              setForm((f) => {
+                // Đổi qua lại 2 hình thức cùng đơn vị tiền (Phạt tiền <-> Sa
+                // thải) thì giữ nguyên số đã nhập; đổi khác đơn vị (dính tới
+                // Phạt INC = %, hoặc ra ngoài 3 hình thức có Giá trị Phạt)
+                // thì xoá để tránh hiểu nhầm đơn vị cũ.
+                const prevPercent = f.hinh_thuc_ky_luat === "phat_inc";
+                const nextPercent = next === "phat_inc";
+                const reset = prevPercent !== nextPercent;
+                return { ...f, hinh_thuc_ky_luat: next, gia_tri_phat: reset ? "" : f.gia_tri_phat };
+              });
+            }}>
             {HINH_THUC_KY_LUAT_OPTIONS.map((h) => <option key={h.value} value={h.value}>{h.label}</option>)}
           </select>
         </div>
+        {HINH_THUC_CO_GIA_TRI_PHAT.includes(form.hinh_thuc_ky_luat) && (
+          <div>
+            <label style={labelStyle}>Giá trị Phạt {form.hinh_thuc_ky_luat === "phat_inc" ? "(%)" : "(đồng)"}</label>
+            {form.hinh_thuc_ky_luat === "phat_inc" ? (
+              <input type="text" inputMode="decimal" className="finput" style={inputStyle}
+                value={form.gia_tri_phat}
+                onChange={(e) => setForm({ ...form, gia_tri_phat: e.target.value.replace(/[^\d.]/g, "") })}
+                placeholder="VD: 10" />
+            ) : (
+              <input type="text" inputMode="numeric" className="finput" style={inputStyle}
+                value={formatMoneyInput(form.gia_tri_phat)}
+                onChange={(e) => setForm({ ...form, gia_tri_phat: parseMoneyInput(e.target.value) })} />
+            )}
+          </div>
+        )}
       </div>
       <div style={{ marginTop: 12 }}>
         <label style={labelStyle}>Diễn giải vi phạm</label>
@@ -338,6 +376,7 @@ export default function GhiNhanCaseV2Page() {
       nhan_vien_vi_pham: c.nhan_vien_vi_pham || "", dien_giai_vi_pham: c.dien_giai_vi_pham || "",
       gia_tri_vi_pham: c.gia_tri_vi_pham ?? "", sl_so_vi_pham: c.sl_so_vi_pham ?? "",
       trang_thai: c.trang_thai, hinh_thuc_ky_luat: c.hinh_thuc_ky_luat || "",
+      gia_tri_phat: c.gia_tri_phat ?? "",
     });
   }
 
@@ -441,6 +480,9 @@ export default function GhiNhanCaseV2Page() {
                       Giá trị: <strong>{fmtMoney(c.gia_tri_vi_pham)}</strong>
                       {c.sl_so_vi_pham !== null && c.sl_so_vi_pham !== undefined && <> · SL SO: {c.sl_so_vi_pham}</>}
                       {c.hinh_thuc_ky_luat && <> · Hình thức KL: <strong>{hinhThucKyLuatLabel(c.hinh_thuc_ky_luat)}</strong></>}
+                      {formatGiaTriPhat(c.hinh_thuc_ky_luat, c.gia_tri_phat) && (
+                        <> · Giá trị Phạt: <strong>{formatGiaTriPhat(c.hinh_thuc_ky_luat, c.gia_tri_phat)}</strong></>
+                      )}
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
