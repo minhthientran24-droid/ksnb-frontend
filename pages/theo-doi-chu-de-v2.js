@@ -352,6 +352,10 @@ function CompleteJobModal({ job, onDone, onCancel }) {
 // đổi tháng ở đây lọc luôn bảng chính). Bấm 1 dòng để lọc theo đúng tên đó,
 // bấm "Tất cả chủ đề" để bỏ lọc. ----------
 function TopicPickerModal({ stats, loading, thang, setThang, months, selectedTopic, onSelect, onClose }) {
+  // Chốt 06/09 — sort A-Z (rule sortTopics, "Khác" luôn cuối) + ẩn hẳn
+  // chủ đề có tổng số case = 0 trong đúng tháng đang xem (không phải xóa
+  // khỏi combo box, chỉ không hiện ở popup này cho gọn).
+  const visibleStats = sortTopics(stats.filter((s) => s.total > 0));
   const grandTotal = stats.reduce(
     (acc, s) => ({
       "Chưa nhận": acc["Chưa nhận"] + s["Chưa nhận"],
@@ -364,7 +368,7 @@ function TopicPickerModal({ stats, loading, thang, setThang, months, selectedTop
 
   return (
     <div style={overlayStyle} onClick={onClose}>
-      <div style={{ ...modalStyle, width: 620 }} onClick={(e) => e.stopPropagation()}>
+      <div style={{ ...modalStyle, width: 806 }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, gap: 10, flexWrap: "wrap" }}>
           <h3 style={{ margin: 0 }}>🏷️ Chọn Tên chủ đề</h3>
           <MonthSelect thang={thang} setThang={setThang} months={months} />
@@ -395,7 +399,7 @@ function TopicPickerModal({ stats, loading, thang, setThang, months, selectedTop
                   <td>{grandTotal["Hoàn tất"]}</td>
                   <td>{grandTotal.total}</td>
                 </tr>
-                {stats.map((s) => (
+                {visibleStats.map((s) => (
                   <tr
                     key={s.ten_chu_de}
                     onClick={() => onSelect(s.ten_chu_de)}
@@ -408,8 +412,12 @@ function TopicPickerModal({ stats, loading, thang, setThang, months, selectedTop
                     <td style={{ fontWeight: 700 }}>{s.total}</td>
                   </tr>
                 ))}
-                {stats.length === 0 && (
-                  <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--text-400)", padding: 16 }}>Chưa có Tên chủ đề nào trong danh sách.</td></tr>
+                {visibleStats.length === 0 && (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: "center", color: "var(--text-400)", padding: 16 }}>
+                      {stats.length === 0 ? "Chưa có Tên chủ đề nào trong danh sách." : "Chưa có chủ đề nào có case trong tháng này."}
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
@@ -949,7 +957,7 @@ export default function TheoDoiChuDeV2Page() {
                 className="fbtn" onClick={() => setTopicPickerOpen(true)}
                 style={{ background: "#FCE4EC", border: "1px solid #F48FB1", color: "#AD1457", fontWeight: 700 }}
               >
-                🏷️ {selectedTopic || "Tất cả chủ đề"}
+                🏷️ {selectedTopic || "Chọn chủ đề"}
               </button>
               {selectedTopic && (
                 <button className="fbtn" onClick={() => setSelectedTopic("")}>✕ Bỏ lọc</button>
