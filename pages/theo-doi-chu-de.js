@@ -564,6 +564,7 @@ const CHU_DE_TABS = [
 ];
 
 export default function TheoDoiChuDePage() {
+  const router = useRouter();
   const { can, ready: permReady } = useAllowedKeys();
   const [me, setMe] = useState(null);
   const [jobs, setJobs] = useState([]);
@@ -686,6 +687,42 @@ export default function TheoDoiChuDePage() {
     } finally {
       setBusyId(null);
     }
+  }
+
+  // Điều chỉnh lại kết quả 1 task ĐÃ Hoàn tất (chốt 06/09) — trước giờ chỉ
+  // chọn được Có/Không vi phạm 1 LẦN lúc đánh dấu hoàn tất, giờ cho sửa lại
+  // nếu nhân viên chọn nhầm. Dùng chung API /complete (không kiểm tra
+  // trang_thai hiện tại) nên gọi lại vẫn ghi đè kết quả bình thường.
+  // - Có vi phạm -> Không vi phạm: KHÔNG tự xoá case đã ghi nhận bên "Ghi
+  //   nhận case vi phạm" (menu đó không lưu liên kết ngược tới job) — chỉ
+  //   cảnh báo, để anh/chị tự vào xoá case tương ứng.
+  // - Không vi phạm -> Có vi phạm: mở lại đúng luồng cũ, chuyển sang "Ghi
+  //   nhận case vi phạm" điền sẵn Chủ đề/Đối tượng/Vùng, bắt buộc ghi case.
+  async function handleAdjustToKoViPham(job) {
+    if (!confirm(
+      `Đổi kết quả task "${job.ten_chu_de}" từ "Có vi phạm" thành "Không vi phạm"?\n\n` +
+      `⚠️ Hệ thống KHÔNG tự xóa case đã ghi nhận cho task này bên menu "Ghi nhận case vi phạm" — ` +
+      `anh/chị cần tự vào đó xóa case tương ứng, tránh còn sót case của 1 task đã đổi lại "Không vi phạm".`
+    )) return;
+    setBusyId(job.id);
+    try {
+      await completeChuDeJob(job.id, { ket_qua_vi_pham: "Không vi phạm" });
+      load();
+    } catch (err) {
+      alert(err.message || "Đổi kết quả thất bại");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function handleAdjustToCoViPham(job) {
+    const params = new URLSearchParams({
+      jobId: String(job.id),
+      chu_de: job.ten_chu_de || "",
+      doi_tuong: [job.ma_shop, job.ten_shop].filter(Boolean).join(" - "),
+      vung: job.vung || "",
+    });
+    router.push(`/ghi-nhan-case?${params.toString()}`);
   }
 
   function afterComplete() {
@@ -826,6 +863,9 @@ export default function TheoDoiChuDePage() {
                   // Thêm người hỗ trợ (25/08): CHỈ người phụ trách chính thấy được (không
                   // phải người hỗ trợ, không phải user khác) — admin/editor thấy ở mọi job.
                   const canAddSupporters = (mine || canUpload) && job.trang_thai === "Đang xử lý";
+                  // Điều chỉnh lại kết quả task ĐÃ Hoàn tất (chốt 06/09) — cùng
+                  // nhóm người được phép đánh dấu hoàn tất (người nhận/hỗ trợ/admin).
+                  const canAdjustResult = (mine || isSupporter || isAdmin) && job.trang_thai === "Hoàn tất";
                   const busy = busyId === job.id;
                   const soNgay = soNgayXuLy(job.ngay_bat_dau_check);
                   return (
@@ -867,6 +907,16 @@ export default function TheoDoiChuDePage() {
                           {canComplete && (
                             <button className="fbtn" onClick={() => setCompletingJob(job)}>
                               ✅ Đánh dấu hoàn tất
+                            </button>
+                          )}
+                          {canAdjustResult && job.ket_qua_vi_pham === "Có vi phạm" && (
+                            <button className="fbtn" disabled={busy} onClick={() => handleAdjustToKoViPham(job)}>
+                              {busy ? "Đang đổi..." : "🔁 Đổi thành Không vi phạm"}
+                            </button>
+                          )}
+                          {canAdjustResult && job.ket_qua_vi_pham === "Không vi phạm" && (
+                            <button className="fbtn" onClick={() => handleAdjustToCoViPham(job)}>
+                              🔁 Đổi thành Có vi phạm
                             </button>
                           )}
                           {canAddSupporters && (
