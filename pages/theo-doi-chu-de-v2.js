@@ -390,8 +390,9 @@ function TopicPickerModal({ stats, loading, thang, setThang, months, selectedTop
               </thead>
               <tbody>
                 <tr
+                  className="click-select-row"
                   onClick={() => onSelect("")}
-                  style={{ cursor: "pointer", fontWeight: 700, background: !selectedTopic ? "#E8EFFC" : undefined }}
+                  style={{ fontWeight: 700, background: !selectedTopic ? "#E8EFFC" : undefined }}
                 >
                   <td style={{ textAlign: "left" }}>🔷 Tất cả chủ đề</td>
                   <td>{grandTotal["Chưa nhận"]}</td>
@@ -402,8 +403,9 @@ function TopicPickerModal({ stats, loading, thang, setThang, months, selectedTop
                 {visibleStats.map((s) => (
                   <tr
                     key={s.ten_chu_de}
+                    className="click-select-row"
                     onClick={() => onSelect(s.ten_chu_de)}
-                    style={{ cursor: "pointer", background: selectedTopic === s.ten_chu_de ? "#E8EFFC" : undefined }}
+                    style={{ background: selectedTopic === s.ten_chu_de ? "#E8EFFC" : undefined }}
                   >
                     <td style={{ textAlign: "left" }}>{s.ten_chu_de}</td>
                     <td>{s["Chưa nhận"]}</td>
