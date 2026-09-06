@@ -70,6 +70,23 @@ function fmtMoney(n) {
   return Number(n).toLocaleString("vi-VN");
 }
 
+// Ô nhập "Giá trị vi phạm" (chốt 06/09 lần 4) — tự thêm dấu "," ngăn cách
+// hàng nghìn NGAY LÚC GÕ cho dễ nhìn số lớn (VD gõ "1500000" hiện ngay
+// "1,500,000"). State vẫn lưu chuỗi SỐ THUẦN (bỏ hết dấu phẩy, giữ dấu
+// "-" nếu có) — chỉ định dạng lại lúc HIỂN THỊ trong ô input, gửi lên
+// server vẫn đúng số như cũ, không đổi gì phía backend.
+function formatMoneyInput(raw) {
+  const str = String(raw ?? "");
+  const neg = str.trim().startsWith("-") ? "-" : "";
+  const digits = str.replace(/[^\d]/g, "");
+  if (!digits) return neg;
+  return neg + Number(digits).toLocaleString("en-US");
+}
+function parseMoneyInput(displayValue) {
+  const neg = displayValue.trim().startsWith("-") ? "-" : "";
+  return neg + displayValue.replace(/[^\d]/g, "");
+}
+
 const EMPTY_FORM = {
   chu_de_vi_pham: "", loai_vi_pham: "", ma_shop: "", ten_shop: "", vung: "",
   nhan_vien_vi_pham: "", dien_giai_vi_pham: "", gia_tri_vi_pham: "", sl_so_vi_pham: "",
@@ -158,8 +175,9 @@ function CaseForm({ form, setForm, file, setFile, existingFileName, onSubmit, on
         </div>
         <div>
           <label style={labelStyle}>Giá trị vi phạm (đồng)</label>
-          <input type="number" className="finput" style={inputStyle} value={form.gia_tri_vi_pham}
-            onChange={(e) => setForm({ ...form, gia_tri_vi_pham: e.target.value })} />
+          <input type="text" inputMode="numeric" className="finput" style={inputStyle}
+            value={formatMoneyInput(form.gia_tri_vi_pham)}
+            onChange={(e) => setForm({ ...form, gia_tri_vi_pham: parseMoneyInput(e.target.value) })} />
         </div>
         <div>
           <label style={labelStyle}>SL SO Vi phạm</label>
