@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import {
   getUser, listChuDeJobsV2, createChuDeJobV2, updateChuDeJobV2, deleteChuDeJobV2,
@@ -277,23 +278,41 @@ function AddSupportersModal({ job, onDone, onCancel }) {
   );
 }
 
-// ---------- Popup: đánh dấu Hoàn tất — chọn kết quả + upload file kết quả.
-// Khác bản thật: KHÔNG chuyển sang "Ghi nhận case vi phạm" khi chọn "Có
-// vi phạm" (tránh trộn dữ liệu test Ver2 vào bảng case thật) — hoàn tất
-// ngay tại popup cho cả 2 lựa chọn, giống bản thật TRƯỚC khi có luồng đó. ----------
+// ---------- Popup: đánh dấu Hoàn tất — chỉ chọn Có/Không vi phạm, KHÔNG
+// có nút chọn file kết quả (chốt 06/09 lần 3 — bỏ hẳn phần file, khác bản
+// thật). Chọn "Có vi phạm" rồi bấm "Xác nhận hoàn tất": KHÔNG hoàn tất
+// job ngay ở đây — chuyển thẳng sang "Ghi nhận case vi phạm Ver2" (điền
+// sẵn Tên chủ đề/Loại vi phạm/Mã shop/Tên Shop/Vùng/Nhân Viên Vi phạm
+// theo đúng job, CHO PHÉP sửa lại trước khi lưu — không fix cứng), job
+// chỉ thật sự chuyển "Hoàn tất" sau khi lưu case xong bên đó (xem
+// ghi-nhan-case-v2.js — đọc query "jobId"). Chọn "Không vi phạm" thì hoàn
+// tất ngay tại đây như cũ. NGOẠI LỆ thứ 2 (sau combo box Tên chủ đề) hai
+// menu Ver2 này chủ động liên kết với nhau, theo đúng yêu cầu. ----------
 function CompleteJobModal({ job, onDone, onCancel }) {
+  const router = useRouter();
   const [ketQua, setKetQua] = useState("Không vi phạm");
-  const [file, setFile] = useState(null);
-  const fileInputRef = useRef(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (ketQua === "Có vi phạm") {
+      const params = new URLSearchParams({
+        jobId: String(job.id),
+        chu_de_vi_pham: job.ten_chu_de || "",
+        loai_vi_pham: job.loai_vi_pham || "",
+        ma_shop: job.ma_shop || "",
+        ten_shop: job.ten_shop || "",
+        vung: job.vung || "",
+        nhan_vien_vi_pham: job.nhan_vien_phu_trach || "",
+      });
+      router.push(`/ghi-nhan-case-v2?${params.toString()}`);
+      return;
+    }
     setSaving(true);
     setError("");
     try {
-      await completeChuDeJobV2(job.id, { ket_qua_vi_pham: ketQua, file });
+      await completeChuDeJobV2(job.id, { ket_qua_vi_pham: ketQua });
       onDone();
     } catch (err) {
       setError(err.message || "Cập nhật thất bại");
@@ -317,19 +336,6 @@ function CompleteJobModal({ job, onDone, onCancel }) {
                   {opt}
                 </label>
               ))}
-            </div>
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <label style={labelStyle}>File kết quả (tuỳ chọn)</label>
-            <div>
-              <input
-                ref={fileInputRef} type="file" style={{ display: "none" }}
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-              />
-              <button type="button" className="upload-btn" onClick={() => fileInputRef.current?.click()}>
-                📤 {file ? "Đổi file khác" : "Chọn file kết quả"}
-              </button>
-              {file && <span style={{ fontSize: 11, color: "var(--text-400)", marginLeft: 10 }}>{file.name}</span>}
             </div>
           </div>
 

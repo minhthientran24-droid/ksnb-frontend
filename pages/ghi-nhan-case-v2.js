@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import {
-  getUser, lookupChuDeShop, listChuDeTopicsV2,
+  getUser, lookupChuDeShop, listChuDeTopicsV2, completeChuDeJobV2,
   listViPhamCasesV2, createViPhamCaseV2, updateViPhamCaseV2, deleteViPhamCaseV2, downloadViPhamCaseV2File,
 } from "../lib/api";
 
@@ -16,6 +16,15 @@ import {
 // combo box do super_admin quản lý) — CHỈ ĐỌC (listChuDeTopicsV2()),
 // không sửa/xóa/thêm gì vào danh sách đó từ trang này. Không cho nhập tự
 // do ngoài danh sách này nữa.
+// NGOẠI LỆ THỨ 2 (chốt 06/09 lần 3): khi "Theo dõi chủ đề Ver2" đánh dấu
+// Hoàn tất 1 job với kết quả "Có vi phạm", job đó chuyển sang đây kèm
+// query "jobId" + điền sẵn Tên chủ đề/Loại vi phạm/Mã shop/Tên Shop/Vùng/
+// Nhân Viên Vi phạm theo đúng job (xem CompleteJobModal trong
+// theo-doi-chu-de-v2.js) — CHO PHÉP sửa lại mọi trường trước khi lưu,
+// không fix cứng. Sau khi lưu case xong, job đó tự động được gọi
+// completeChuDeJobV2(jobId, "Có vi phạm") để đánh dấu Hoàn tất bên kia,
+// y hệt luồng liên kết đang dùng ở bản thật (theo-doi-chu-de.js <->
+// ghi-nhan-case.js).
 // Bảo vệ 2 lớp giống các trang admin-only khác (vd nhat-ky-hoat-dong.js):
 // Layout.js đã chặn theo allowed_menus ở cấp trung tâm, đây là lớp phòng
 // hờ ngay tại trang phòng khi truy cập trước khi allowed_menus tải xong.
@@ -68,7 +77,7 @@ const EMPTY_FORM = {
 };
 
 // ---------- Form dùng chung cho cả "Ghi nhận case mới" và "Sửa case" ----------
-function CaseForm({ form, setForm, file, setFile, existingFileName, onSubmit, onCancel, saving, error, submitLabel, topics, isEditing }) {
+function CaseForm({ form, setForm, file, setFile, existingFileName, onSubmit, onCancel, saving, error, submitLabel, topics }) {
   const fileInputRef = useRef(null);
   const [looking, setLooking] = useState(false);
   const [lookupMsg, setLookupMsg] = useState("");
@@ -107,9 +116,10 @@ function CaseForm({ form, setForm, file, setFile, existingFileName, onSubmit, on
             onChange={(e) => setForm({ ...form, chu_de_vi_pham: e.target.value })}>
             <option value="">— Chọn chủ đề —</option>
             {topics.map((t) => <option key={t} value={t}>{t}</option>)}
-            {/* Case đang sửa dùng tên đã bị xóa khỏi combo box — vẫn hiện
-                thêm để không vô tình đổi mất tên cũ khi lưu (chỉ lúc Sửa). */}
-            {isEditing && form.chu_de_vi_pham && !topics.includes(form.chu_de_vi_pham) && (
+            {/* Case đang sửa (hoặc job "Có vi phạm" chuyển sang) dùng tên đã
+                bị xóa khỏi combo box — vẫn hiện thêm để không vô tình đổi
+                mất tên cũ khi lưu, không giới hạn riêng lúc Sửa. */}
+            {form.chu_de_vi_pham && !topics.includes(form.chu_de_vi_pham) && (
               <option value={form.chu_de_vi_pham}>{form.chu_de_vi_pham} (đã bị xóa khỏi danh sách)</option>
             )}
           </select>
@@ -216,6 +226,12 @@ export default function GhiNhanCaseV2Page() {
   const [file, setFile] = useState(null);
   const [saving, setSaving] = useState(false);
   const [addError, setAddError] = useState("");
+  // Sang từ popup "Cập nhật kết quả xử lý" bên "Theo dõi chủ đề Ver2" khi
+  // chọn "Có vi phạm" (chốt 06/09 lần 3, xem CompleteJobModal trong
+  // theo-doi-chu-de-v2.js) — điền sẵn theo đúng job, bắt buộc lưu case rồi
+  // job đó mới TỰ ĐỘNG được đánh dấu Hoàn tất + Có vi phạm.
+  const [linkedJobId, setLinkedJobId] = useState(null);
+  const [linkedJobDone, setLinkedJobDone] = useState(false);
 
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState(null);
@@ -249,6 +265,22 @@ export default function GhiNhanCaseV2Page() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checked]);
 
+  useEffect(() => {
+    if (!router.isReady) return;
+    const { jobId, chu_de_vi_pham, loai_vi_pham, ma_shop, ten_shop, vung, nhan_vien_vi_pham } = router.query;
+    if (!jobId) return;
+    setLinkedJobId(jobId);
+    setForm((f) => ({
+      ...f,
+      chu_de_vi_pham: chu_de_vi_pham || f.chu_de_vi_pham,
+      loai_vi_pham: loai_vi_pham || f.loai_vi_pham,
+      ma_shop: ma_shop || f.ma_shop,
+      ten_shop: ten_shop || f.ten_shop,
+      vung: vung || f.vung,
+      nhan_vien_vi_pham: nhan_vien_vi_pham || f.nhan_vien_vi_pham,
+    }));
+  }, [router.isReady]);
+
   async function handleAdd(e) {
     e.preventDefault();
     setSaving(true);
@@ -258,6 +290,19 @@ export default function GhiNhanCaseV2Page() {
       setForm(EMPTY_FORM);
       setFile(null);
       load();
+      if (linkedJobId) {
+        try {
+          await completeChuDeJobV2(linkedJobId, { ket_qua_vi_pham: "Có vi phạm" });
+          setLinkedJobDone(true);
+        } catch (err) {
+          alert(
+            "Đã ghi nhận case thành công, nhưng đánh dấu Hoàn tất job bên Theo dõi chủ đề Ver2 bị lỗi: " +
+            (err.message || "không rõ nguyên nhân") + " — anh vào Theo dõi chủ đề Ver2 đánh dấu tay giúp em."
+          );
+        } finally {
+          setLinkedJobId(null);
+        }
+      }
     } catch (err) {
       setAddError(err.message || "Ghi nhận thất bại");
     } finally {
@@ -323,12 +368,24 @@ export default function GhiNhanCaseV2Page() {
         </p>
       </div>
 
+      {linkedJobId && (
+        <div className="placeholder-box" style={{ borderColor: "var(--orange)", color: "var(--orange)", marginBottom: 16 }}>
+          🔗 Đang ghi nhận case cho job "Có vi phạm" bên Theo dõi chủ đề Ver2 — các trường đã điền sẵn theo job, có thể
+          chỉnh sửa lại nếu cần rồi bấm "+ Ghi nhận case" là job đó sẽ tự động được đánh dấu <strong>Hoàn tất</strong>.
+        </div>
+      )}
+      {linkedJobDone && (
+        <div className="placeholder-box" style={{ borderColor: "#4C9A2A", color: "#4C9A2A", marginBottom: 16 }}>
+          ✅ Đã ghi nhận case và đánh dấu Hoàn tất job bên Theo dõi chủ đề Ver2.
+        </div>
+      )}
+
       <div className="card">
         <div className="card-head"><h3>+ Ghi nhận case mới (nhập tay)</h3></div>
         <CaseForm
           form={form} setForm={setForm} file={file} setFile={setFile} existingFileName=""
           onSubmit={handleAdd} saving={saving} error={addError} submitLabel="+ Ghi nhận case"
-          topics={topics} isEditing={false}
+          topics={topics}
         />
       </div>
 
@@ -349,7 +406,7 @@ export default function GhiNhanCaseV2Page() {
                   form={editForm} setForm={setEditForm} file={editFile} setFile={setEditFile}
                   existingFileName={c.file_name} onSubmit={(e) => saveEdit(e, c.id)}
                   onCancel={() => setEditingId(null)} saving={editSaving} error={editError}
-                  submitLabel="💾 Lưu thay đổi" topics={topics} isEditing={true}
+                  submitLabel="💾 Lưu thay đổi" topics={topics}
                 />
               </>
             ) : (
