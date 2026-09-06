@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import {
-  getUser, lookupChuDeShop,
+  getUser, lookupChuDeShop, listChuDeTopicsV2,
   listViPhamCasesV2, createViPhamCaseV2, updateViPhamCaseV2, deleteViPhamCaseV2, downloadViPhamCaseV2File,
 } from "../lib/api";
 
@@ -11,10 +11,28 @@ import {
 // khi đưa vào bản thật "Ghi nhận case vi phạm" (đang chạy thật cho mọi
 // NV KSNB). ĐỘC LẬP hoàn toàn với "Theo dõi chủ đề Ver2" — không dùng
 // chung rule/data/component nào với menu đó.
+// NGOẠI LỆ DUY NHẤT (chốt 06/09 lần 2): trường "Chủ Đề vi phạm" dùng
+// CHUNG danh sách "Tên chủ đề" ở "Quản lý chủ đề" (Theo dõi chủ đề Ver2,
+// combo box do super_admin quản lý) — CHỈ ĐỌC (listChuDeTopicsV2()),
+// không sửa/xóa/thêm gì vào danh sách đó từ trang này. Không cho nhập tự
+// do ngoài danh sách này nữa.
 // Bảo vệ 2 lớp giống các trang admin-only khác (vd nhat-ky-hoat-dong.js):
 // Layout.js đã chặn theo allowed_menus ở cấp trung tâm, đây là lớp phòng
 // hờ ngay tại trang phòng khi truy cập trước khi allowed_menus tải xong.
 const ADMIN_ROLES = ["admin", "super_admin"];
+
+// Sắp xếp "Tên chủ đề" A→Z (locale "vi"), "Khác" luôn cuối — y hệt rule
+// đang dùng ở "Theo dõi chủ đề Ver2" (sortTopics trong theo-doi-chu-de-v2.js),
+// copy riêng ở đây để KHÔNG import chéo giữa 2 trang thử nghiệm độc lập.
+function sortTopicNames(names) {
+  return [...names].sort((a, b) => {
+    const aKhac = a.trim() === "Khác";
+    const bKhac = b.trim() === "Khác";
+    if (aKhac && !bKhac) return 1;
+    if (!aKhac && bKhac) return -1;
+    return a.localeCompare(b, "vi");
+  });
+}
 
 // "Trạng thái"/"Hình thức kỷ luật" (chốt 06/09) — tạm lấy đúng bộ giá trị
 // đang dùng ở "Ghi nhận case vi phạm" bản thật cho quen thuộc, đổi được
@@ -50,7 +68,7 @@ const EMPTY_FORM = {
 };
 
 // ---------- Form dùng chung cho cả "Ghi nhận case mới" và "Sửa case" ----------
-function CaseForm({ form, setForm, file, setFile, existingFileName, onSubmit, onCancel, saving, error, submitLabel }) {
+function CaseForm({ form, setForm, file, setFile, existingFileName, onSubmit, onCancel, saving, error, submitLabel, topics, isEditing }) {
   const fileInputRef = useRef(null);
   const [looking, setLooking] = useState(false);
   const [lookupMsg, setLookupMsg] = useState("");
@@ -85,9 +103,21 @@ function CaseForm({ form, setForm, file, setFile, existingFileName, onSubmit, on
       <div className="form-grid-3" style={{ gap: 12 }}>
         <div>
           <label style={labelStyle}>Chủ Đề vi phạm *</label>
-          <input required className="finput" style={inputStyle} value={form.chu_de_vi_pham}
-            onChange={(e) => setForm({ ...form, chu_de_vi_pham: e.target.value })}
-            placeholder="VD: Bán hàng không xuất hóa đơn" />
+          <select required className="finput" style={inputStyle} value={form.chu_de_vi_pham}
+            onChange={(e) => setForm({ ...form, chu_de_vi_pham: e.target.value })}>
+            <option value="">— Chọn chủ đề —</option>
+            {topics.map((t) => <option key={t} value={t}>{t}</option>)}
+            {/* Case đang sửa dùng tên đã bị xóa khỏi combo box — vẫn hiện
+                thêm để không vô tình đổi mất tên cũ khi lưu (chỉ lúc Sửa). */}
+            {isEditing && form.chu_de_vi_pham && !topics.includes(form.chu_de_vi_pham) && (
+              <option value={form.chu_de_vi_pham}>{form.chu_de_vi_pham} (đã bị xóa khỏi danh sách)</option>
+            )}
+          </select>
+          {topics.length === 0 && (
+            <div style={{ fontSize: 11, color: "var(--danger)", marginTop: 4 }}>
+              Chưa có Tên chủ đề nào — nhờ super_admin vào "Theo dõi chủ đề Ver2" &gt; "Quản lý chủ đề" thêm trước.
+            </div>
+          )}
         </div>
         <div>
           <label style={labelStyle}>Loại vi phạm</label>
@@ -178,6 +208,9 @@ export default function GhiNhanCaseV2Page() {
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // "Chủ Đề vi phạm" (chốt 06/09 lần 2) — CHỈ ĐỌC danh sách "Tên chủ đề"
+  // của "Theo dõi chủ đề Ver2" (Quản lý chủ đề), không sửa/thêm gì ở đây.
+  const [topics, setTopics] = useState([]);
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [file, setFile] = useState(null);
@@ -208,7 +241,11 @@ export default function GhiNhanCaseV2Page() {
   }
 
   useEffect(() => {
-    if (checked) load();
+    if (!checked) return;
+    load();
+    listChuDeTopicsV2()
+      .then((rows) => setTopics(sortTopicNames(rows.map((t) => t.ten_chu_de))))
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checked]);
 
@@ -291,6 +328,7 @@ export default function GhiNhanCaseV2Page() {
         <CaseForm
           form={form} setForm={setForm} file={file} setFile={setFile} existingFileName=""
           onSubmit={handleAdd} saving={saving} error={addError} submitLabel="+ Ghi nhận case"
+          topics={topics} isEditing={false}
         />
       </div>
 
@@ -311,7 +349,7 @@ export default function GhiNhanCaseV2Page() {
                   form={editForm} setForm={setEditForm} file={editFile} setFile={setEditFile}
                   existingFileName={c.file_name} onSubmit={(e) => saveEdit(e, c.id)}
                   onCancel={() => setEditingId(null)} saving={editSaving} error={editError}
-                  submitLabel="💾 Lưu thay đổi"
+                  submitLabel="💾 Lưu thay đổi" topics={topics} isEditing={true}
                 />
               </>
             ) : (
