@@ -1001,8 +1001,7 @@ export default function TheoDoiChuDeV2Page() {
                   <SortTh label="Ngày Upload" sortKey="upload_date" sortState={sort.state} onSort={sort.onSort} />
                   <SortTh label="Loại Vi Phạm" sortKey="loai_vi_pham" sortState={sort.state} onSort={sort.onSort} align="left" />
                   <SortTh label="Vùng" sortKey="vung" sortState={sort.state} onSort={sort.onSort} />
-                  <SortTh label="Mã Shop" sortKey="ma_shop" sortState={sort.state} onSort={sort.onSort} />
-                  <SortTh label="Tên Shop" sortKey="ten_shop" sortState={sort.state} onSort={sort.onSort} align="left" />
+                  <SortTh label="Mã Shop / Tên Shop" sortKey="ma_shop" sortState={sort.state} onSort={sort.onSort} align="left" />
                   <SortTh label="Nội Dung Vi Phạm" sortKey="noi_dung_vi_pham" sortState={sort.state} onSort={sort.onSort} align="left" />
                   <SortTh label="NV Check" sortKey="nhan_vien_phu_trach" sortState={sort.state} onSort={sort.onSort} align="left" />
                   <SortTh label="Ngày Check" sortKey="ngay_bat_dau_check" sortState={sort.state} onSort={sort.onSort} />
@@ -1014,7 +1013,7 @@ export default function TheoDoiChuDeV2Page() {
               </thead>
               <tbody>
                 {visibleJobs.length === 0 && (
-                  <tr><td colSpan={12} style={{ textAlign: "center", color: "var(--text-400)" }}>Không có task nào ở tình trạng này.</td></tr>
+                  <tr><td colSpan={11} style={{ textAlign: "center", color: "var(--text-400)" }}>Không có task nào ở tình trạng này.</td></tr>
                 )}
                 {sortedJobs.map((job) => {
                   const supporters = job.supporters || [];
@@ -1028,8 +1027,11 @@ export default function TheoDoiChuDeV2Page() {
                       <td>{job.upload_date}</td>
                       <td style={{ textAlign: "left" }}>{job.loai_vi_pham || "-"}</td>
                       <td>{job.vung || "-"}</td>
-                      <td>{job.ma_shop || "-"}</td>
-                      <td style={{ textAlign: "left" }}>{job.ten_shop || "-"}</td>
+                      <td style={{ textAlign: "left" }}>
+                        {job.ma_shop || job.ten_shop
+                          ? [job.ma_shop, job.ten_shop].filter(Boolean).join(" - ")
+                          : "-"}
+                      </td>
                       <td style={{ textAlign: "left" }}>{job.noi_dung_vi_pham || "-"}</td>
                       <td style={{ textAlign: "left" }}>
                         {job.nhan_vien_phu_trach || "-"}
