@@ -30,6 +30,10 @@ const ADMIN_ITEMS = [
   // Menu thử nghiệm (chốt 03/09) — chỉ admin/super_admin, dùng để thiết kế
   // tính năng mới cho "Theo dõi chủ đề" trước khi đưa vào bản thật.
   { href: "/theo-doi-chu-de-v2", icon: "🧪", label: "Theo dõi chủ đề Ver2", hideForRoles: ["editor", "editor_base", "viewer"] },
+  // Menu thử nghiệm (chốt 06/09) — chỉ admin/super_admin, dùng để thiết kế
+  // tính năng mới cho "Ghi nhận case vi phạm" trước khi đưa vào bản thật.
+  // Độc lập hoàn toàn với "Theo dõi chủ đề Ver2" ở trên — không liên quan gì nhau.
+  { href: "/ghi-nhan-case-v2", icon: "🧪", label: "Ghi nhận case vi phạm Ver2", hideForRoles: ["editor", "editor_base", "viewer"] },
 ];
 const STORAGE_KEY = "ksnb_sidebar_collapsed";
 
