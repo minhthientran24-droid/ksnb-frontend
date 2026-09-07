@@ -10,6 +10,21 @@ import {
 // "Dữ liệu tham chiếu (Admin)" (ShopInfo/CC theo vùng) đã dời sang menu
 // "Tải lên dữ liệu" (chốt 27/08 lần 19) — xem components/ReferenceFilesPanel.js.
 
+// Chốt 07/09 — /preview trả về "attachment_base64" = ĐÚNG file sẽ gửi
+// (backend đã tự sửa lại "Ngày kiểm soát" ghi trong file cho khớp "Ngày
+// Kiểm" theo lịch chia lịch nếu bị lệch — xem gui_mail_bcks.py::
+// sync_ngay_kiem_soat_voi_lich). Đổi base64 này thành File rồi THAY THẾ
+// file gốc NV vừa chọn, để lúc bấm Gửi luôn gửi ĐÚNG file đã sửa — không
+// gửi nhầm lại file gốc (còn ngày cũ) đang nằm trong <input type="file">.
+function base64ToFile(base64, filename) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new File([bytes], filename, {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+}
+
 const fieldBoxStyle = {
   border: "1px solid var(--border)", borderRadius: 8, padding: "12px 14px", marginBottom: 12,
 };
@@ -157,6 +172,11 @@ function SelfServicePanel({ smtpConfigured }) {
     try {
       const p = await previewGuiMailBcks(f);
       setPreview(p);
+      // Thay file gốc bằng đúng file backend đã (có thể) tự sửa lại "Ngày
+      // kiểm soát" — xem base64ToFile() ở trên.
+      if (p.attachment_base64) {
+        setFile(base64ToFile(p.attachment_base64, f.name));
+      }
       setToText(p.to.join(", "));
       setCcText(p.cc.join(", "));
       setSubject(p.subject);
