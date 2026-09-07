@@ -127,13 +127,24 @@ const STATUS_LABELS = {
 };
 const statusLabel = (code) => STATUS_LABELS[code] || code || "—";
 
-// Số ngày kiểm = Hôm nay - Ngày kiểm (ngày dương lịch, không phụ thuộc giờ).
+// Số ngày kiểm = Hôm nay - Ngày kiểm (ngày dương lịch, không phụ thuộc giờ)
+// — TRỪ đi các ngày Chủ nhật rơi vào khoảng đó (chốt 07/09): KSNB không
+// tính Chủ nhật vào số ngày kiểm, nên mỗi Chủ nhật vướng trong khoảng
+// (Ngày kiểm, Hôm nay] bị loại trừ 1 ngày khỏi kết quả.
 function daysBetween(todayStr, dateStr) {
   if (!todayStr || !dateStr) return null;
   const a = new Date(`${todayStr}T00:00:00`);
   const b = new Date(`${dateStr}T00:00:00`);
   if (isNaN(a) || isNaN(b)) return null;
-  return Math.round((a - b) / 86400000);
+  const rawDays = Math.round((a - b) / 86400000);
+  if (rawDays <= 0) return rawDays;
+  let sundays = 0;
+  const cursor = new Date(b);
+  for (let i = 0; i < rawDays; i++) {
+    cursor.setDate(cursor.getDate() + 1);
+    if (cursor.getDay() === 0) sundays++;
+  }
+  return rawDays - sundays;
 }
 
 // Badge trạng thái ticket thông báo SSC — giống hệt bên trang Phân công
