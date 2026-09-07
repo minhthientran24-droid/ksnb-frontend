@@ -65,8 +65,14 @@ function tinhUocTinhTruyThuVaccine(r) {
   return sauLuyKe < 0 ? sauLuyKe : 0;
 }
 
+// Chốt 07/09 — "Ước tính truy thu" > 0 thì hiển thị = 0 (đây là ước tính
+// SỐ TIỀN CẦN TRUY THU nên chỉ có ý nghĩa khi âm/bằng 0; dương nghĩa là
+// dư, không truy thu gì cả). Nhánh Vaccine vốn đã không bao giờ ra dương
+// (luôn return 0 khi >= 0), riêng nhánh Long Châu có thể ra dương —
+// clamp chung ở đây cho chắc, khỏi sửa riêng từng nhánh.
 function tinhUocTinhTruyThu(r) {
-  return r.nhom === "vaccine" ? tinhUocTinhTruyThuVaccine(r) : tinhUocTinhTruyThuLongChau(r);
+  const v = r.nhom === "vaccine" ? tinhUocTinhTruyThuVaccine(r) : tinhUocTinhTruyThuLongChau(r);
+  return v > 0 ? 0 : v;
 }
 
 // Số liệu bảng "Đã kiểm" — CHỈ tô đỏ + in đậm khi giá trị < -4.999.999,
