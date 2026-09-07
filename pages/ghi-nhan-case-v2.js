@@ -3,7 +3,8 @@ import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import {
   getUser, lookupChuDeShop, listChuDeTopicsV2, completeChuDeJobV2,
-  listViPhamCasesV2, createViPhamCaseV2, updateViPhamCaseV2, deleteViPhamCaseV2, downloadViPhamCaseV2File,
+  listViPhamCasesV2, createViPhamCaseV2, updateViPhamCaseV2, deleteViPhamCaseV2,
+  downloadViPhamCaseV2File, deleteViPhamCaseV2File,
 } from "../lib/api";
 
 // "Ghi nhận case vi phạm Ver2" (chốt 06/09) — menu THỬ NGHIỆM, chỉ
@@ -105,7 +106,10 @@ const EMPTY_FORM = {
 };
 
 // ---------- Form dùng chung cho cả "Ghi nhận case mới" và "Sửa case" ----------
-function CaseForm({ form, setForm, file, setFile, existingFileName, onSubmit, onCancel, saving, error, submitLabel, topics }) {
+function CaseForm({
+  form, setForm, files, setFiles, existingFiles, onRemoveExistingFile,
+  onSubmit, onCancel, saving, error, submitLabel, topics,
+}) {
   const fileInputRef = useRef(null);
   const [looking, setLooking] = useState(false);
   const [lookupMsg, setLookupMsg] = useState("");
@@ -244,16 +248,35 @@ function CaseForm({ form, setForm, file, setFile, existingFileName, onSubmit, on
           placeholder="Diễn biến, bằng chứng, hướng xử lý... tự do theo tình huống thực tế" />
       </div>
       <div style={{ marginTop: 12 }}>
-        <label style={labelStyle}>Đính kèm file (tuỳ chọn)</label>
+        <label style={labelStyle}>Đính kèm file (tuỳ chọn — chọn được nhiều file cùng lúc)</label>
         <div>
-          <input ref={fileInputRef} type="file" style={{ display: "none" }}
-            onChange={(e) => setFile(e.target.files?.[0] || null)} />
+          <input
+            ref={fileInputRef} type="file" multiple style={{ display: "none" }}
+            onChange={(e) => setFiles([...(e.target.files || [])])}
+          />
           <button type="button" className="upload-btn" onClick={() => fileInputRef.current?.click()}>
-            📤 {file ? "Đổi file khác" : existingFileName ? "Thay file mới" : "Chọn file"}
+            📤 {files.length > 0 ? `Đổi ${files.length} file khác` : existingFiles.length > 0 ? "Thêm file mới" : "Chọn file"}
           </button>
-          <span style={{ fontSize: 11, color: "var(--text-400)", marginLeft: 10 }}>
-            {file ? file.name : existingFileName || "Chưa có file"}
-          </span>
+          {files.length > 0 && (
+            <span style={{ fontSize: 11, color: "var(--text-400)", marginLeft: 10 }}>
+              {files.map((f) => f.name).join(", ")}
+            </span>
+          )}
+          {existingFiles.length > 0 && (
+            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+              {existingFiles.map((ef) => (
+                <div key={ef.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, color: "var(--text-600)" }}>
+                  📎 {ef.file_name}
+                  {onRemoveExistingFile && (
+                    <button type="button" className="fbtn danger" style={{ padding: "1px 8px", fontSize: 10.5 }}
+                      onClick={() => onRemoveExistingFile(ef.id)}>
+                      Xóa
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -279,7 +302,7 @@ export default function GhiNhanCaseV2Page() {
   const [topics, setTopics] = useState([]);
 
   const [form, setForm] = useState(EMPTY_FORM);
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [saving, setSaving] = useState(false);
   const [addError, setAddError] = useState("");
   // Sang từ popup "Cập nhật kết quả xử lý" bên "Theo dõi chủ đề Ver2" khi
@@ -291,7 +314,8 @@ export default function GhiNhanCaseV2Page() {
 
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState(null);
-  const [editFile, setEditFile] = useState(null);
+  const [editFiles, setEditFiles] = useState([]);
+  const [editExistingFiles, setEditExistingFiles] = useState([]);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
 
@@ -342,9 +366,9 @@ export default function GhiNhanCaseV2Page() {
     setSaving(true);
     setAddError("");
     try {
-      await createViPhamCaseV2({ ...form, file });
+      await createViPhamCaseV2({ ...form, files });
       setForm(EMPTY_FORM);
-      setFile(null);
+      setFiles([]);
       load();
       if (linkedJobId) {
         try {
@@ -368,7 +392,8 @@ export default function GhiNhanCaseV2Page() {
 
   function startEdit(c) {
     setEditingId(c.id);
-    setEditFile(null);
+    setEditFiles([]);
+    setEditExistingFiles(c.files || []);
     setEditError("");
     setEditForm({
       chu_de_vi_pham: c.chu_de_vi_pham, loai_vi_pham: c.loai_vi_pham || "",
@@ -380,12 +405,23 @@ export default function GhiNhanCaseV2Page() {
     });
   }
 
+  async function handleRemoveExistingFile(caseId, fileId) {
+    if (!confirm("Xóa file đính kèm này?")) return;
+    try {
+      await deleteViPhamCaseV2File(caseId, fileId);
+      setEditExistingFiles((prev) => prev.filter((f) => f.id !== fileId));
+      load();
+    } catch (err) {
+      alert(err.message || "Xóa file thất bại");
+    }
+  }
+
   async function saveEdit(e, id) {
     e.preventDefault();
     setEditSaving(true);
     setEditError("");
     try {
-      await updateViPhamCaseV2(id, { ...editForm, file: editFile });
+      await updateViPhamCaseV2(id, { ...editForm, files: editFiles });
       setEditingId(null);
       load();
     } catch (err) {
@@ -405,11 +441,21 @@ export default function GhiNhanCaseV2Page() {
     }
   }
 
-  async function handleDownload(c) {
+  async function handleDownload(caseId, fileId, fileName) {
     try {
-      await downloadViPhamCaseV2File(c.id, c.file_name);
+      await downloadViPhamCaseV2File(caseId, fileId, fileName);
     } catch (err) {
       alert(err.message || "Tải file thất bại");
+    }
+  }
+
+  async function handleDeleteFile(caseId, fileId) {
+    if (!confirm("Xóa file đính kèm này?")) return;
+    try {
+      await deleteViPhamCaseV2File(caseId, fileId);
+      load();
+    } catch (err) {
+      alert(err.message || "Xóa file thất bại");
     }
   }
 
@@ -440,7 +486,7 @@ export default function GhiNhanCaseV2Page() {
       <div className="card">
         <div className="card-head"><h3>+ Ghi nhận case mới (nhập tay)</h3></div>
         <CaseForm
-          form={form} setForm={setForm} file={file} setFile={setFile} existingFileName=""
+          form={form} setForm={setForm} files={files} setFiles={setFiles} existingFiles={[]}
           onSubmit={handleAdd} saving={saving} error={addError} submitLabel="+ Ghi nhận case"
           topics={topics}
         />
@@ -460,8 +506,9 @@ export default function GhiNhanCaseV2Page() {
               <>
                 <div className="card-head"><h3>✏️ Sửa case: {c.chu_de_vi_pham}</h3></div>
                 <CaseForm
-                  form={editForm} setForm={setEditForm} file={editFile} setFile={setEditFile}
-                  existingFileName={c.file_name} onSubmit={(e) => saveEdit(e, c.id)}
+                  form={editForm} setForm={setEditForm} files={editFiles} setFiles={setEditFiles}
+                  existingFiles={editExistingFiles} onRemoveExistingFile={(fileId) => handleRemoveExistingFile(c.id, fileId)}
+                  onSubmit={(e) => saveEdit(e, c.id)}
                   onCancel={() => setEditingId(null)} saving={editSaving} error={editError}
                   submitLabel="💾 Lưu thay đổi" topics={topics}
                 />
@@ -486,12 +533,23 @@ export default function GhiNhanCaseV2Page() {
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
-                    {c.has_file && <button onClick={() => handleDownload(c)} className="fbtn">📥 Tải file</button>}
                     <button onClick={() => startEdit(c)} className="fbtn">Sửa</button>
                     <button onClick={() => handleDelete(c)} className="fbtn danger">Xóa</button>
                   </div>
                 </div>
                 {c.dien_giai_vi_pham && <p style={{ fontSize: 13, marginTop: 10, whiteSpace: "pre-line", color: "var(--text-900)" }}>{c.dien_giai_vi_pham}</p>}
+                {(c.files || []).length > 0 && (
+                  <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
+                    {c.files.map((f) => (
+                      <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+                        <button onClick={() => handleDownload(c.id, f.id, f.file_name)} className="fbtn">📥 {f.file_name}</button>
+                        <button onClick={() => handleDeleteFile(c.id, f.id)} className="fbtn danger" style={{ padding: "3px 10px", fontSize: 11 }}>
+                          Xóa file
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {c.nguoi_tao && <p style={{ fontSize: 11, color: "var(--text-400)", marginTop: 8 }}>Người tạo: {c.nguoi_tao}</p>}
               </div>
             )}
