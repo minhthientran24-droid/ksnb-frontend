@@ -258,6 +258,7 @@ function AddSupportersModal({ job, onDone, onCancel }) {
 function CompleteJobModal({ job, onDone, onCancel }) {
   const router = useRouter();
   const [ketQua, setKetQua] = useState("Không vi phạm");
+  const [ghiChu, setGhiChu] = useState("");
   const [file, setFile] = useState(null);
   const fileInputRef = useRef(null);
   const [saving, setSaving] = useState(false);
@@ -279,7 +280,7 @@ function CompleteJobModal({ job, onDone, onCancel }) {
     setSaving(true);
     setError("");
     try {
-      await completeChuDeJob(job.id, { ket_qua_vi_pham: ketQua, file });
+      await completeChuDeJob(job.id, { ket_qua_vi_pham: ketQua, ghi_chu: ghiChu, file });
       onDone();
     } catch (err) {
       setError(err.message || "Cập nhật thất bại");
@@ -327,6 +328,15 @@ function CompleteJobModal({ job, onDone, onCancel }) {
                   </button>
                   {file && <span style={{ fontSize: 11, color: "var(--text-400)", marginLeft: 10 }}>{file.name}</span>}
                 </div>
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={labelStyle}>Ghi chú (tuỳ chọn)</label>
+                <textarea
+                  value={ghiChu} onChange={(e) => setGhiChu(e.target.value)}
+                  rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
+                  placeholder="Ghi chú thêm cho task này (nếu có)..."
+                />
               </div>
 
               {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14 }}>{error}</div>}
@@ -885,7 +895,14 @@ export default function TheoDoiChuDePage() {
                       </td>
                       <td>{fmtDateTime(job.ngay_bat_dau_check) || "-"}</td>
                       <td>{soNgay === null ? "-" : `${soNgay} ngày`}</td>
-                      <td>{job.ket_qua_vi_pham || "-"}</td>
+                      <td>
+                        {job.ket_qua_vi_pham || "-"}
+                        {job.ghi_chu && (
+                          <div style={{ fontSize: 11, color: "var(--text-400)", marginTop: 2, fontWeight: 400, whiteSpace: "pre-line" }}>
+                            {job.ghi_chu}
+                          </div>
+                        )}
+                      </td>
                       {canSeeUploader && <td style={{ textAlign: "left" }}>{job.nguoi_upload || "-"}</td>}
                       <td>
                         <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "stretch" }}>
