@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import {
   getKiemKePeriods, listKiemKe, deleteKiemKeRow,
@@ -339,8 +340,16 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
 }
 
 export default function TheoDoiKiemKePage() {
+  const router = useRouter();
   const { can, ready: permReady } = useAllowedKeys();
   const [loai, setLoai] = useState("shop_chia_hom_nay"); // "shop_chia_hom_nay" | "dang_kiem" | "da_kiem" — mặc định vào là tab "Shop được chia - Chuẩn bị kiểm kê" (chốt 22/08)
+  // Cho phép mở thẳng đúng tab qua URL "?tab=dang_kiem" (chốt 08/09) —
+  // dùng bởi popup cảnh báo shop sắp/đã trễ hạn ở trang chủ (pages/index.js).
+  useEffect(() => {
+    if (!router.isReady) return;
+    const t = router.query.tab;
+    if (t === "dang_kiem" || t === "da_kiem" || t === "shop_chia_hom_nay") setLoai(t);
+  }, [router.isReady]);
   // Tab "Đã kiểm" — tách riêng Long Châu/Vaccine (chốt 26/08 lần 12), nút
   // chọn loại trừ lẫn nhau (không cho chọn đồng thời cả 2). Chỉ áp dụng
   // cho "da_kiem" — "dang_kiem"/"shop_chia_hom_nay" không đụng tới.

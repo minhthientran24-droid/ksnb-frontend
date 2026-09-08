@@ -1,8 +1,97 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import Layout from "../components/Layout";
-import { getHomepageContent, updateHomepageContent, getUser } from "../lib/api";
+import { getHomepageContent, updateHomepageContent, getUser, getDangKiem } from "../lib/api";
 import { useAllowedKeys } from "../lib/permissions";
+
+// Số ngày kiểm = Hôm nay - Ngày kiểm, trừ các ngày Chủ nhật rơi vào khoảng
+// đó — copy y hệt hàm cùng tên bên pages/theo-doi-kiem-ke.js (chốt 08/09)
+// để tính đúng "Số ngày kiểm" cho popup cảnh báo trễ hạn ở trang chủ.
+function daysBetween(todayStr, dateStr) {
+  if (!todayStr || !dateStr) return null;
+  const a = new Date(`${todayStr}T00:00:00`);
+  const b = new Date(`${dateStr}T00:00:00`);
+  if (isNaN(a) || isNaN(b)) return null;
+  const rawDays = Math.round((a - b) / 86400000);
+  if (rawDays <= 0) return rawDays;
+  let sundays = 0;
+  const cursor = new Date(b);
+  for (let i = 0; i < rawDays; i++) {
+    cursor.setDate(cursor.getDate() + 1);
+    if (cursor.getDay() === 0) sundays++;
+  }
+  return rawDays - sundays;
+}
+
+// Cùng ngưỡng "Sắp trễ hạn"/"Đã trễ hạn" đang dùng ở tab "Đang kiểm"
+// (theo-doi-kiem-ke.js::llvStatusText) — chốt 08/09.
+function urgencyOf(soNgayKiem) {
+  if (soNgayKiem == null) return null;
+  if (soNgayKiem > 5) return "da_tre_han";
+  if (soNgayKiem === 4 || soNgayKiem === 5) return "sap_tre_han";
+  return null;
+}
+
+const overlayStyle = {
+  position: "fixed", inset: 0, background: "rgba(10,20,40,0.45)",
+  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20,
+};
+const modalStyle = {
+  background: "#fff", borderRadius: 12, padding: "24px 26px", width: 560, maxWidth: "100%",
+  maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 60px rgba(0,0,0,0.3)",
+};
+
+// Popup cảnh báo shop "Sắp trễ hạn"/"Đã trễ hạn" ở tab "Đang kiểm" — hiện
+// ngay khi vào trang chủ nếu user đang phụ trách shop nào có Số ngày kiểm
+// >= 4 (chốt 08/09, theo yêu cầu anh).
+function TreHanModal({ shops, onTat, onDongY }) {
+  return (
+    <div style={overlayStyle} onClick={onTat}>
+      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+        <h3 style={{ color: "var(--danger)", fontSize: 16.5, fontWeight: 800, marginBottom: 6 }}>
+          ⚠️ Cảnh báo shop sắp/đã trễ hạn kiểm kê
+        </h3>
+        <p style={{ fontSize: 13, color: "var(--text-600)", marginBottom: 14 }}>
+          Các shop sau đang trong kỳ kiểm kê với số ngày kiểm từ 4 ngày trở lên, vui lòng xử lý sớm:
+        </p>
+        <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+            <thead>
+              <tr style={{ background: "#FAFAFA" }}>
+                <th style={thStyle}>Mã shop</th>
+                <th style={{ ...thStyle, textAlign: "left" }}>Tên shop</th>
+                <th style={thStyle}>Vùng</th>
+                <th style={thStyle}>Ngày kiểm</th>
+                <th style={thStyle}>Số ngày kiểm</th>
+                <th style={thStyle}>Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shops.map((r) => (
+                <tr key={r.id} style={{ color: "var(--danger)", fontWeight: r._urgency === "da_tre_han" ? 700 : undefined }}>
+                  <td style={tdStyle}>{r.ma_shop}</td>
+                  <td style={{ ...tdStyle, textAlign: "left" }}>{r.ten_shop || "-"}</td>
+                  <td style={tdStyle}>{r.vung || "-"}</td>
+                  <td style={tdStyle}>{r.ngay_kiem || "-"}</td>
+                  <td style={tdStyle}>{r._soNgayKiem}</td>
+                  <td style={tdStyle}>{r._urgency === "da_tre_han" ? "Đã trễ hạn" : "Sắp trễ hạn"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+          <button onClick={onDongY} style={saveBtnStyle}>Đồng ý — vào Đang kiểm</button>
+          <button onClick={onTat} style={cancelBtnStyle}>Tắt</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const thStyle = { padding: "8px 10px", textAlign: "center", fontWeight: 700, color: "var(--text-600)", borderBottom: "1px solid var(--border)" };
+const tdStyle = { padding: "7px 10px", textAlign: "center", borderBottom: "1px solid var(--border)" };
 
 // Chốt 28/08 — thay toàn bộ "Truy cập nhanh" theo đúng 5 menu anh chọn
 // (icon lấy đúng như Sidebar.js để đồng bộ toàn web).
@@ -15,15 +104,40 @@ const QUICK_LINKS = [
 ];
 
 export default function HomePage() {
+  const router = useRouter();
   const [content, setContent] = useState(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(null);
   const [saving, setSaving] = useState(false);
   const isAdmin = ["admin", "super_admin"].includes(getUser()?.role);
   const { can } = useAllowedKeys();
+  const [treHanShops, setTreHanShops] = useState(null); // null = chưa xong/không hiện; [] hoặc mảng = đã kiểm tra xong
 
   useEffect(() => {
     getHomepageContent().then(setContent).catch(() => {});
+  }, []);
+
+  // Popup cảnh báo shop sắp/đã trễ hạn (chốt 08/09) — chỉ kiểm tra + hiện
+  // 1 LẦN mỗi phiên đăng nhập (đánh dấu qua sessionStorage theo user id),
+  // tránh làm phiền user mỗi lần quay lại trang chủ trong cùng phiên.
+  useEffect(() => {
+    const user = getUser();
+    if (!user) return;
+    const flagKey = `ksnb_tre_han_checked_${user.id}`;
+    if (typeof window !== "undefined" && window.sessionStorage.getItem(flagKey)) return;
+    getDangKiem()
+      .then((data) => {
+        if (typeof window !== "undefined") window.sessionStorage.setItem(flagKey, "1");
+        const shops = (data?.rows || [])
+          .map((r) => {
+            const soNgayKiem = daysBetween(data.date, r.ngay_kiem);
+            return { ...r, _soNgayKiem: soNgayKiem, _urgency: urgencyOf(soNgayKiem) };
+          })
+          .filter((r) => r._urgency)
+          .sort((a, b) => b._soNgayKiem - a._soNgayKiem);
+        if (shops.length > 0) setTreHanShops(shops);
+      })
+      .catch(() => {});
   }, []);
 
   function startEdit() {
@@ -129,6 +243,17 @@ export default function HomePage() {
           </button>
           <button onClick={cancelEdit} disabled={saving} style={cancelBtnStyle}>✖ Hủy</button>
         </div>
+      )}
+
+      {treHanShops && treHanShops.length > 0 && (
+        <TreHanModal
+          shops={treHanShops}
+          onTat={() => setTreHanShops([])}
+          onDongY={() => {
+            setTreHanShops([]);
+            router.push("/theo-doi-kiem-ke?tab=dang_kiem");
+          }}
+        />
       )}
     </Layout>
   );
