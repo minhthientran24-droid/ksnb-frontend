@@ -430,11 +430,12 @@ function JobFormCard({ editingJob, onDone, onCancel }) {
   }
 
   return (
-    <div className="card">
-      <div className="card-head">
+    <div style={overlayStyle} onClick={onCancel}>
+      <div style={{ ...modalStyle, width: 640, maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
+      <div className="card-head" style={{ marginBottom: 4 }}>
         <h3>{editingJob ? `✏️ Sửa task: ${editingJob.ten_chu_de}` : "Thêm chủ đề mới"}</h3>
       </div>
-      <form onSubmit={handleSubmit} className="form-grid-2" style={{ padding: "16px 20px" }}>
+      <form onSubmit={handleSubmit} className="form-grid-2" style={{ paddingTop: 12 }}>
         {(looking || lookupMsg) && (
           <div style={{ gridColumn: "1 / -1", fontSize: 11.5, color: looking ? "var(--text-400)" : undefined }}>
             {looking ? "Đang tra cứu..." : lookupMsg}
@@ -511,6 +512,7 @@ function JobFormCard({ editingJob, onDone, onCancel }) {
           </button>
         </div>
       </form>
+      </div>
     </div>
   );
 }
@@ -858,38 +860,28 @@ export default function TheoDoiChuDePage() {
       {/* Bộ chọn tháng + Xuất data (chốt 27/08, dời vị trí lần 2) — khi
           đang hiện được card "Cập nhập chủ đề mới" thì 2 nút này dời vào
           chung 1 hàng với 3 nút ở đó (canh phải). Còn lại (viewer không
-          canUpload, hoặc đang mở form Sửa job) vẫn cần chỗ hiện riêng để
-          không mất luôn chức năng chọn tháng. */}
-      {(!canUpload || showForm) && (
+          canUpload) vẫn cần chỗ hiện riêng để không mất luôn chức năng
+          chọn tháng. Form Sửa/Thêm chủ đề (chốt 08/09) giờ là POPUP nổi
+          giữa màn hình (xem JobFormModal cuối trang) — không còn đụng gì
+          tới layout phần này nữa nên bỏ hẳn điều kiện showForm ở đây. */}
+      {!canUpload && (
         <div className="card" style={{ marginBottom: 14 }}>
           <div className="card-body" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "14px 18px" }}>
             <select className="month-select" value={thang} onChange={(e) => setThang(e.target.value)}>
               <option value="">Tất cả các tháng</option>
               {months.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
-            {canUpload && (
-              <button
-                className="fbtn" disabled={exporting} onClick={handleExport}
-                style={{ background: "#EAF6E5", borderColor: "#4C9A2A", color: "#3E7A2A" }}
-              >
-                {exporting ? "Đang xuất..." : "📤 Xuất data"}
-              </button>
-            )}
             {exportError && <div style={{ fontSize: 12, color: "var(--danger)" }}>{exportError}</div>}
           </div>
         </div>
       )}
 
-      {canUpload && !showForm && (
+      {canUpload && (
         <BulkUploadCard
           onDone={load} onOpenForm={() => setShowForm(true)}
           thang={thang} setThang={setThang} months={months}
           exporting={exporting} exportError={exportError} onExport={handleExport} canExport={canUpload}
         />
-      )}
-
-      {canUpload && showForm && (
-        <JobFormCard editingJob={editingJob} onDone={afterSave} onCancel={closeForm} />
       )}
 
       {/* 3 tab tình trạng (chốt 27/08) — thay cho cột "Tình trạng" đã bỏ
@@ -1077,6 +1069,12 @@ export default function TheoDoiChuDePage() {
       )}
       {completingJob && (
         <CompleteJobModal job={completingJob} onDone={afterComplete} onCancel={() => setCompletingJob(null)} />
+      )}
+      {/* Chốt 08/09 — form Sửa/Thêm chủ đề đổi thành POPUP nổi giữa màn
+          hình (trước đây nằm cố định trên đầu trang, bấm "Sửa" ở dòng nào
+          xa phía dưới cũng phải cuộn ngược lên đầu mới thao tác được). */}
+      {showForm && (
+        <JobFormCard editingJob={editingJob} onDone={afterSave} onCancel={closeForm} />
       )}
     </Layout>
   );

@@ -568,11 +568,12 @@ function JobFormCard({ editingJob, onDone, onCancel, topics }) {
   }
 
   return (
-    <div className="card">
-      <div className="card-head">
+    <div style={overlayStyle} onClick={onCancel}>
+      <div style={{ ...modalStyle, width: 640, maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
+      <div className="card-head" style={{ marginBottom: 4 }}>
         <h3>{editingJob ? `✏️ Sửa task: ${editingJob.ten_chu_de}` : "Thêm chủ đề mới"}</h3>
       </div>
-      <form onSubmit={handleSubmit} className="form-grid-2" style={{ padding: "16px 20px" }}>
+      <form onSubmit={handleSubmit} className="form-grid-2" style={{ paddingTop: 12 }}>
         {(looking || lookupMsg) && (
           <div style={{ gridColumn: "1 / -1", fontSize: 11.5, color: looking ? "var(--text-400)" : undefined }}>
             {looking ? "Đang tra cứu..." : lookupMsg}
@@ -648,6 +649,7 @@ function JobFormCard({ editingJob, onDone, onCancel, topics }) {
           </button>
         </div>
       </form>
+      </div>
     </div>
   );
 }
@@ -926,51 +928,27 @@ export default function TheoDoiChuDeV2Page() {
         <p>Menu thử nghiệm — chỉ admin/super_admin xem được, dữ liệu riêng biệt với "Theo dõi chủ đề" thật.</p>
       </div>
 
-      {showForm && (
-        <div className="card" style={{ marginBottom: 14 }}>
-          <div className="card-body" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "14px 18px" }}>
-            <MonthSelect thang={thang} setThang={setThang} months={months} />
-            <button
-              className="fbtn" disabled={exporting} onClick={handleExport}
-              style={{ background: "#EAF6E5", borderColor: "#4C9A2A", color: "#3E7A2A" }}
-            >
-              {exporting ? "Đang xuất..." : "📤 Xuất data"}
-            </button>
-            {exportError && <div style={{ fontSize: 12, color: "var(--danger)" }}>{exportError}</div>}
-          </div>
-        </div>
-      )}
+      {/* Chốt 08/09 — form Sửa/Thêm chủ đề đổi thành POPUP nổi giữa màn
+          hình (xem JobFormCard cuối trang), không còn thế chỗ BulkUploadCard
+          trên đầu trang nữa nên bỏ hẳn mọi điều kiện showForm ở khu vực này. */}
+      <BulkUploadCard
+        onDone={load} onOpenForm={() => setShowForm(true)}
+        thang={thang} setThang={setThang} months={months}
+        exporting={exporting} exportError={exportError} onExport={handleExport}
+        isSuperAdmin={isSuperAdmin} onOpenTopicMgmt={() => setTopicMgmtOpen(true)}
+      />
 
-      {!showForm && (
-        <BulkUploadCard
-          onDone={load} onOpenForm={() => setShowForm(true)}
-          thang={thang} setThang={setThang} months={months}
-          exporting={exporting} exportError={exportError} onExport={handleExport}
-          isSuperAdmin={isSuperAdmin} onOpenTopicMgmt={() => setTopicMgmtOpen(true)}
-        />
-      )}
-
-      {showForm && (
-        <JobFormCard editingJob={editingJob} onDone={afterSave} onCancel={closeForm} topics={topicNames} />
-      )}
-
-      {/* "Tất cả chủ đề" canh trái, 3 nút trạng thái canh phải — cùng 1
-          hàng (chốt 06/09). Nút "Tất cả chủ đề" ẩn lúc đang mở form (giữ
-          đúng hành vi cũ), 3 nút trạng thái luôn hiện. */}
+      {/* "Tất cả chủ đề" canh trái, 3 nút trạng thái canh phải — cùng 1 hàng (chốt 06/09). */}
       <div className="month-tabs" style={{ justifyContent: "space-between" }}>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          {!showForm && (
-            <>
-              <button
-                className="fbtn" onClick={() => setTopicPickerOpen(true)}
-                style={{ background: "#FCE4EC", border: "1px solid #F48FB1", color: "#AD1457", fontWeight: 700 }}
-              >
-                🏷️ {selectedTopic || "Chọn chủ đề"}
-              </button>
-              {selectedTopic && (
-                <button className="fbtn" onClick={() => setSelectedTopic("")}>✕ Bỏ lọc</button>
-              )}
-            </>
+          <button
+            className="fbtn" onClick={() => setTopicPickerOpen(true)}
+            style={{ background: "#FCE4EC", border: "1px solid #F48FB1", color: "#AD1457", fontWeight: 700 }}
+          >
+            🏷️ {selectedTopic || "Chọn chủ đề"}
+          </button>
+          {selectedTopic && (
+            <button className="fbtn" onClick={() => setSelectedTopic("")}>✕ Bỏ lọc</button>
           )}
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -1118,6 +1096,9 @@ export default function TheoDoiChuDeV2Page() {
       )}
       {topicMgmtOpen && isSuperAdmin && (
         <TopicManagementModal topics={topics} onClose={() => setTopicMgmtOpen(false)} onChanged={loadTopics} />
+      )}
+      {showForm && (
+        <JobFormCard editingJob={editingJob} onDone={afterSave} onCancel={closeForm} topics={topicNames} />
       )}
     </Layout>
   );
