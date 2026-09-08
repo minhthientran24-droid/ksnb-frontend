@@ -4,7 +4,7 @@ import Layout from "../components/Layout";
 import {
   getUser, listChuDeJobs, createChuDeJob, updateChuDeJob, deleteChuDeJob,
   claimChuDeJob, unclaimChuDeJob, addChuDeJobSupporters, listKsnbForChuDe,
-  completeChuDeJob, downloadChuDeJobFile, downloadChuDeJobResultFile,
+  completeChuDeJob, downloadChuDeJobFile, downloadChuDeJobResultFile, deleteChuDeJobDataFile,
   bulkUploadChuDeJobs, downloadChuDeJobBulkUploadTemplate, lookupChuDeShop,
   getChuDeJobMonths, exportChuDeJobs,
 } from "../lib/api";
@@ -357,12 +357,25 @@ function CompleteJobModal({ job, onDone, onCancel }) {
 // ---------- Admin: form đăng / sửa job ----------
 function JobFormCard({ editingJob, onDone, onCancel }) {
   const [form, setForm] = useState(editingJob ? { ...emptyForm, ...editingJob } : emptyForm);
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
+  // File data check đã có sẵn (chỉ khi Sửa job, chốt 08/09 — nhiều file)
+  // — xoá từng file lẻ ngay tại đây, không cần rời form.
+  const [existingDataFiles, setExistingDataFiles] = useState(editingJob?.data_files || []);
   const fileInputRef = useRef(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [looking, setLooking] = useState(false);
   const [lookupMsg, setLookupMsg] = useState("");
+
+  async function handleRemoveExistingDataFile(fileId) {
+    if (!confirm("Xóa file đính kèm này?")) return;
+    try {
+      await deleteChuDeJobDataFile(editingJob.id, fileId);
+      setExistingDataFiles((prev) => prev.filter((f) => f.id !== fileId));
+    } catch (err) {
+      alert(err.message || "Xóa file thất bại");
+    }
+  }
 
   // Gõ Mã shop rồi bấm Tab (onBlur) là tự tra cứu, điền Tên Shop/Vùng
   // (chốt 25/08) — dùng ShopInfo, tra được shop cả nước.
@@ -396,9 +409,9 @@ function JobFormCard({ editingJob, onDone, onCancel }) {
     setError("");
     try {
       if (editingJob) {
-        await updateChuDeJob(editingJob.id, { ...form, file });
+        await updateChuDeJob(editingJob.id, { ...form, files });
       } else {
-        await createChuDeJob({ ...form, file });
+        await createChuDeJob({ ...form, files });
       }
       onDone();
     } catch (err) {
@@ -441,17 +454,35 @@ function JobFormCard({ editingJob, onDone, onCancel }) {
           <input style={inputStyle} value={form.ten_shop} onChange={(e) => setForm({ ...form, ten_shop: e.target.value })} />
         </div>
         <div>
-          <label style={labelStyle}>File data check (tuỳ chọn)</label>
+          <label style={labelStyle}>File data check (tuỳ chọn — chọn được nhiều file cùng lúc)</label>
           <input
-            ref={fileInputRef} type="file" style={{ display: "none" }}
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            ref={fileInputRef} type="file" multiple style={{ display: "none" }}
+            onChange={(e) => setFiles([...(e.target.files || [])])}
           />
           <button type="button" className="upload-btn" onClick={() => fileInputRef.current?.click()}>
-            📤 {file ? "Đổi file khác" : editingJob?.has_data_file ? "Thay file mới" : "Chọn file"}
+            📤 {files.length > 0 ? `Đổi ${files.length} file khác` : existingDataFiles.length > 0 ? "Thêm file mới" : "Chọn file"}
           </button>
-          <span style={{ fontSize: 11, color: "var(--text-400)", marginLeft: 10 }}>
-            {file ? file.name : editingJob?.data_file_name || "Chưa có file"}
-          </span>
+          {files.length > 0 && (
+            <span style={{ fontSize: 11, color: "var(--text-400)", marginLeft: 10 }}>
+              {files.map((f) => f.name).join(", ")}
+            </span>
+          )}
+          {existingDataFiles.length === 0 && files.length === 0 && (
+            <span style={{ fontSize: 11, color: "var(--text-400)", marginLeft: 10 }}>Chưa có file</span>
+          )}
+          {existingDataFiles.length > 0 && (
+            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+              {existingDataFiles.map((ef) => (
+                <div key={ef.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, color: "var(--text-600)" }}>
+                  📎 {ef.file_name}
+                  <button type="button" className="fbtn danger" style={{ padding: "1px 8px", fontSize: 10.5 }}
+                    onClick={() => handleRemoveExistingDataFile(ef.id)}>
+                    Xóa
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <div style={{ gridColumn: "1 / -1" }}>
           <label style={labelStyle}>Nội dung vi phạm</label>
@@ -740,9 +771,9 @@ export default function TheoDoiChuDePage() {
     load();
   }
 
-  async function handleDownload(job) {
+  async function handleDownload(jobId, fileId, fileName) {
     try {
-      await downloadChuDeJobFile(job.id, job.data_file_name);
+      await downloadChuDeJobFile(jobId, fileId, fileName);
     } catch (err) {
       alert(err.message || "Tải file thất bại");
     }
@@ -911,11 +942,11 @@ export default function TheoDoiChuDePage() {
                               Nhận Task
                             </button>
                           )}
-                          {job.has_data_file && canAccessFiles && (
-                            <button className="fbtn" onClick={() => handleDownload(job)}>
-                              📥 Tải data check
+                          {canAccessFiles && (job.data_files || []).map((f) => (
+                            <button key={f.id} className="fbtn" onClick={() => handleDownload(job.id, f.id, f.file_name)}>
+                              📥 {f.file_name}
                             </button>
-                          )}
+                          ))}
                           {job.has_result_file && canAccessFiles && (
                             <button className="fbtn" onClick={() => handleDownloadResult(job)}>
                               📥 Tải kết quả
