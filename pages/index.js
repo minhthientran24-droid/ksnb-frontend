@@ -38,7 +38,8 @@ const overlayStyle = {
   display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20,
 };
 const modalStyle = {
-  background: "#fff", borderRadius: 12, padding: "24px 26px", width: 560, maxWidth: "100%",
+  // Chốt 08/09 lần 2 — tăng bề ngang +70% (560 -> 952) theo yêu cầu anh.
+  background: "#fff", borderRadius: 12, padding: "24px 26px", width: 952, maxWidth: "100%",
   maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 60px rgba(0,0,0,0.3)",
 };
 
@@ -49,12 +50,9 @@ function TreHanModal({ shops, onTat, onDongY }) {
   return (
     <div style={overlayStyle} onClick={onTat}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ color: "var(--danger)", fontSize: 16.5, fontWeight: 800, marginBottom: 6 }}>
+        <h3 style={{ color: "var(--danger)", fontSize: 16.5, fontWeight: 800, marginBottom: 14 }}>
           ⚠️ Cảnh báo shop sắp/đã trễ hạn kiểm kê
         </h3>
-        <p style={{ fontSize: 13, color: "var(--text-600)", marginBottom: 14 }}>
-          Các shop sau đang trong kỳ kiểm kê với số ngày kiểm từ 4 ngày trở lên, vui lòng xử lý sớm:
-        </p>
         <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
             <thead>
