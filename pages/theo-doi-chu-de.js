@@ -26,6 +26,14 @@ function fmtDateTime(iso) {
   return new Date(iso).toLocaleString("vi-VN");
 }
 
+// Bỏ dấu tiếng Việt (chốt 08/09) — dùng cho ô tìm kiếm: gõ không dấu vẫn
+// tìm khớp được chữ có dấu (và ngược lại), không phân biệt hoa/thường.
+function stripDiacritics(s) {
+  return String(s == null ? "" : s).toLowerCase()
+    .normalize("NFD").replace(new RegExp("[\\u0300-\\u036f]", "g"), "")
+    .replace(/đ/g, "d");
+}
+
 // Số ngày xử lý = hôm nay - ngày giờ nhận job (chưa nhận thì không tính).
 function soNgayXuLy(ngayBatDauCheck) {
   if (!ngayBatDauCheck) return null;
@@ -637,7 +645,7 @@ export default function TheoDoiChuDePage() {
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   function handleSearch() {
-    setSearchQuery(searchInput.trim().toLowerCase());
+    setSearchQuery(searchInput.trim());
   }
   function handleClearSearch() {
     setSearchInput("");
@@ -696,7 +704,9 @@ export default function TheoDoiChuDePage() {
   // Tìm kiếm (chốt 08/09) — gõ 1 từ khoá, khớp bất kỳ đâu trong TẤT CẢ
   // thông tin đang hiển thị trên bảng (đúng field đang render ở mỗi cột —
   // "Người upload" chỉ đưa vào khi viewer thật sự thấy được cột đó, tránh
-  // lộ dữ liệu qua tìm kiếm mà UI đang ẩn). Không phân biệt hoa/thường.
+  // lộ dữ liệu qua tìm kiếm mà UI đang ẩn). Không phân biệt hoa/thường,
+  // và không phân biệt CÓ dấu/KHÔNG dấu (chốt 08/09 lần 2 — gõ "mien
+  // trung" vẫn tìm ra "Miền Trung", xem stripDiacritics).
   function jobMatchesSearch(job, query) {
     if (!query) return true;
     const haystack = [
@@ -711,8 +721,8 @@ export default function TheoDoiChuDePage() {
       job.ket_qua_vi_pham,
       job.ghi_chu,
       canSeeUploader ? job.nguoi_upload : "",
-    ].filter(Boolean).join(" ").toLowerCase();
-    return haystack.includes(query);
+    ].filter(Boolean).join(" ");
+    return stripDiacritics(haystack).includes(stripDiacritics(query));
   }
   const visibleJobs = jobs.filter((job) => jobMatchesTab(job, activeTab) && jobMatchesSearch(job, searchQuery));
   const sortedJobs = applySort(visibleJobs, sort.state, {
