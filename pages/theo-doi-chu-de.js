@@ -631,6 +631,18 @@ export default function TheoDoiChuDePage() {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const sort = useSort();
+  // Tìm kiếm (chốt 08/09) — cùng UX với "Theo dõi kiểm kê": gõ xong bấm
+  // Enter hoặc bấm nút mới lọc (searchInput = đang gõ, searchQuery = đã
+  // chốt tìm), không lọc theo từng phím gõ.
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  function handleSearch() {
+    setSearchQuery(searchInput.trim().toLowerCase());
+  }
+  function handleClearSearch() {
+    setSearchInput("");
+    setSearchQuery("");
+  }
 
   function load(thangFilter = thang) {
     setLoading(true);
@@ -680,7 +692,29 @@ export default function TheoDoiChuDePage() {
     }
     return true;
   }
-  const visibleJobs = jobs.filter((job) => jobMatchesTab(job, activeTab));
+  const canSeeUploader = can("/theo-doi-chu-de::xem-nguoi-upload");
+  // Tìm kiếm (chốt 08/09) — gõ 1 từ khoá, khớp bất kỳ đâu trong TẤT CẢ
+  // thông tin đang hiển thị trên bảng (đúng field đang render ở mỗi cột —
+  // "Người upload" chỉ đưa vào khi viewer thật sự thấy được cột đó, tránh
+  // lộ dữ liệu qua tìm kiếm mà UI đang ẩn). Không phân biệt hoa/thường.
+  function jobMatchesSearch(job, query) {
+    if (!query) return true;
+    const haystack = [
+      job.upload_date,
+      job.ten_chu_de,
+      job.vung,
+      shopDisplay(job),
+      job.noi_dung_vi_pham,
+      job.nhan_vien_phu_trach,
+      ...(job.supporters || []).map((s) => s.full_name),
+      fmtDateTime(job.ngay_bat_dau_check),
+      job.ket_qua_vi_pham,
+      job.ghi_chu,
+      canSeeUploader ? job.nguoi_upload : "",
+    ].filter(Boolean).join(" ").toLowerCase();
+    return haystack.includes(query);
+  }
+  const visibleJobs = jobs.filter((job) => jobMatchesTab(job, activeTab) && jobMatchesSearch(job, searchQuery));
   const sortedJobs = applySort(visibleJobs, sort.state, {
     upload_date: (j) => j.upload_date || "",
     ten_chu_de: (j) => j.ten_chu_de || "",
@@ -693,7 +727,6 @@ export default function TheoDoiChuDePage() {
     ket_qua_vi_pham: (j) => j.ket_qua_vi_pham || "",
     nguoi_upload: (j) => j.nguoi_upload || "",
   });
-  const canSeeUploader = can("/theo-doi-chu-de::xem-nguoi-upload");
 
   function closeForm() {
     setShowForm(false);
@@ -850,24 +883,44 @@ export default function TheoDoiChuDePage() {
       )}
 
       {/* 3 tab tình trạng (chốt 27/08) — thay cho cột "Tình trạng" đã bỏ
-          khỏi bảng, nằm ngay dưới khung "Cập nhập chủ đề mới". */}
-      <div className="month-tabs">
-        {CHU_DE_TABS.filter((t) => can(`/theo-doi-chu-de::${t.key}`)).map((t) => {
-          const count = jobs.filter((j) => jobMatchesTab(j, t.key)).length;
-          const isActive = activeTab === t.key;
-          return (
-            <div
-              key={t.key}
-              className="month-tab"
-              onClick={() => setActiveTab(t.key)}
-              style={isActive
-                ? { background: t.color, borderColor: t.color, color: "#fff" }
-                : { background: t.bg, borderColor: t.color, color: t.color }}
-            >
-              {t.label} ({count})
-            </div>
-          );
-        })}
+          khỏi bảng, nằm ngay dưới khung "Cập nhập chủ đề mới". Ô tìm kiếm
+          (chốt 08/09) đặt cùng hàng, canh phải — tìm theo TẤT CẢ thông
+          tin đang hiển thị trên bảng (xem jobMatchesSearch). */}
+      <div className="month-tabs" style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {CHU_DE_TABS.filter((t) => can(`/theo-doi-chu-de::${t.key}`)).map((t) => {
+            const count = jobs.filter((j) => jobMatchesTab(j, t.key)).length;
+            const isActive = activeTab === t.key;
+            return (
+              <div
+                key={t.key}
+                className="month-tab"
+                onClick={() => setActiveTab(t.key)}
+                style={isActive
+                  ? { background: t.color, borderColor: t.color, color: "#fff" }
+                  : { background: t.bg, borderColor: t.color, color: t.color }}
+              >
+                {t.label} ({count})
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <input
+            type="text"
+            placeholder="Tìm kiếm..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
+            style={{ width: "5cm", padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13.5 }}
+          />
+          <button onClick={handleSearch} style={searchBtnStyle}>🔍 Tìm kiếm</button>
+          {searchQuery && (
+            <button onClick={handleClearSearch} style={{ ...searchBtnStyle, background: "var(--border)", color: "var(--text-900)" }}>
+              Xóa lọc
+            </button>
+          )}
+        </div>
       </div>
 
       {error && <div className="placeholder-box">Không tải được dữ liệu: {error}</div>}
@@ -898,7 +951,9 @@ export default function TheoDoiChuDePage() {
               </thead>
               <tbody>
                 {visibleJobs.length === 0 && (
-                  <tr><td colSpan={canSeeUploader ? 10 : 9} style={{ textAlign: "center", color: "var(--text-400)" }}>Không có task nào ở tình trạng này.</td></tr>
+                  <tr><td colSpan={canSeeUploader ? 10 : 9} style={{ textAlign: "center", color: "var(--text-400)" }}>
+                    {searchQuery ? "Không tìm thấy task nào khớp từ khoá tìm kiếm." : "Không có task nào ở tình trạng này."}
+                  </td></tr>
                 )}
                 {sortedJobs.map((job) => {
                   const supporters = job.supporters || [];
@@ -1020,6 +1075,7 @@ export default function TheoDoiChuDePage() {
 const labelStyle = { fontSize: 12, fontWeight: 600, color: "var(--text-600)", display: "block", marginBottom: 6 };
 const inputStyle = { width: "100%", padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13.5, background: "#FAFBFD", boxSizing: "border-box" };
 const deleteBtnStyle = { background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "6px 12px", fontSize: 12, color: "var(--text-600)", cursor: "pointer" };
+const searchBtnStyle = { padding: "9px 16px", borderRadius: 8, border: "none", background: "var(--navy-800)", color: "#fff", fontSize: 13.5, fontWeight: 600, cursor: "pointer" };
 const overlayStyle = {
   position: "fixed", inset: 0, background: "rgba(10,20,40,0.45)",
   display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20,
