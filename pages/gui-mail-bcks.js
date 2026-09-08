@@ -33,6 +33,16 @@ const textInputStyle = {
   width: "100%", border: "1px solid var(--border)", borderRadius: 6, padding: "7px 10px",
   fontSize: 12.5, fontFamily: "inherit", boxSizing: "border-box",
 };
+// Popup xác nhận "thiếu sheet Kiểm kê Thanh Lý" (chốt 08/09) — cùng quy
+// ước overlay/modal dùng chung ở các trang khác (theo-doi-chu-de.js...).
+const overlayStyle = {
+  position: "fixed", inset: 0, background: "rgba(10,20,40,0.45)",
+  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20,
+};
+const modalStyle = {
+  background: "#fff", borderRadius: 12, padding: "24px 26px", width: 440, maxWidth: "100%",
+  boxShadow: "0 24px 60px rgba(0,0,0,0.3)",
+};
 
 function SmtpCredentialPanel({ onConfigured }) {
   const [status, setStatus] = useState(null); // { configured, sender_email }
@@ -159,6 +169,26 @@ function SelfServicePanel({ smtpConfigured }) {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState("");
   const [sent, setSent] = useState(false);
+  // Chốt 08/09 — thiếu sheet "Kiểm kê Thanh Lý" không còn bị chặn cứng ở
+  // backend, chỉ báo "missing_thanh_ly_sheet" — giữ preview đã nhận được
+  // TẠM ở đây, chờ NV tự xác nhận qua popup đỏ (Hủy/Tiếp tục) rồi mới áp
+  // dụng vào form thật (applyPreview), tránh lỡ tay gửi thiếu sheet mà
+  // không hay biết.
+  const [thanhLyConfirm, setThanhLyConfirm] = useState(null); // { p, f } đang chờ xác nhận
+
+  function applyPreview(p, f) {
+    setPreview(p);
+    // Thay file gốc bằng đúng file backend đã (có thể) tự sửa lại "Ngày
+    // kiểm soát" — xem base64ToFile() ở trên.
+    if (p.attachment_base64) {
+      setFile(base64ToFile(p.attachment_base64, f.name));
+    }
+    setToText(p.to.join(", "));
+    setCcText(p.cc.join(", "));
+    setSubject(p.subject);
+    setGreeting(p.greeting);
+    setSignature(p.signature);
+  }
 
   async function handlePickFile(e) {
     const f = e.target.files?.[0];
@@ -168,25 +198,32 @@ function SelfServicePanel({ smtpConfigured }) {
     setPreviewError("");
     setSendError("");
     setSent(false);
+    setThanhLyConfirm(null);
     setPreviewing(true);
     try {
       const p = await previewGuiMailBcks(f);
-      setPreview(p);
-      // Thay file gốc bằng đúng file backend đã (có thể) tự sửa lại "Ngày
-      // kiểm soát" — xem base64ToFile() ở trên.
-      if (p.attachment_base64) {
-        setFile(base64ToFile(p.attachment_base64, f.name));
+      if (p.missing_thanh_ly_sheet) {
+        // Chờ NV tự xác nhận trước — KHÔNG áp dụng preview ngay.
+        setThanhLyConfirm({ p, f });
+        return;
       }
-      setToText(p.to.join(", "));
-      setCcText(p.cc.join(", "));
-      setSubject(p.subject);
-      setGreeting(p.greeting);
-      setSignature(p.signature);
+      applyPreview(p, f);
     } catch (err) {
       setPreviewError(err.message || "Không đọc được file");
     } finally {
       setPreviewing(false);
     }
+  }
+
+  function confirmThanhLyContinue() {
+    if (!thanhLyConfirm) return;
+    applyPreview(thanhLyConfirm.p, thanhLyConfirm.f);
+    setThanhLyConfirm(null);
+  }
+
+  function confirmThanhLyCancel() {
+    setThanhLyConfirm(null);
+    resetAll();
   }
 
   async function handleSend() {
@@ -356,6 +393,32 @@ function SelfServicePanel({ smtpConfigured }) {
         </div>
         <div className="placeholder-box">Chưa có báo cáo nào được gửi.</div>
       </div>
+
+      {/* Chốt 08/09 — file thiếu sheet "Kiểm kê Thanh Lý" (shop Long
+          Châu) không còn bị chặn, chỉ hỏi lại NV có muốn tiếp tục không. */}
+      {thanhLyConfirm && (
+        <div style={overlayStyle} onClick={confirmThanhLyCancel}>
+          <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+            <div style={{
+              background: "#FDEAEA", border: "1px solid var(--danger)", borderRadius: 8,
+              padding: "12px 14px", fontSize: 13, color: "var(--danger)", fontWeight: 600, marginBottom: 16,
+            }}>
+              ⚠️ File báo cáo thiếu sheet "Kiểm kê Thanh Lý". Bạn có muốn tiếp tục không?
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button className="login-btn" style={{ width: "auto", padding: "9px 22px" }} onClick={confirmThanhLyContinue}>
+                Tiếp tục
+              </button>
+              <button
+                type="button" onClick={confirmThanhLyCancel}
+                style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "9px 18px", fontSize: 13, color: "var(--text-600)", cursor: "pointer" }}
+              >
+                Hủy
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
