@@ -39,8 +39,11 @@ const overlayStyle = {
 };
 const modalStyle = {
   // Chốt 08/09 lần 2 — tăng bề ngang +70% (560 -> 952) theo yêu cầu anh.
+  // display:flex/column + maxHeight cố định (không phải overflow ở đây
+  // nữa, chốt 08/09 lần 3) để tiêu đề + 2 nút LUÔN hiện, chỉ phần bảng
+  // shop bên trong cuộn riêng khi danh sách dài.
   background: "#fff", borderRadius: 12, padding: "24px 26px", width: 952, maxWidth: "100%",
-  maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 60px rgba(0,0,0,0.3)",
+  maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 60px rgba(0,0,0,0.3)",
 };
 
 // Popup cảnh báo shop "Sắp trễ hạn"/"Đã trễ hạn" ở tab "Đang kiểm" — hiện
@@ -50,10 +53,12 @@ function TreHanModal({ shops, onTat, onDongY }) {
   return (
     <div style={overlayStyle} onClick={onTat}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ color: "var(--danger)", fontSize: 16.5, fontWeight: 800, marginBottom: 14 }}>
+        <h3 style={{ color: "var(--danger)", fontSize: 16.5, fontWeight: 800, marginBottom: 14, flexShrink: 0 }}>
           ⚠️ Cảnh báo shop sắp/đã trễ hạn kiểm kê
         </h3>
-        <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+        {/* Chỉ khối bảng này cuộn riêng (chốt 08/09 lần 3) — minHeight:0 bắt
+            buộc để flexbox cho phép con cuộn thay vì tự giãn theo nội dung. */}
+        <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "auto", minHeight: 0, flex: "0 1 auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
             <thead>
               <tr style={{ background: "#FAFAFA" }}>
@@ -79,7 +84,7 @@ function TreHanModal({ shops, onTat, onDongY }) {
             </tbody>
           </table>
         </div>
-        <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+        <div style={{ display: "flex", gap: 10, marginTop: 18, flexShrink: 0 }}>
           <button onClick={onDongY} style={saveBtnStyle}>Đồng ý — vào Đang kiểm</button>
           <button onClick={onTat} style={cancelBtnStyle}>Tắt</button>
         </div>
