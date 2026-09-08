@@ -771,11 +771,17 @@ export default function TheoDoiChuDePage() {
     load();
   }
 
-  async function handleDownload(jobId, fileId, fileName) {
-    try {
-      await downloadChuDeJobFile(jobId, fileId, fileName);
-    } catch (err) {
-      alert(err.message || "Tải file thất bại");
+  // Chốt 08/09 — gộp lại thành 1 nút "Tải file" duy nhất (thay vì mỗi
+  // file 1 nút ghi tên file dài dòng, nhìn rối) — bấm 1 lần tải hết TẤT
+  // CẢ file data check đã đính kèm (job có nhiều file thì tải lần lượt
+  // từng file, mỗi lần 1 lượt "Lưu file" riêng của trình duyệt).
+  async function handleDownloadAll(job) {
+    for (const f of job.data_files || []) {
+      try {
+        await downloadChuDeJobFile(job.id, f.id, f.file_name);
+      } catch (err) {
+        alert(`Tải file "${f.file_name}" thất bại: ${err.message || ""}`);
+      }
     }
   }
 
@@ -942,11 +948,11 @@ export default function TheoDoiChuDePage() {
                               Nhận Task
                             </button>
                           )}
-                          {canAccessFiles && (job.data_files || []).map((f) => (
-                            <button key={f.id} className="fbtn" onClick={() => handleDownload(job.id, f.id, f.file_name)}>
-                              📥 {f.file_name}
+                          {canAccessFiles && (job.data_files || []).length > 0 && (
+                            <button className="fbtn" onClick={() => handleDownloadAll(job)}>
+                              📥 Tải file
                             </button>
-                          ))}
+                          )}
                           {job.has_result_file && canAccessFiles && (
                             <button className="fbtn" onClick={() => handleDownloadResult(job)}>
                               📥 Tải kết quả
