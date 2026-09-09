@@ -26,6 +26,11 @@ function vibrate(pattern) {
   try { navigator.vibrate?.(pattern); } catch {}
 }
 
+// Thời gian giữ kết quả (camera tắt) trước khi tự mở lại quét tiếp —
+// chốt 09/09 lần 6, kéo dài hơn bản trước (1200ms) theo phản hồi anh
+// "tốc độ chuyển camera chậm lại tí".
+const RESULT_HOLD_MS = 2000;
+
 export default function KiemTraTonPublicPage() {
   const router = useRouter();
   const token = typeof router.query.token === "string" ? router.query.token : null;
@@ -60,6 +65,45 @@ export default function KiemTraTonPublicPage() {
   // quét; tắt bởi "Dừng quét"/"Hoàn tất" (chủ động), KHÔNG tắt bởi lần tắt
   // camera nội bộ giữa 2 lượt quét.
   const autoScanRef = useRef(false);
+  // AudioContext dùng phát tiếng "tít" lúc quét (chốt 09/09 lần 6 — anh
+  // báo không cảm nhận được rung, navigator.vibrate() KHÔNG được hỗ trợ
+  // trên iOS Safari nên là nguyên nhân chính; âm thanh đáng tin cậy hơn
+  // nhiều). Trình duyệt chỉ cho phát âm thanh sau 1 thao tác bấm thật của
+  // NV — nên chỉ tạo/resume đúng 1 lần NGAY trong hàm startScanning() (do
+  // nút "Mở camera" gọi trực tiếp), rồi tái dùng mãi cho các lần quét sau
+  // (kể cả khi beep() được gọi từ trong callback bất đồng bộ, không phải
+  // trực tiếp từ 1 cú bấm).
+  const audioCtxRef = useRef(null);
+
+  function ensureAudioUnlocked() {
+    try {
+      if (!audioCtxRef.current) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) audioCtxRef.current = new AudioCtx();
+      }
+      if (audioCtxRef.current?.state === "suspended") {
+        audioCtxRef.current.resume().catch(() => {});
+      }
+    } catch {}
+  }
+
+  function beep() {
+    const ctx = audioCtxRef.current;
+    if (!ctx) return;
+    try {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 1046.5; // C6 — tiếng "tít" ngắn, rõ, không chói
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.2);
+    } catch {}
+  }
 
   function loadPhieu() {
     if (!token) return;
@@ -114,16 +158,18 @@ export default function KiemTraTonPublicPage() {
     };
   }, []);
 
-  // Quét được 1 mã -> TẮT camera ngay -> rung 1 cái -> gọi API + báo kết
-  // quả (xanh/đỏ) trong lúc camera đang tắt -> giữ kết quả ~1.2s rồi TỰ
-  // MỞ LẠI camera, tiếp tục quét mã kế (chốt 09/09 lần 5, đúng luồng anh
-  // mô tả: tắt camera - rung - báo kết quả - rồi mới mở lại camera).
+  // Quét được 1 mã -> TẮT camera ngay -> rung + tít 1 cái -> gọi API +
+  // báo kết quả (xanh/đỏ) trong lúc camera đang tắt -> giữ kết quả
+  // RESULT_HOLD_MS rồi TỰ MỞ LẠI camera, tiếp tục quét mã kế (chốt 09/09
+  // lần 5/6, đúng luồng anh mô tả: tắt camera - rung/tít - báo kết quả -
+  // rồi mới mở lại camera, có chậm lại 1 nhịp cho dễ đọc kết quả).
   function onDecoded(decodedText) {
     if (processingRef.current) return;
     processingRef.current = true;
     stopScanning(false)
       .then(() => {
-        vibrate(80); // rung 1 cái, không phân biệt khớp/không khớp
+        vibrate(80);
+        beep(); // tiếng "tít" — đáng tin cậy hơn rung (rung không hoạt động trên iOS)
         return scanCheckLechTonVxPublic(token, decodedText);
       })
       .then((res) => {
@@ -142,7 +188,7 @@ export default function KiemTraTonPublicPage() {
           setLastResult(null);
           processingRef.current = false;
           if (autoScanRef.current) startScanning();
-        }, 1200);
+        }, RESULT_HOLD_MS);
       });
   }
 
@@ -150,6 +196,7 @@ export default function KiemTraTonPublicPage() {
     autoScanRef.current = true;
     setSessionOn(true);
     setCameraError("");
+    ensureAudioUnlocked(); // mở khoá phát âm thanh — PHẢI gọi trong cùng lượt bấm của NV
     try {
       const { Html5Qrcode } = await import("html5-qrcode");
       const inst = new Html5Qrcode(QR_ELEMENT_ID);
