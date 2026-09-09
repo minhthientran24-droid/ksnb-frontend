@@ -64,10 +64,10 @@ export default function KiemTraTonPublicPage() {
   const [lastResult, setLastResult] = useState(null); // {khop, ma_quet, ten_sp} | null — flash màu lúc camera tắt
   const [history, setHistory] = useState([]); // lịch sử quét, mới nhất trước
   const [completing, setCompleting] = useState(false);
-  // Mặc định ẨN danh sách sản phẩm trên UI mobile quét (chốt 09/09 lần 3,
-  // theo yêu cầu anh) — NV cần xem lại tên/mã thì tự bấm mở, đỡ chiếm màn
-  // hình nhỏ lúc đang thao tác quét liên tục.
-  const [showList, setShowList] = useState(false);
+  // Mặc định TỰ HIỆN danh sách sản phẩm (chốt 09/09 lần 8 — đảo lại
+  // quyết định lần 3, theo yêu cầu mới nhất của anh). Vẫn cho bấm ẩn/hiện
+  // lại nếu cần dồn chỗ cho khung camera.
+  const [showList, setShowList] = useState(true);
 
   const html5QrRef = useRef(null);
   const processingRef = useRef(false);
@@ -123,6 +123,11 @@ export default function KiemTraTonPublicPage() {
       .then((p) => {
         setPhieu(p);
         setItems(p.items || []);
+        // Nạp lại lịch sử quét TỪ SERVER (chốt 09/09 lần 8) — để NV vẫn
+        // thấy các lượt quét trước đó dù mới mở lại link/tải lại trang
+        // giữa chừng (phiếu đang kiểm, chưa hoàn tất), không chỉ những
+        // lượt quét trong đúng phiên trình duyệt hiện tại.
+        setHistory(p.lich_su_quet || []);
         setSummary(p.trang_thai === "hoan_tat" ? { chua_quet: p.chua_quet, khong_ton: p.khong_ton } : null);
         setLoadError("");
       })
@@ -185,7 +190,7 @@ export default function KiemTraTonPublicPage() {
       })
       .then((res) => {
         setLastResult(res);
-        setHistory((h) => [{ ...res, at: Date.now() }, ...h].slice(0, 30));
+        setHistory((h) => [{ ...res, at: Date.now() }, ...h].slice(0, 50)); // khớp giới hạn 50 dòng của server
         if (res.khop) {
           const norm = decodedText.trim().toUpperCase();
           setItems((prev) => prev.map((it) => (it.ma_sp.trim().toUpperCase() === norm ? { ...it, da_quet: true } : it)));
