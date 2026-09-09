@@ -41,7 +41,10 @@ export default function KiemTraTonPublicPage() {
   const [lastResult, setLastResult] = useState(null); // {khop, ma_quet, ten_sp} | null — flash màu
   const [history, setHistory] = useState([]); // lịch sử quét, mới nhất trước
   const [completing, setCompleting] = useState(false);
-  const [showList, setShowList] = useState(true);
+  // Mặc định ẨN danh sách sản phẩm trên UI mobile quét (chốt 09/09 lần 3,
+  // theo yêu cầu anh) — NV cần xem lại tên/mã thì tự bấm mở, đỡ chiếm màn
+  // hình nhỏ lúc đang thao tác quét liên tục.
+  const [showList, setShowList] = useState(false);
 
   const html5QrRef = useRef(null);
   const processingRef = useRef(false);
@@ -190,7 +193,7 @@ export default function KiemTraTonPublicPage() {
                     Đã quét {soDaQuet}/{soSp} sản phẩm
                   </div>
                   <button style={linkBtnStyle} onClick={() => setShowList((v) => !v)}>
-                    {showList ? "Thu gọn ▲" : "Xem danh sách ▼"}
+                    {showList ? "▲ Ẩn danh sách" : "👁 Xem tên & mã SP"}
                   </button>
                 </div>
                 <div style={progressBarOuter}>

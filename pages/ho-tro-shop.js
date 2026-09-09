@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
 import { useAllowedKeys } from "../lib/permissions";
 import {
   getUser,
   createCheckLechTonVxPhieu, listCheckLechTonVxPhieu, getCheckLechTonVxPhieu,
-  reopenCheckLechTonVxPhieu, deleteCheckLechTonVxPhieu,
+  reopenCheckLechTonVxPhieu, deleteCheckLechTonVxPhieu, importCheckLechTonVxExcel,
 } from "../lib/api";
 
 // Menu "Hỗ trợ shop" (chốt 09/09) — dành cho TẤT CẢ role (không giới hạn
@@ -175,6 +175,34 @@ export default function HoTroShopPage() {
     }
   }
 
+  // ---- Import phiếu từ file Excel (chốt 09/09 lần 3) — file kiểu "Barcode
+  // <mã shop>.xlsx" (cột Mã Shop/Tên Shop/Tên SP/Code); Tên Shop thường để
+  // trống trong file, backend tự tra theo Mã Shop từ danh sách shop master
+  // sẵn có. File gộp nhiều shop -> tạo LUÔN nhiều phiếu 1 lần, hiện hết ở
+  // popup kết quả bên dưới. ----
+  const importInputRef = useRef(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null); // phiếu[] vừa tạo
+  const [importError, setImportError] = useState("");
+
+  async function handleImportFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setImportError("");
+    setImportResult(null);
+    try {
+      const created = await importCheckLechTonVxExcel(file);
+      setImportResult(created);
+      reload();
+    } catch (err) {
+      setImportError(err.message || "Import thất bại");
+    } finally {
+      setImporting(false);
+      if (importInputRef.current) importInputRef.current.value = "";
+    }
+  }
+
   return (
     <Layout crumb="Hỗ trợ shop">
       <div className="page-head">
@@ -193,14 +221,26 @@ export default function HoTroShopPage() {
         <div className="card">
           <div className="card-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h3>🔎 Hỗ trợ check lệch tồn VX</h3>
-            <button className="upload-btn" onClick={openCreate}>➕ Tạo phiếu kiểm tra</button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                ref={importInputRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }}
+                onChange={handleImportFile}
+              />
+              <button className="upload-btn" disabled={importing} onClick={() => importInputRef.current?.click()}>
+                {importing ? "Đang import..." : "📥 Import Excel"}
+              </button>
+              <button className="upload-btn" onClick={openCreate}>➕ Tạo phiếu kiểm tra</button>
+            </div>
           </div>
           <div className="card-body">
             <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 14, lineHeight: 1.6 }}>
               Tạo phiếu gồm danh sách mã sản phẩm cần kiểm — hệ thống sinh 1 link công khai (không cần đăng
               nhập) để NV cửa hàng mở link đó, bật camera quét QR từng sản phẩm đối chiếu với danh sách.
+              "Import Excel" nhận file cột <b>Mã Shop / Tên Shop / Tên SP / Code</b> (Tên Shop để trống cũng
+              được — hệ thống tự tra theo Mã Shop); file gộp nhiều shop thì tự tạo riêng từng phiếu cho mỗi shop.
             </p>
 
+            {importError && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14 }}>❌ {importError}</div>}
             {loadError && <div className="placeholder-box">Không tải được dữ liệu: {loadError}</div>}
             {!loadError && loading && <div className="placeholder-box">Đang tải...</div>}
             {!loadError && !loading && (
@@ -402,6 +442,37 @@ export default function HoTroShopPage() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Popup kết quả Import Excel — có thể tạo NHIỀU phiếu 1 lần nếu file gộp nhiều shop */}
+      {importResult && (
+        <div style={overlayStyle} onClick={() => setImportResult(null)}>
+          <div style={{ ...modalStyle, width: 560 }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: "#3E7A2A", marginBottom: 6 }}>
+              ✅ Đã import {importResult.length} phiếu
+            </h3>
+            <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 14 }}>
+              Gửi link tương ứng cho NV từng cửa hàng để bắt đầu quét:
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 320, overflowY: "auto" }}>
+              {importResult.map((p) => (
+                <div key={p.id} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px" }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>
+                    #{p.id} — {p.ma_shop ? `${p.ma_shop} - ` : ""}{p.ten_shop || "(chưa xác định tên shop)"}
+                    <span style={{ fontWeight: 400, color: "var(--text-600)" }}> · {p.so_sp} sản phẩm</span>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input readOnly className="finput" style={{ flex: 1, fontSize: 11.5 }} value={publicLink(p.token)} onFocus={(e) => e.target.select()} />
+                    <button className="fbtn" onClick={() => handleCopyLink(p.id, p.token)}>
+                      {copiedId === p.id ? "✅ Đã copy" : "🔗 Copy"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button className="login-btn" style={{ width: "auto", padding: "9px 20px", marginTop: 16 }} onClick={() => setImportResult(null)}>Đóng</button>
           </div>
         </div>
       )}
