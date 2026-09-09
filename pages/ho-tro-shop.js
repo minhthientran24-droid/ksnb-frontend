@@ -3,45 +3,28 @@ import Layout from "../components/Layout";
 import { useAllowedKeys } from "../lib/permissions";
 import {
   getUser,
-  createCheckLechTonVxPhieu, listCheckLechTonVxPhieu, getCheckLechTonVxPhieu,
-  reopenCheckLechTonVxPhieu, deleteCheckLechTonVxPhieu, importCheckLechTonVxExcel,
+  listCheckLechTonVxPhieu, getCheckLechTonVxPhieu,
+  reopenCheckLechTonVxPhieu, deleteCheckLechTonVxPhieu,
+  importCheckLechTonVxExcel, downloadCheckLechTonVxTemplate,
 } from "../lib/api";
 
 // Menu "Hỗ trợ shop" (chốt 09/09) — dành cho TẤT CẢ role (không giới hạn
 // như "Hỗ Trợ Kiểm Kê"), gồm nhiều tab hỗ trợ xử lý cho shop. Tab đầu
-// tiên "Hỗ trợ check lệch tồn VX" (chốt 09/09 lần 2, rule đầy đủ):
+// tiên "Hỗ trợ check lệch tồn VX" (chốt 09/09 lần 4, rule đầy đủ):
 //
-// NV nội bộ tạo 1 "phiếu" gồm danh sách mã sản phẩm CẦN CÓ (dán từ Excel
-// 2 cột "mã - tên") -> hệ thống sinh 1 link công khai (KHÔNG cần đăng
-// nhập). NV cửa hàng vào link, bật camera quét QR dán trên từng sản
-// phẩm (QR = đúng mã sản phẩm) -> khớp thì xanh (tồn), không khớp thì đỏ
-// (không tồn). Bấm "Hoàn tất" -> phiếu khoá lại, trả về 2 danh sách:
-// mã ĐÃ quét mà KHÔNG có trong phiếu ("không tồn"), và mã CÓ trong phiếu
-// mà CHƯA quét lần nào ("chưa bắn"). Xem đầy đủ rule + code xử lý ở
-// backend/app/routers/check_lech_ton_vx.py.
+// NV nội bộ tải file mẫu ("Tải template"), điền danh sách mã sản phẩm
+// CẦN CÓ rồi Import Excel -> hệ thống sinh 1 link công khai (KHÔNG cần
+// đăng nhập). NV cửa hàng vào link, bật camera quét QR dán trên từng
+// sản phẩm (QR = đúng mã sản phẩm) -> khớp thì xanh (tồn), không khớp
+// thì đỏ (không tồn). Bấm "Hoàn tất" -> phiếu khoá lại, trả về 2 danh
+// sách: mã ĐÃ quét mà KHÔNG có trong phiếu ("không tồn"), và mã CÓ
+// trong phiếu mà CHƯA quét lần nào ("chưa bắn"). ĐÃ BỎ cách tạo phiếu
+// bằng tay (dán text) — CHỈ còn tạo phiếu qua import Excel. Xem đầy đủ
+// rule + code xử lý ở backend/app/routers/check_lech_ton_vx.py.
 const TAB_KEYS = ["check_lech_ton_vx"];
 const TAB_LABELS = {
   check_lech_ton_vx: "Hỗ trợ check lệch tồn VX",
 };
-
-// Dán từ Excel (2 cột mã/tên) sẽ tự phân cách bằng TAB — ưu tiên tách
-// theo tab trước, các kiểu gõ tay khác (phẩy / " - " / nhiều khoảng
-// trắng) hỗ trợ thêm cho tiện.
-function parsePasteText(text) {
-  return (text || "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      let parts;
-      if (line.includes("\t")) parts = line.split("\t");
-      else if (line.includes(",")) parts = line.split(",");
-      else if (line.includes(" - ")) parts = line.split(" - ");
-      else parts = line.split(/\s{2,}/);
-      return { ma_sp: (parts[0] || "").trim(), ten_sp: (parts.slice(1).join(" ") || "").trim() };
-    })
-    .filter((it) => it.ma_sp);
-}
 
 function fmtDateTime(s) {
   if (!s) return "-";
@@ -92,45 +75,6 @@ export default function HoTroShopPage() {
     if (tab === "check_lech_ton_vx") reload();
   }, [tab]);
 
-  // ---- Tạo phiếu mới ----
-  const [showCreate, setShowCreate] = useState(false);
-  const [formShop, setFormShop] = useState({ ma_shop: "", ten_shop: "", ghi_chu: "" });
-  const [pasteText, setPasteText] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState("");
-  const [justCreated, setJustCreated] = useState(null); // phiếu vừa tạo — hiện link nổi bật
-
-  const parsedItems = parsePasteText(pasteText);
-
-  function openCreate() {
-    setFormShop({ ma_shop: "", ten_shop: "", ghi_chu: "" });
-    setPasteText("");
-    setCreateError("");
-    setJustCreated(null);
-    setShowCreate(true);
-  }
-
-  async function submitCreate() {
-    if (parsedItems.length === 0) {
-      setCreateError("Chưa có mã sản phẩm nào — dán danh sách (mỗi dòng 1 mã, có thể kèm tên) vào ô bên dưới.");
-      return;
-    }
-    setCreating(true);
-    setCreateError("");
-    try {
-      const phieu = await createCheckLechTonVxPhieu({
-        ma_shop: formShop.ma_shop, ten_shop: formShop.ten_shop, ghi_chu: formShop.ghi_chu,
-        items: parsedItems,
-      });
-      setJustCreated(phieu);
-      reload();
-    } catch (err) {
-      setCreateError(err.message || "Tạo phiếu thất bại");
-    } finally {
-      setCreating(false);
-    }
-  }
-
   // ---- Xem chi tiết 1 phiếu ----
   const [viewingId, setViewingId] = useState(null);
   const [viewingDetail, setViewingDetail] = useState(null);
@@ -175,11 +119,26 @@ export default function HoTroShopPage() {
     }
   }
 
-  // ---- Import phiếu từ file Excel (chốt 09/09 lần 3) — file kiểu "Barcode
-  // <mã shop>.xlsx" (cột Mã Shop/Tên Shop/Tên SP/Code); Tên Shop thường để
-  // trống trong file, backend tự tra theo Mã Shop từ danh sách shop master
-  // sẵn có. File gộp nhiều shop -> tạo LUÔN nhiều phiếu 1 lần, hiện hết ở
-  // popup kết quả bên dưới. ----
+  // ---- Tải file mẫu (template) — cột Mã Shop/Tên Shop/Tên SP/Code, kèm
+  // ví dụ + ghi chú, dùng để điền rồi import ngược lại. ----
+  const [templateBusy, setTemplateBusy] = useState(false);
+  async function handleDownloadTemplate() {
+    setTemplateBusy(true);
+    try {
+      await downloadCheckLechTonVxTemplate();
+    } catch (err) {
+      alert(err.message || "Tải template thất bại");
+    } finally {
+      setTemplateBusy(false);
+    }
+  }
+
+  // ---- Import phiếu từ file Excel (chốt 09/09 lần 3, CHỈ còn cách tạo
+  // phiếu duy nhất từ chốt 09/09 lần 4) — file kiểu "Barcode <mã
+  // shop>.xlsx" (cột Mã Shop/Tên Shop/Tên SP/Code); Tên Shop thường để
+  // trống trong file, backend tự tra theo Mã Shop từ danh sách shop
+  // master sẵn có. File gộp nhiều shop -> tạo LUÔN nhiều phiếu 1 lần,
+  // hiện hết ở popup kết quả bên dưới. ----
   const importInputRef = useRef(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null); // phiếu[] vừa tạo
@@ -222,6 +181,9 @@ export default function HoTroShopPage() {
           <div className="card-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h3>🔎 Hỗ trợ check lệch tồn VX</h3>
             <div style={{ display: "flex", gap: 8 }}>
+              <button className="upload-btn" disabled={templateBusy} onClick={handleDownloadTemplate}>
+                {templateBusy ? "Đang tải..." : "📄 Tải template"}
+              </button>
               <input
                 ref={importInputRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }}
                 onChange={handleImportFile}
@@ -229,15 +191,15 @@ export default function HoTroShopPage() {
               <button className="upload-btn" disabled={importing} onClick={() => importInputRef.current?.click()}>
                 {importing ? "Đang import..." : "📥 Import Excel"}
               </button>
-              <button className="upload-btn" onClick={openCreate}>➕ Tạo phiếu kiểm tra</button>
             </div>
           </div>
           <div className="card-body">
             <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 14, lineHeight: 1.6 }}>
-              Tạo phiếu gồm danh sách mã sản phẩm cần kiểm — hệ thống sinh 1 link công khai (không cần đăng
-              nhập) để NV cửa hàng mở link đó, bật camera quét QR từng sản phẩm đối chiếu với danh sách.
-              "Import Excel" nhận file cột <b>Mã Shop / Tên Shop / Tên SP / Code</b> (Tên Shop để trống cũng
-              được — hệ thống tự tra theo Mã Shop); file gộp nhiều shop thì tự tạo riêng từng phiếu cho mỗi shop.
+              Tải template, điền danh sách mã sản phẩm cần kiểm rồi Import Excel để tạo phiếu — hệ thống
+              sinh 1 link công khai (không cần đăng nhập) để NV cửa hàng mở link đó, bật camera quét QR
+              từng sản phẩm đối chiếu với danh sách. Cột <b>Mã Shop / Tên Shop / Tên SP / Code</b> (Tên Shop
+              để trống cũng được — hệ thống tự tra theo Mã Shop); file gộp nhiều shop thì tự tạo riêng từng
+              phiếu cho mỗi shop.
             </p>
 
             {importError && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14 }}>❌ {importError}</div>}
@@ -296,75 +258,6 @@ export default function HoTroShopPage() {
                   )}
                 </tbody>
               </table>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Popup tạo phiếu mới */}
-      {showCreate && (
-        <div style={overlayStyle} onClick={() => setShowCreate(false)}>
-          <div style={{ ...modalStyle, width: 640 }} onClick={(e) => e.stopPropagation()}>
-            {!justCreated ? (
-              <>
-                <h3 style={{ fontSize: 16, fontWeight: 800, color: "var(--navy-900)", marginBottom: 16 }}>
-                  ➕ Tạo phiếu kiểm tra lệch tồn VX
-                </h3>
-                <div className="field" style={{ marginBottom: 12 }}>
-                  <label className="flabel">Mã shop</label>
-                  <input className="finput" style={{ width: "100%" }} value={formShop.ma_shop}
-                    onChange={(e) => setFormShop((f) => ({ ...f, ma_shop: e.target.value }))} />
-                </div>
-                <div className="field" style={{ marginBottom: 12 }}>
-                  <label className="flabel">Tên shop</label>
-                  <input className="finput" style={{ width: "100%" }} value={formShop.ten_shop}
-                    onChange={(e) => setFormShop((f) => ({ ...f, ten_shop: e.target.value }))} />
-                </div>
-                <div className="field" style={{ marginBottom: 12 }}>
-                  <label className="flabel">Ghi chú (tuỳ chọn)</label>
-                  <input className="finput" style={{ width: "100%" }} value={formShop.ghi_chu}
-                    onChange={(e) => setFormShop((f) => ({ ...f, ghi_chu: e.target.value }))} />
-                </div>
-                <div className="field" style={{ marginBottom: 6 }}>
-                  <label className="flabel">Danh sách mã sản phẩm cần kiểm</label>
-                  <div style={{ fontSize: 11, color: "var(--text-600)", marginBottom: 6 }}>
-                    Dán trực tiếp 2 cột "Mã sản phẩm" + "Tên sản phẩm" từ Excel (mỗi dòng 1 sản phẩm) — hoặc gõ tay mỗi dòng dạng "mã, tên".
-                  </div>
-                  <textarea
-                    className="finput" style={{ width: "100%", fontFamily: "monospace", fontSize: 12.5 }}
-                    rows={8} value={pasteText} onChange={(e) => setPasteText(e.target.value)}
-                    placeholder={"SP001\tTên sản phẩm 1\nSP002\tTên sản phẩm 2"}
-                  />
-                  <div style={{ fontSize: 11.5, color: parsedItems.length ? "#3E7A2A" : "var(--text-400)", marginTop: 6 }}>
-                    {parsedItems.length > 0 ? `✅ Nhận diện ${parsedItems.length} mã sản phẩm` : "Chưa nhận diện được mã nào"}
-                  </div>
-                </div>
-
-                {createError && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 12 }}>{createError}</div>}
-
-                <div className="llv-modal-actions" style={{ display: "flex", gap: 10, marginTop: 10 }}>
-                  <button className="login-btn" style={{ width: "auto", padding: "9px 20px" }} disabled={creating} onClick={submitCreate}>
-                    {creating ? "Đang tạo..." : "Tạo phiếu"}
-                  </button>
-                  <button className="fbtn" onClick={() => setShowCreate(false)}>Hủy</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <h3 style={{ fontSize: 16, fontWeight: 800, color: "#3E7A2A", marginBottom: 12 }}>
-                  ✅ Đã tạo phiếu #{justCreated.id} — {justCreated.so_sp} sản phẩm
-                </h3>
-                <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 10 }}>
-                  Gửi link dưới đây cho NV cửa hàng để bắt đầu quét — không cần đăng nhập:
-                </p>
-                <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                  <input readOnly className="finput" style={{ flex: 1 }} value={publicLink(justCreated.token)} onFocus={(e) => e.target.select()} />
-                  <button className="upload-btn" onClick={() => handleCopyLink(justCreated.id, justCreated.token)}>
-                    {copiedId === justCreated.id ? "✅ Đã copy" : "🔗 Copy link"}
-                  </button>
-                </div>
-                <button className="login-btn" style={{ width: "auto", padding: "9px 20px" }} onClick={() => setShowCreate(false)}>Đóng</button>
-              </>
             )}
           </div>
         </div>
