@@ -190,10 +190,16 @@ export default function KiemTraTonPublicPage() {
       })
       .then((res) => {
         setLastResult(res);
-        setHistory((h) => [{ ...res, at: Date.now() }, ...h].slice(0, 50)); // khớp giới hạn 50 dòng của server
-        if (res.khop) {
-          const norm = decodedText.trim().toUpperCase();
-          setItems((prev) => prev.map((it) => (it.ma_sp.trim().toUpperCase() === norm ? { ...it, da_quet: true } : it)));
+        // Lượt quét TRÙNG (chốt 09/09 lần 9, theo yêu cầu anh) — backend
+        // KHÔNG ghi log cho lượt này (scan_log_id = null), nên KHÔNG đẩy
+        // vào "Lịch sử quét" ở đây nữa — chỉ báo cam + tự chuyển tiếp,
+        // không có gì mới để ghi vào hệ thống.
+        if (!res.da_trung) {
+          setHistory((h) => [{ ...res, at: Date.now() }, ...h].slice(0, 50)); // khớp giới hạn 50 dòng của server
+          if (res.khop) {
+            const norm = decodedText.trim().toUpperCase();
+            setItems((prev) => prev.map((it) => (it.ma_sp.trim().toUpperCase() === norm ? { ...it, da_quet: true } : it)));
+          }
         }
       })
       .catch((err) => {
