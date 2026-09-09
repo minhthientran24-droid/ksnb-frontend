@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import Head from "next/head";
 import {
   getCheckLechTonVxPublic, scanCheckLechTonVxPublic, hoanTatCheckLechTonVxPublic,
+  deleteCheckLechTonVxPublicScan,
 } from "../../lib/api";
 
 // Trang CÔNG KHAI (chốt 09/09) — KHÔNG dùng Layout/Sidebar, KHÔNG cần
@@ -30,6 +31,16 @@ function vibrate(pattern) {
 // chốt 09/09 lần 6, kéo dài hơn bản trước (1200ms) theo phản hồi anh
 // "tốc độ chuyển camera chậm lại tí".
 const RESULT_HOLD_MS = 2000;
+
+// Màu/icon/nhãn hiển thị cho 1 kết quả quét — DÙNG CHUNG cho cả overlay
+// flash lẫn từng dòng "Lịch sử quét gần đây" (chốt 09/09 lần 7). "Trùng"
+// (đã quét mã này trước đó rồi, bất kể khớp hay không) ưu tiên hiện màu
+// CAM, đè lên trên xanh/đỏ bình thường — đúng yêu cầu anh.
+function resultVisual(h) {
+  if (h.da_trung) return { bg: "rgba(230,150,20,0.94)", icon: "🔁", label: "TRÙNG — ĐÃ QUÉT TRƯỚC ĐÓ", color: "#C97A0A" };
+  if (h.khop) return { bg: "rgba(62,122,42,0.94)", icon: "✅", label: "CÓ TỒN", color: "#3E7A2A" };
+  return { bg: "rgba(214,69,69,0.94)", icon: "❌", label: "KHÔNG TỒN", color: "#D64545" };
+}
 
 export default function KiemTraTonPublicPage() {
   const router = useRouter();
@@ -234,9 +245,29 @@ export default function KiemTraTonPublicPage() {
     }
   }
 
+  // Cho phép NV tự xoá 1 lượt quét bị bắn sai (chốt 09/09 lần 7) — hỏi
+  // xác nhận trước, xoá xong cập nhật lại items (đúng số đã quét) + báo
+  // đã xoá thành công.
+  const [deletingScanId, setDeletingScanId] = useState(null);
+  async function handleDeleteScan(h) {
+    if (!confirm(`Xoá lượt quét mã "${h.ma_quet}"? Không thể hoàn tác.`)) return;
+    setDeletingScanId(h.scan_log_id);
+    try {
+      const res = await deleteCheckLechTonVxPublicScan(token, h.scan_log_id);
+      setItems(res.items || []);
+      setHistory((prev) => prev.filter((x) => x.scan_log_id !== h.scan_log_id));
+      alert("✅ Đã xoá lượt quét.");
+    } catch (err) {
+      alert(err.message || "Xoá lượt quét thất bại");
+    } finally {
+      setDeletingScanId(null);
+    }
+  }
+
   const soDaQuet = items.filter((it) => it.da_quet).length;
   const soSp = items.length;
   const daHoanTat = phieu?.trang_thai === "hoan_tat";
+  const resultVisualNow = lastResult ? resultVisual(lastResult) : null;
 
   return (
     <>
@@ -338,10 +369,10 @@ export default function KiemTraTonPublicPage() {
                         style={{ width: "100%", borderRadius: 10, overflow: "hidden", background: sessionOn ? "#000" : "transparent", minHeight: sessionOn ? 260 : 0 }}
                       />
                       {lastResult && (
-                        <div style={{ ...flashOverlayStyle, background: lastResult.khop ? "rgba(62,122,42,0.94)" : "rgba(214,69,69,0.94)" }}>
-                          <div style={{ fontSize: 30 }}>{lastResult.khop ? "✅" : "❌"}</div>
+                        <div style={{ ...flashOverlayStyle, background: resultVisualNow.bg }}>
+                          <div style={{ fontSize: 30 }}>{resultVisualNow.icon}</div>
                           <div style={{ fontSize: 15, fontWeight: 800, marginTop: 6 }}>
-                            {lastResult.khop ? "CÓ TỒN" : "KHÔNG TỒN"}
+                            {resultVisualNow.label}
                           </div>
                           <div style={{ fontSize: 12.5, marginTop: 4, opacity: 0.95 }}>
                             {lastResult.ma_quet}{lastResult.ten_sp ? ` — ${lastResult.ten_sp}` : ""}
@@ -363,14 +394,30 @@ export default function KiemTraTonPublicPage() {
 
                   {history.length > 0 && (
                     <div style={cardStyle}>
-                      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Lịch sử quét gần đây</div>
-                      <div style={{ maxHeight: 160, overflowY: "auto" }}>
-                        {history.map((h, i) => (
-                          <div key={i} style={{ ...itemRowStyle, color: h.khop ? "#3E7A2A" : "#D64545" }}>
-                            <span>{h.khop ? "✅" : "❌"}</span>
-                            <span style={{ flex: 1, marginLeft: 8 }}>{h.ma_quet}{h.ten_sp ? ` — ${h.ten_sp}` : ""}</span>
-                          </div>
-                        ))}
+                      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>Lịch sử quét gần đây</div>
+                      <div style={{ fontSize: 11, color: "#8892A6", marginBottom: 8 }}>
+                        Bắn sai thì bấm 🗑 để xoá lượt quét đó.
+                      </div>
+                      <div style={{ maxHeight: 200, overflowY: "auto" }}>
+                        {history.map((h) => {
+                          const v = resultVisual(h);
+                          return (
+                            <div key={h.scan_log_id} style={{ ...itemRowStyle, color: v.color }}>
+                              <span>{v.icon}</span>
+                              <span style={{ flex: 1, marginLeft: 8 }}>
+                                {h.ma_quet}{h.ten_sp ? ` — ${h.ten_sp}` : ""}{h.da_trung ? " (trùng)" : ""}
+                              </span>
+                              <button
+                                onClick={() => handleDeleteScan(h)}
+                                disabled={deletingScanId === h.scan_log_id}
+                                style={deleteScanBtnStyle}
+                                title="Xoá lượt quét này (bắn sai)"
+                              >
+                                {deletingScanId === h.scan_log_id ? "..." : "🗑"}
+                              </button>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -403,6 +450,10 @@ const primaryBtnStyle = {
 const secondaryBtnStyle = {
   width: "100%", padding: "13px 16px", borderRadius: 10, border: "1.5px solid #D64545",
   background: "#fff", color: "#D64545", fontSize: 14.5, fontWeight: 700, cursor: "pointer",
+};
+const deleteScanBtnStyle = {
+  background: "none", border: "none", cursor: "pointer", fontSize: 13,
+  padding: "2px 6px", flexShrink: 0, opacity: 0.75,
 };
 const flashOverlayStyle = {
   position: "absolute", inset: 0, display: "flex", flexDirection: "column",
