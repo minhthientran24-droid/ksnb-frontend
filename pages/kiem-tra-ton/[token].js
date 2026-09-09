@@ -372,8 +372,10 @@ export default function KiemTraTonPublicPage() {
                 </div>
               ) : (
                 <>
-                  {/* Khu vực camera */}
-                  <div style={cardStyle}>
+                  {/* Khu vực camera — chốt 09/09 lần 10, bỏ khung viền
+                      trắng quanh nút "Mở camera quét QR" theo yêu cầu anh,
+                      cho gọn UI. */}
+                  <div style={{ ...cardStyle, border: "none" }}>
                     <div style={{ position: "relative" }}>
                       <div
                         id={QR_ELEMENT_ID}
