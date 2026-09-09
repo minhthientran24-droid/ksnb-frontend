@@ -372,38 +372,36 @@ export default function KiemTraTonPublicPage() {
                 </div>
               ) : (
                 <>
-                  {/* Khu vực camera — chốt 09/09 lần 10, bỏ khung viền
-                      trắng quanh nút "Mở camera quét QR" theo yêu cầu anh,
-                      cho gọn UI. */}
-                  <div style={{ ...cardStyle, border: "none" }}>
-                    <div style={{ position: "relative" }}>
-                      <div
-                        id={QR_ELEMENT_ID}
-                        style={{ width: "100%", borderRadius: 10, overflow: "hidden", background: sessionOn ? "#000" : "transparent", minHeight: sessionOn ? 260 : 0 }}
-                      />
-                      {lastResult && (
-                        <div style={{ ...flashOverlayStyle, background: resultVisualNow.bg }}>
-                          <div style={{ fontSize: 30 }}>{resultVisualNow.icon}</div>
-                          <div style={{ fontSize: 15, fontWeight: 800, marginTop: 6 }}>
-                            {resultVisualNow.label}
-                          </div>
-                          <div style={{ fontSize: 12.5, marginTop: 4, opacity: 0.95 }}>
-                            {lastResult.ma_quet}{lastResult.ten_sp ? ` — ${lastResult.ten_sp}` : ""}
-                          </div>
+                  {/* Khu vực camera — chốt 09/09 lần 11, bỏ hẳn khung/thẻ
+                      trắng bọc quanh, layout nút "Mở camera" giờ y hệt nút
+                      "Hoàn tất" (nút trần, không thẻ bao, đặt thẳng trên
+                      nền trang) theo yêu cầu anh, gọn/tiết kiệm diện tích
+                      hơn hẳn bản có card. */}
+                  <div style={{ position: "relative", marginBottom: sessionOn || lastResult ? 12 : 0 }}>
+                    <div
+                      id={QR_ELEMENT_ID}
+                      style={{ width: "100%", borderRadius: 10, overflow: "hidden", background: sessionOn ? "#000" : "transparent", minHeight: sessionOn ? 260 : 0 }}
+                    />
+                    {lastResult && (
+                      <div style={{ ...flashOverlayStyle, background: resultVisualNow.bg }}>
+                        <div style={{ fontSize: 30 }}>{resultVisualNow.icon}</div>
+                        <div style={{ fontSize: 15, fontWeight: 800, marginTop: 6 }}>
+                          {resultVisualNow.label}
                         </div>
-                      )}
-                    </div>
-
-                    {cameraError && <div style={{ color: "#D64545", fontSize: 12.5, marginTop: 10 }}>⚠️ {cameraError}</div>}
-
-                    <div style={{ marginTop: 14, display: "flex", gap: 10 }}>
-                      {!sessionOn ? (
-                        <button style={primaryBtnStyle} onClick={startScanning}>📷 Mở camera quét QR</button>
-                      ) : (
-                        <button style={secondaryBtnStyle} onClick={() => stopScanning(true)}>⏹ Dừng quét</button>
-                      )}
-                    </div>
+                        <div style={{ fontSize: 12.5, marginTop: 4, opacity: 0.95 }}>
+                          {lastResult.ma_quet}{lastResult.ten_sp ? ` — ${lastResult.ten_sp}` : ""}
+                        </div>
+                      </div>
+                    )}
                   </div>
+
+                  {cameraError && <div style={{ color: "#D64545", fontSize: 12.5, marginBottom: 10 }}>⚠️ {cameraError}</div>}
+
+                  {!sessionOn ? (
+                    <button style={{ ...primaryBtnStyle, marginBottom: 14 }} onClick={startScanning}>📷 Mở camera quét QR</button>
+                  ) : (
+                    <button style={{ ...secondaryBtnStyle, marginBottom: 14 }} onClick={() => stopScanning(true)}>⏹ Dừng quét</button>
+                  )}
 
                   {history.length > 0 && (
                     <div style={cardStyle}>
