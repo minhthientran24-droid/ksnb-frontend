@@ -36,9 +36,16 @@ export default function KiemTraTonPublicPage() {
   const [loadError, setLoadError] = useState("");
   const [summary, setSummary] = useState(null); // {chua_quet, khong_ton} — có giá trị khi phiếu đã hoàn tất
 
-  const [scanning, setScanning] = useState(false);
+  // "sessionOn" = phiên quét đang bật theo Ý NGƯỜI DÙNG (từ lúc bấm "Mở
+  // camera" tới lúc bấm "Dừng quét"/"Hoàn tất") — KHÁC với việc camera
+  // phần cứng có đang thật sự chạy hay không tại 1 thời điểm cụ thể: mỗi
+  // lần quét được 1 mã, camera TẮT HẲN trong lúc hiện kết quả rồi mới tự
+  // mở lại (chốt 09/09 lần 5, theo đúng yêu cầu anh) — "sessionOn" vẫn
+  // giữ true suốt khoảng đó để UI (nút bấm, khung hình) không bị nhấp
+  // nháy giữa các lần quét.
+  const [sessionOn, setSessionOn] = useState(false);
   const [cameraError, setCameraError] = useState("");
-  const [lastResult, setLastResult] = useState(null); // {khop, ma_quet, ten_sp} | null — flash màu
+  const [lastResult, setLastResult] = useState(null); // {khop, ma_quet, ten_sp} | null — flash màu lúc camera tắt
   const [history, setHistory] = useState([]); // lịch sử quét, mới nhất trước
   const [completing, setCompleting] = useState(false);
   // Mặc định ẨN danh sách sản phẩm trên UI mobile quét (chốt 09/09 lần 3,
@@ -48,6 +55,11 @@ export default function KiemTraTonPublicPage() {
 
   const html5QrRef = useRef(null);
   const processingRef = useRef(false);
+  // Nguồn sự thật đọc được bên trong callback/timer (state có thể bị stale
+  // closure trong đó) — true nghĩa là NÊN tự mở lại camera sau mỗi lần
+  // quét; tắt bởi "Dừng quét"/"Hoàn tất" (chủ động), KHÔNG tắt bởi lần tắt
+  // camera nội bộ giữa 2 lượt quét.
+  const autoScanRef = useRef(false);
 
   function loadPhieu() {
     if (!token) return;
@@ -69,7 +81,16 @@ export default function KiemTraTonPublicPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.isReady, token]);
 
-  async function stopScanning() {
+  // userInitiated=true (mặc định, nút "Dừng quét"/"Hoàn tất"/rời trang):
+  // TẮT hẳn phiên quét, autoScanRef=false nên không tự mở lại nữa.
+  // userInitiated=false (nội bộ, xem onDecoded): CHỈ tắt phần cứng
+  // camera lúc hiện kết quả 1 lần quét — autoScanRef giữ nguyên, sessionOn
+  // KHÔNG tắt (UI vẫn hiện "Dừng quét", khung hình vẫn giữ chỗ).
+  async function stopScanning(userInitiated = true) {
+    if (userInitiated) {
+      autoScanRef.current = false;
+      setSessionOn(false);
+    }
     try {
       if (html5QrRef.current) {
         await html5QrRef.current.stop();
@@ -79,24 +100,35 @@ export default function KiemTraTonPublicPage() {
       // camera có thể đã tự tắt (đổi tab, khoá màn hình...) — bỏ qua lỗi stop
     }
     html5QrRef.current = null;
-    setScanning(false);
   }
 
   // Tự tắt camera khi rời trang (đổi route/đóng tab) — tránh camera bật
-  // ngầm tốn pin/gây khó chịu cho NV.
+  // ngầm tốn pin/gây khó chịu cho NV. Không setState trong lúc unmount.
   useEffect(() => {
-    return () => { stopScanning(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      autoScanRef.current = false;
+      if (html5QrRef.current) {
+        html5QrRef.current.stop().then(() => html5QrRef.current?.clear()).catch(() => {});
+        html5QrRef.current = null;
+      }
+    };
   }, []);
 
+  // Quét được 1 mã -> TẮT camera ngay -> rung 1 cái -> gọi API + báo kết
+  // quả (xanh/đỏ) trong lúc camera đang tắt -> giữ kết quả ~1.2s rồi TỰ
+  // MỞ LẠI camera, tiếp tục quét mã kế (chốt 09/09 lần 5, đúng luồng anh
+  // mô tả: tắt camera - rung - báo kết quả - rồi mới mở lại camera).
   function onDecoded(decodedText) {
     if (processingRef.current) return;
     processingRef.current = true;
-    scanCheckLechTonVxPublic(token, decodedText)
+    stopScanning(false)
+      .then(() => {
+        vibrate(80); // rung 1 cái, không phân biệt khớp/không khớp
+        return scanCheckLechTonVxPublic(token, decodedText);
+      })
       .then((res) => {
         setLastResult(res);
         setHistory((h) => [{ ...res, at: Date.now() }, ...h].slice(0, 30));
-        vibrate(res.khop ? 80 : [60, 80, 60]);
         if (res.khop) {
           const norm = decodedText.trim().toUpperCase();
           setItems((prev) => prev.map((it) => (it.ma_sp.trim().toUpperCase() === norm ? { ...it, da_quet: true } : it)));
@@ -107,15 +139,17 @@ export default function KiemTraTonPublicPage() {
       })
       .finally(() => {
         setTimeout(() => {
-          processingRef.current = false;
           setLastResult(null);
+          processingRef.current = false;
+          if (autoScanRef.current) startScanning();
         }, 1200);
       });
   }
 
   async function startScanning() {
+    autoScanRef.current = true;
+    setSessionOn(true);
     setCameraError("");
-    setScanning(true);
     try {
       const { Html5Qrcode } = await import("html5-qrcode");
       const inst = new Html5Qrcode(QR_ELEMENT_ID);
@@ -127,12 +161,13 @@ export default function KiemTraTonPublicPage() {
         () => {}, // callback báo "chưa thấy QR" ở MỖI khung hình — cố ý bỏ qua, quá nhiễu
       );
     } catch (err) {
+      autoScanRef.current = false;
+      setSessionOn(false);
       setCameraError(
         err?.message?.includes("NotAllowedError") || String(err).includes("NotAllowedError")
           ? "Trình duyệt chưa được cấp quyền camera — vào cài đặt trình duyệt bật quyền Camera cho trang này rồi thử lại."
           : (err?.message || "Không mở được camera trên thiết bị này."),
       );
-      setScanning(false);
     }
   }
 
@@ -140,7 +175,7 @@ export default function KiemTraTonPublicPage() {
     if (!confirm("Hoàn tất kiểm tra? Sau khi hoàn tất sẽ không quét thêm được nữa (trừ khi được mở lại).")) return;
     setCompleting(true);
     try {
-      await stopScanning();
+      await stopScanning(true);
       const res = await hoanTatCheckLechTonVxPublic(token);
       setPhieu(res);
       setItems(res.items || []);
@@ -253,7 +288,7 @@ export default function KiemTraTonPublicPage() {
                     <div style={{ position: "relative" }}>
                       <div
                         id={QR_ELEMENT_ID}
-                        style={{ width: "100%", borderRadius: 10, overflow: "hidden", background: scanning ? "#000" : "transparent", minHeight: scanning ? 260 : 0 }}
+                        style={{ width: "100%", borderRadius: 10, overflow: "hidden", background: sessionOn ? "#000" : "transparent", minHeight: sessionOn ? 260 : 0 }}
                       />
                       {lastResult && (
                         <div style={{ ...flashOverlayStyle, background: lastResult.khop ? "rgba(62,122,42,0.94)" : "rgba(214,69,69,0.94)" }}>
@@ -271,10 +306,10 @@ export default function KiemTraTonPublicPage() {
                     {cameraError && <div style={{ color: "#D64545", fontSize: 12.5, marginTop: 10 }}>⚠️ {cameraError}</div>}
 
                     <div style={{ marginTop: 14, display: "flex", gap: 10 }}>
-                      {!scanning ? (
+                      {!sessionOn ? (
                         <button style={primaryBtnStyle} onClick={startScanning}>📷 Mở camera quét QR</button>
                       ) : (
-                        <button style={secondaryBtnStyle} onClick={stopScanning}>⏹ Dừng quét</button>
+                        <button style={secondaryBtnStyle} onClick={() => stopScanning(true)}>⏹ Dừng quét</button>
                       )}
                     </div>
                   </div>
