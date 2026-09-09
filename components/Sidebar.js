@@ -8,6 +8,9 @@ const NAV_ITEMS = [
   { href: "/chat-nhom", icon: "💬", label: "Chat nhóm" },
   { href: "/bao-cao", icon: "▤", label: "Báo cáo tháng", hideForRoles: ["editor_base"] },
   { href: "/ho-tro-kiem-ke", icon: "🧰", label: "Hỗ Trợ Kiểm Kê" },
+  // Chốt 09/09 — menu mới, nhiều tab hỗ trợ xử lý cho shop, dành cho TẤT
+  // CẢ role (không có hideForRoles), tab đầu tiên "Hỗ trợ check lệch tồn VX".
+  { href: "/ho-tro-shop", icon: "🛟", label: "Hỗ trợ shop" },
   { href: "/gui-mail-bcks", icon: "📧", label: "Gửi mail BCKS" },
   { href: "/theo-doi-kiem-ke", icon: "▦", label: "Theo dõi kiểm kê" },
   { href: "/theo-doi-chu-de", icon: "☰", label: "Theo dõi chủ đề" },
