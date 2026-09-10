@@ -223,12 +223,33 @@ export default function KiemTraTonPublicPage() {
       const { Html5Qrcode } = await import("html5-qrcode");
       const inst = new Html5Qrcode(QR_ELEMENT_ID);
       html5QrRef.current = inst;
-      await inst.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 240, height: 240 } },
-        onDecoded,
-        () => {}, // callback báo "chưa thấy QR" ở MỖI khung hình — cố ý bỏ qua, quá nhiễu
-      );
+      const baseConfig = { fps: 10, qrbox: { width: 240, height: 240 } };
+      try {
+        // Độ phân giải cao hơn mặc định + ưu tiên auto-focus LIÊN TỤC (nếu
+        // máy hỗ trợ) — chốt 10/09, theo phản hồi anh "hình mờ, camera
+        // không tự nét được mã QR nhỏ". "advanced" là constraint kiểu
+        // best-effort theo chuẩn WebRTC — trình duyệt/thiết bị không hỗ
+        // trợ sẽ tự bỏ qua, không làm getUserMedia() lỗi.
+        await inst.start(
+          { facingMode: "environment" },
+          {
+            ...baseConfig,
+            videoConstraints: {
+              facingMode: "environment",
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
+              advanced: [{ focusMode: "continuous" }],
+            },
+          },
+          onDecoded,
+          () => {}, // callback báo "chưa thấy QR" ở MỖI khung hình — cố ý bỏ qua, quá nhiễu
+        );
+      } catch {
+        // Một số thiết bị/trình duyệt có thể từ chối cấu hình nâng cao ở
+        // trên (VD OverconstrainedError) — lùi về cấu hình mặc định đơn
+        // giản, chắc chắn mở được camera.
+        await inst.start({ facingMode: "environment" }, baseConfig, onDecoded, () => {});
+      }
     } catch (err) {
       autoScanRef.current = false;
       setSessionOn(false);
