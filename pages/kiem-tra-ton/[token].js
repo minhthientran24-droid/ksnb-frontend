@@ -245,11 +245,28 @@ export default function KiemTraTonPublicPage() {
       //    LUÔN dùng camera sau (facingMode environment, không mirror)
       //    nên tắt hẳn bước thử ảnh lật, không mất gì mà nhanh hơn hẳn.
       //  - fps 10 -> 15 — thử giải mã nhiều lần hơn mỗi giây.
-      //  - Video giảm về 1280x720 (từ 1920x1080) — JS decode chạy trên
-      //    CPU nên càng nhiều pixel càng chậm; Data Matrix giờ đã quét
-      //    được nhờ đổi decoder (không phải nhờ độ phân giải cao), nên hạ
-      //    xuống mức vừa đủ nét để đổi lấy tốc độ.
-      const baseConfig = { fps: 15, qrbox: { width: 240, height: 240 }, disableFlip: true };
+      //
+      // Chốt 10/09 lần 3 — theo ảnh anh gửi: đúng 1 cự ly thì quét dễ,
+      // gần hơn/xa hơn đều khó. 2 nguyên nhân KHÁC NHAU, sửa riêng từng cái:
+      //  - QUÁ GẦN -> mã to hơn cả khung quét (qrbox) cố định 240x240px,
+      //    bị CẮT MẤT 1 phần rìa mã -> không giải mã được (Data Matrix
+      //    cần thấy TRỌN VẸN cả ký hiệu, khác universe với QR có thể chịu
+      //    che khuất 1 phần nhờ sửa lỗi Reed-Solomon tốt hơn). Tăng qrbox
+      //    thành HÀM co giãn theo đúng khung hình camera thật (70% cạnh
+      //    ngắn hơn của khung xem, tối thiểu 220 - tối đa 320px) thay vì
+      //    số cố định — dư chỗ hơn hẳn cho lúc đưa camera lại gần.
+      //  - QUÁ XA -> mã co lại còn quá ít điểm ảnh để phân biệt từng ô
+      //    (module) của ký hiệu, ảnh hưởng bởi ĐỘ PHÂN GIẢI video, không
+      //    phải do qrbox. Nâng nhẹ độ phân giải ideal từ 1280x720 lên
+      //    1600x900 (không quay lại hẳn 1920x1080 cũ để tránh làm chậm
+      //    lại như trước) — cân bằng giữa xa hơn quét được và vẫn giữ
+      //    được phần lớn tốc độ vừa tối ưu.
+      const responsiveQrbox = (viewfinderWidth, viewfinderHeight) => {
+        const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+        const size = Math.max(220, Math.min(320, Math.floor(minEdge * 0.7)));
+        return { width: size, height: size };
+      };
+      const baseConfig = { fps: 15, qrbox: responsiveQrbox, disableFlip: true };
       try {
         await inst.start(
           { facingMode: "environment" },
@@ -257,8 +274,8 @@ export default function KiemTraTonPublicPage() {
             ...baseConfig,
             videoConstraints: {
               facingMode: "environment",
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
+              width: { ideal: 1600 },
+              height: { ideal: 900 },
               advanced: [{ focusMode: "continuous" }],
             },
           },
