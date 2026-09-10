@@ -236,21 +236,29 @@ export default function KiemTraTonPublicPage() {
         formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.DATA_MATRIX],
       });
       html5QrRef.current = inst;
-      const baseConfig = { fps: 10, qrbox: { width: 240, height: 240 } };
+      // Chốt 10/09 lần 2 — tối ưu TỐC ĐỘ giải mã (anh báo "quét được rồi
+      // nhưng nhận chậm" sau khi ép dùng ZXing JS ở trên, decoder JS vốn
+      // chậm hơn BarcodeDetector gốc của trình duyệt):
+      //  - disableFlip: true — bộ giải mã MẶC ĐỊNH thử luôn cả bản ảnh
+      //    LẬT NGƯỢC mỗi khung hình (để hỗ trợ camera trước/selfie vốn bị
+      //    mirror) — GẦN NHƯ GẤP ĐÔI khối lượng xử lý mỗi lần. App này
+      //    LUÔN dùng camera sau (facingMode environment, không mirror)
+      //    nên tắt hẳn bước thử ảnh lật, không mất gì mà nhanh hơn hẳn.
+      //  - fps 10 -> 15 — thử giải mã nhiều lần hơn mỗi giây.
+      //  - Video giảm về 1280x720 (từ 1920x1080) — JS decode chạy trên
+      //    CPU nên càng nhiều pixel càng chậm; Data Matrix giờ đã quét
+      //    được nhờ đổi decoder (không phải nhờ độ phân giải cao), nên hạ
+      //    xuống mức vừa đủ nét để đổi lấy tốc độ.
+      const baseConfig = { fps: 15, qrbox: { width: 240, height: 240 }, disableFlip: true };
       try {
-        // Độ phân giải cao hơn mặc định + ưu tiên auto-focus LIÊN TỤC (nếu
-        // máy hỗ trợ) — chốt 10/09, theo phản hồi anh "hình mờ, camera
-        // không tự nét được mã QR nhỏ". "advanced" là constraint kiểu
-        // best-effort theo chuẩn WebRTC — trình duyệt/thiết bị không hỗ
-        // trợ sẽ tự bỏ qua, không làm getUserMedia() lỗi.
         await inst.start(
           { facingMode: "environment" },
           {
             ...baseConfig,
             videoConstraints: {
               facingMode: "environment",
-              width: { ideal: 1920 },
-              height: { ideal: 1080 },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
               advanced: [{ focusMode: "continuous" }],
             },
           },
