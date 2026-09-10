@@ -220,8 +220,21 @@ export default function KiemTraTonPublicPage() {
     setCameraError("");
     ensureAudioUnlocked(); // mở khoá phát âm thanh — PHẢI gọi trong cùng lượt bấm của NV
     try {
-      const { Html5Qrcode } = await import("html5-qrcode");
-      const inst = new Html5Qrcode(QR_ELEMENT_ID);
+      const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import("html5-qrcode");
+      // Chốt 10/09 — QR/tem thuốc thực tế phần lớn là mã Data Matrix
+      // (khung chữ L 2 cạnh, KHÔNG phải 3 ô vuông góc như QR thật), không
+      // phải lỗi camera mờ/lấy nét như tưởng ban đầu: mặc định thư viện
+      // ưu tiên dùng BarcodeDetector CÓ SẴN của trình duyệt (nhanh hơn),
+      // nhưng bản native trên iOS Safari hỗ trợ Data Matrix rất kém/thiếu
+      // — ép useBarCodeDetectorIfSupported=false để LUÔN dùng bộ giải mã
+      // JS nội bộ (ZXing, đã xác nhận có decoder Data Matrix đầy đủ,
+      // hoạt động ổn định same trên mọi trình duyệt). formatsToSupport chỉ
+      // để QR_CODE + DATA_MATRIX (bỏ các loại mã vạch khác không dùng
+      // tới) cho nhẹ, đỡ tốn xử lý mỗi khung hình.
+      const inst = new Html5Qrcode(QR_ELEMENT_ID, {
+        useBarCodeDetectorIfSupported: false,
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.DATA_MATRIX],
+      });
       html5QrRef.current = inst;
       const baseConfig = { fps: 10, qrbox: { width: 240, height: 240 } };
       try {
