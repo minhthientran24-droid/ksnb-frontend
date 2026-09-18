@@ -11,6 +11,11 @@ export const REFERENCE_ITEMS = [
   { key: "danh_sach_nhan_vien", label: "Danh sách nhân viên (DanhSachNhanVien)" },
   { key: "kiemke_parquet", label: "Lịch sử kiểm kê (KIEMKE_ALL.parquet)" },
   { key: "quydoi_dvt", label: "Quy đổi đơn vị tính (QuyDoiDVT)" },
+  // Chốt 18/09 — SP trong danh mục này thì "Đơn Giá" LUÔN = 0 khi "Kiểm kê
+  // cận date" (thiếu hay thừa đều vậy) — case gốc: 00020033 ĐÁ GEL 250G,
+  // đã ép cứng sẵn trong code (không cần upload file này thì mới có hiệu
+  // lực cho riêng SP đó) — file này dùng để bổ sung thêm SP khác.
+  { key: "msp_loai_tru_gia", label: "MSP loại trừ tính giá (MSP_LoaiTru_Gia)" },
 ];
 
 // Component dùng chung cho MỌI khối "Dữ liệu tham chiếu (Admin)" trên toàn
