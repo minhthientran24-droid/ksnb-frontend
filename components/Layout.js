@@ -11,6 +11,34 @@ function menuKeyFromPathname(pathname) {
   return "/" + first;
 }
 
+// Chốt 23/09 — hiện "Ver <mã commit> · Cập nhật <ngày giờ>" cạnh tên tài
+// khoản/nút đăng xuất, để biết chắc bản đang chạy trên trình duyệt là
+// bản MỚI NHẤT đã deploy hay chưa (khỏi phải đoán qua cảm giác/F5 nhiều
+// lần) — lấy từ NEXT_PUBLIC_APP_VERSION/NEXT_PUBLIC_APP_COMMIT_TIME, gán
+// lúc build trong next.config.js (thời điểm COMMIT gần nhất, không phải
+// giờ build) — trống thì ẩn hẳn (VD build cục bộ không có git).
+function AppVersionTag() {
+  const version = process.env.NEXT_PUBLIC_APP_VERSION;
+  const commitTime = process.env.NEXT_PUBLIC_APP_COMMIT_TIME;
+  if (!version) return null;
+  let timeText = "";
+  if (commitTime) {
+    const d = new Date(commitTime);
+    if (!isNaN(d.getTime())) {
+      const pad = (n) => String(n).padStart(2, "0");
+      timeText = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+  }
+  return (
+    <span
+      title={`Mã cập nhật: ${version}${commitTime ? ` — commit lúc ${commitTime}` : ""}`}
+      style={{ fontSize: 11, color: "var(--text-400, #8B93A5)", whiteSpace: "nowrap", margin: "0 8px" }}
+    >
+      Ver {version}{timeText ? ` · Cập nhật ${timeText}` : ""}
+    </span>
+  );
+}
+
 export default function Layout({ crumb, children }) {
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -79,6 +107,7 @@ export default function Layout({ crumb, children }) {
           <div className="tb-user">
             <div className="avatar">{initials}</div>
             <span className="tb-user-name">{user?.full_name}</span>
+            <AppVersionTag />
             <button className="logout-btn" onClick={handleLogout}>
               Đăng xuất
             </button>
