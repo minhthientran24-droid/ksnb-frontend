@@ -776,7 +776,11 @@ export default function TheoDoiChuDeV2Page() {
   const [topicStats, setTopicStats] = useState([]);
   const [topicStatsLoading, setTopicStatsLoading] = useState(false);
   const [topicMgmtOpen, setTopicMgmtOpen] = useState(false);
-  const isSuperAdmin = me?.role === "super_admin";
+  // Chốt 23/09 lần 2 — nới từ "chỉ super_admin" xuống "admin/super_admin"
+  // (khớp ADMIN_ROLES, backend routers/chu_de_jobs_v2.py::require_admin)
+  // theo đúng yêu cầu anh Thiện — giữ tên biến isSuperAdmin để đỡ đổi tên
+  // ở các chỗ dùng prop (BulkUploadCard...) bên dưới, chỉ đổi điều kiện.
+  const isSuperAdmin = ADMIN_ROLES.includes(me?.role);
   const topicNames = topics.map((t) => t.ten_chu_de);
 
   useEffect(() => {
