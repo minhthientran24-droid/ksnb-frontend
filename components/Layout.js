@@ -11,30 +11,27 @@ function menuKeyFromPathname(pathname) {
   return "/" + first;
 }
 
-// Chốt 23/09 — hiện "Ver <mã commit> · Cập nhật <ngày giờ>" cạnh tên tài
-// khoản/nút đăng xuất, để biết chắc bản đang chạy trên trình duyệt là
-// bản MỚI NHẤT đã deploy hay chưa (khỏi phải đoán qua cảm giác/F5 nhiều
-// lần) — lấy từ NEXT_PUBLIC_APP_VERSION/NEXT_PUBLIC_APP_COMMIT_TIME, gán
-// lúc build trong next.config.js (thời điểm COMMIT gần nhất, không phải
-// giờ build) — trống thì ẩn hẳn (VD build cục bộ không có git).
+// Chốt 23/09 lần 2 — đổi hiển thị từ "Ver <mã commit> · Cập nhật <ngày
+// giờ>" sang thuần số "Ver:<tháng>.<ngày>.<giờ><phút>" (VD commit lúc
+// 08:05 ngày 23/09 -> "Ver:9.23.0805") theo đúng yêu cầu anh Thiện —
+// nhìn chuyên nghiệp hơn, và bản thân số đã nói lên ngày giờ nên không
+// cần thêm phần "Cập nhật ..." riêng nữa. Tháng KHÔNG đệm số 0 (9, không
+// phải 09), ngày/giờ/phút đệm đủ 2 chữ số. Vẫn giữ mã commit + giờ ISO
+// đầy đủ ở tooltip (hover) để tra chính xác khi cần, không hiện ra ngoài.
 function AppVersionTag() {
   const version = process.env.NEXT_PUBLIC_APP_VERSION;
   const commitTime = process.env.NEXT_PUBLIC_APP_COMMIT_TIME;
-  if (!version) return null;
-  let timeText = "";
-  if (commitTime) {
-    const d = new Date(commitTime);
-    if (!isNaN(d.getTime())) {
-      const pad = (n) => String(n).padStart(2, "0");
-      timeText = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    }
-  }
+  if (!commitTime) return null;
+  const d = new Date(commitTime);
+  if (isNaN(d.getTime())) return null;
+  const pad = (n) => String(n).padStart(2, "0");
+  const verText = `${d.getMonth() + 1}.${pad(d.getDate())}.${pad(d.getHours())}${pad(d.getMinutes())}`;
   return (
     <span
-      title={`Mã cập nhật: ${version}${commitTime ? ` — commit lúc ${commitTime}` : ""}`}
+      title={`Mã commit: ${version || "?"} — ${commitTime}`}
       style={{ fontSize: 11, color: "var(--text-400, #8B93A5)", whiteSpace: "nowrap", margin: "0 8px" }}
     >
-      Ver {version}{timeText ? ` · Cập nhật ${timeText}` : ""}
+      Ver:{verText}
     </span>
   );
 }
