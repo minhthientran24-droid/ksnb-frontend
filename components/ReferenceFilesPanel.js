@@ -16,6 +16,10 @@ export const REFERENCE_ITEMS = [
   // đã ép cứng sẵn trong code (không cần upload file này thì mới có hiệu
   // lực cho riêng SP đó) — file này dùng để bổ sung thêm SP khác.
   { key: "msp_loai_tru_gia", label: "MSP loại trừ tính giá (MSP_LoaiTru_Gia)" },
+  // Chốt 23/09 — mới thêm mục upload/template theo yêu cầu anh Thiện, RULE
+  // ÁP DỤNG CHƯA CHỐT (anh sẽ báo sau) — hiện tại upload lên chỉ lưu file,
+  // backend chưa có logic nào đọc/xử lý file này.
+  { key: "msp_loai_tru_gia_tri_du", label: "Sản phẩm loại trừ giá trị dư (MSP_LoaiTru_GiaTriDu)" },
 ];
 
 // Component dùng chung cho MỌI khối "Dữ liệu tham chiếu (Admin)" trên toàn
