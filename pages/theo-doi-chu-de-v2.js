@@ -846,8 +846,21 @@ export default function TheoDoiChuDeV2Page() {
     }
   }
 
+  // Chốt 23/09 lần 4 — tab "Đang xử lý": CHỈ admin/super_admin xem được
+  // TOÀN BỘ, mọi role khác (kể cả editor, khác bản gốc theo-doi-chu-de.js
+  // đang cho cả editor xem hết) chỉ thấy đúng job của MÌNH (đã nhận chính
+  // hoặc được thêm làm hỗ trợ) — theo đúng yêu cầu anh Thiện, chặt hơn
+  // bản gốc 1 nấc. Tab "Chưa nhận"/"Hoàn tất" không đụng tới, vẫn xem hết
+  // (ai cũng cần thấy job Chưa nhận để còn nhận job mới).
+  const canViewAllDangXuLy = ADMIN_ROLES.includes(me?.role);
   function jobMatchesTab(job, tabKey) {
-    return job.trang_thai === tabKey;
+    if (job.trang_thai !== tabKey) return false;
+    if (tabKey === "Đang xử lý" && !canViewAllDangXuLy) {
+      const mine = me && job.claimed_by_user_id === me.id;
+      const isSupporter = me && (job.supporters || []).some((s) => s.user_id === me.id);
+      return mine || isSupporter;
+    }
+    return true;
   }
   const visibleJobs = jobs.filter((job) => jobMatchesTab(job, activeTab));
   const sortedJobs = applySort(visibleJobs, sort.state, {
