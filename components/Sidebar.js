@@ -14,9 +14,18 @@ const NAV_ITEMS = [
   { href: "/gui-mail-bcks", icon: "📧", label: "Gửi mail BCKS" },
   { href: "/theo-doi-kiem-ke", icon: "▦", label: "Theo dõi kiểm kê" },
   { href: "/theo-doi-chu-de", icon: "☰", label: "Theo dõi chủ đề" },
+  // Chốt 23/09 — dời từ ADMIN_ITEMS lên đây (đứng ngay sau bản gốc "Theo
+  // dõi chủ đề" cho dễ tìm) vì anh Thiện đã mở quyền dùng cho editor/
+  // editor_base/viewer qua menu_permissions — không còn là menu riêng
+  // admin nữa, nên bỏ hẳn hideForRoles hardcode, để menu_permissions
+  // (allowed_menus) quyết định hoàn toàn, giống hệt các menu "bản thật"
+  // khác trong danh sách này.
+  { href: "/theo-doi-chu-de-v2", icon: "🧪", label: "Theo dõi chủ đề Ver2" },
   { href: "/theo-doi-xknk", icon: "📦", label: "Theo dõi XK-NK" },
   { href: "/de-xuat-kiem-ke", icon: "📮", label: "Đề xuất kiểm kê", hideForRoles: ["editor_base", "viewer"] },
   { href: "/ghi-nhan-case", icon: "📝", label: "Ghi nhận case vi phạm" },
+  // Chốt 23/09 — cùng lý do dời lên như "Theo dõi chủ đề Ver2" ở trên.
+  { href: "/ghi-nhan-case-v2", icon: "🧪", label: "Ghi nhận case vi phạm Ver2" },
   { href: "/nhan-su", icon: "🧑‍💼", label: "Giới thiệu nhân sự KSNB" },
   { href: "/hoat-dong", icon: "🎉", label: "Hoạt động phòng ban" },
   { href: "/lich-nghi", icon: "🏖️", label: "Lịch làm việc & nghỉ phép" },
@@ -30,13 +39,6 @@ const ADMIN_ITEMS = [
   { href: "/tai-len-du-lieu", icon: "⬆️", label: "Tải lên dữ liệu", hideForRoles: ["editor", "editor_base", "viewer"] },
   { href: "/quan-ly-tai-khoan", icon: "🔑", label: "Quản lý tài khoản", hideForRoles: ["editor", "editor_base", "viewer"] },
   { href: "/nhat-ky-hoat-dong", icon: "📊", label: "Nhật ký hoạt động", hideForRoles: ["editor", "editor_base", "viewer"] },
-  // Menu thử nghiệm (chốt 03/09) — chỉ admin/super_admin, dùng để thiết kế
-  // tính năng mới cho "Theo dõi chủ đề" trước khi đưa vào bản thật.
-  { href: "/theo-doi-chu-de-v2", icon: "🧪", label: "Theo dõi chủ đề Ver2", hideForRoles: ["editor", "editor_base", "viewer"] },
-  // Menu thử nghiệm (chốt 06/09) — chỉ admin/super_admin, dùng để thiết kế
-  // tính năng mới cho "Ghi nhận case vi phạm" trước khi đưa vào bản thật.
-  // Độc lập hoàn toàn với "Theo dõi chủ đề Ver2" ở trên — không liên quan gì nhau.
-  { href: "/ghi-nhan-case-v2", icon: "🧪", label: "Ghi nhận case vi phạm Ver2", hideForRoles: ["editor", "editor_base", "viewer"] },
 ];
 const STORAGE_KEY = "ksnb_sidebar_collapsed";
 

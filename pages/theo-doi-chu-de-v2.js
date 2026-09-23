@@ -780,8 +780,13 @@ export default function TheoDoiChuDeV2Page() {
   const topicNames = topics.map((t) => t.ten_chu_de);
 
   useEffect(() => {
+    // Chốt 23/09 — BỎ chặn cứng ADMIN_ROLES: menu này đã được anh Thiện mở
+    // quyền dùng cho editor/editor_base/viewer qua menu_permissions, Layout.js
+    // đã tự chặn vào thẳng URL nếu role không có quyền (theo allowed_menus)
+    // rồi mới cho render trang — guard cứng ở đây cũ hơn, chặn nhầm cả
+    // những role vừa được mở quyền. Chỉ còn cần kiểm tra đã đăng nhập.
     const user = getUser();
-    if (!user || !ADMIN_ROLES.includes(user.role)) {
+    if (!user) {
       window.location.replace("/");
       return;
     }
