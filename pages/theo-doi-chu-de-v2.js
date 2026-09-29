@@ -71,6 +71,15 @@ function soNgayXuLy(ngayBatDauCheck) {
   return Math.max(0, Math.floor(ms / 86400000));
 }
 
+// Bỏ dấu tiếng Việt (chốt 29/09, khớp bản gốc theo-doi-chu-de.js) — dùng
+// cho ô tìm kiếm: gõ không dấu vẫn tìm khớp được chữ có dấu (và ngược
+// lại), không phân biệt hoa/thường.
+function stripDiacritics(s) {
+  return String(s == null ? "" : s).toLowerCase()
+    .normalize("NFD").replace(new RegExp("[\\u0300-\\u036f]", "g"), "")
+    .replace(/đ/g, "d");
+}
+
 const VI_PHAM_OPTIONS = ["Không vi phạm", "Có vi phạm"];
 
 function useSort(defaultKey = null, defaultDir = "asc") {
@@ -782,6 +791,18 @@ export default function TheoDoiChuDeV2Page() {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const sort = useSort();
+  // Tìm kiếm (chốt 29/09, khớp bản gốc theo-doi-chu-de.js) — gõ xong bấm
+  // Enter hoặc bấm nút mới lọc (searchInput = đang gõ, searchQuery = đã
+  // chốt tìm), không lọc theo từng phím gõ.
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  function handleSearch() {
+    setSearchQuery(searchInput.trim());
+  }
+  function handleClearSearch() {
+    setSearchInput("");
+    setSearchQuery("");
+  }
 
   // Combo box "Tên chủ đề" (chốt 06/09) — topics = [{id, ten_chu_de}] toàn
   // bộ danh sách; selectedTopic = "" nghĩa là xem tất cả (mặc định).
@@ -877,7 +898,30 @@ export default function TheoDoiChuDeV2Page() {
     }
     return true;
   }
-  const visibleJobs = jobs.filter((job) => jobMatchesTab(job, activeTab));
+  // Tìm kiếm (chốt 29/09, khớp bản gốc theo-doi-chu-de.js) — gõ 1 từ khoá,
+  // khớp bất kỳ đâu trong TẤT CẢ thông tin đang hiển thị trên bảng (đúng
+  // field đang render ở mỗi cột). Không phân biệt hoa/thường, không phân
+  // biệt CÓ dấu/KHÔNG dấu (xem stripDiacritics).
+  function jobMatchesSearch(job, query) {
+    if (!query) return true;
+    const haystack = [
+      job.upload_date,
+      job.ten_chu_de,
+      job.loai_vi_pham,
+      job.vung,
+      job.ma_shop,
+      job.ten_shop,
+      job.noi_dung_vi_pham,
+      job.nhan_vien_phu_trach,
+      ...(job.supporters || []).map((s) => s.full_name),
+      fmtDateTime(job.ngay_bat_dau_check),
+      job.ket_qua_vi_pham,
+      job.ghi_chu,
+      job.nguoi_upload,
+    ].filter(Boolean).join(" ");
+    return stripDiacritics(haystack).includes(stripDiacritics(query));
+  }
+  const visibleJobs = jobs.filter((job) => jobMatchesTab(job, activeTab) && jobMatchesSearch(job, searchQuery));
   const sortedJobs = applySort(visibleJobs, sort.state, {
     upload_date: (j) => j.upload_date || "",
     loai_vi_pham: (j) => j.loai_vi_pham || "",
@@ -1008,6 +1052,29 @@ export default function TheoDoiChuDeV2Page() {
         </div>
       </div>
 
+      {/* Ô tìm kiếm (chốt 29/09, khớp bản gốc theo-doi-chu-de.js) — canh
+          phải, riêng 1 hàng (hàng trên đã có sẵn "Chọn chủ đề" + 3 tab tình
+          trạng chiếm hết chỗ). Tìm theo TẤT CẢ thông tin đang hiển thị trên
+          bảng (xem jobMatchesSearch). */}
+      <div className="month-tabs" style={{ justifyContent: "flex-end" }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <input
+            type="text"
+            placeholder="Tìm kiếm..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
+            style={{ width: "5cm", padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13.5 }}
+          />
+          <button onClick={handleSearch} style={searchBtnStyle}>🔍 Tìm kiếm</button>
+          {searchQuery && (
+            <button onClick={handleClearSearch} style={{ ...searchBtnStyle, background: "var(--border)", color: "var(--text-900)" }}>
+              Xóa lọc
+            </button>
+          )}
+        </div>
+      </div>
+
       {error && <div className="placeholder-box">Không tải được dữ liệu: {error}</div>}
       {!error && !loading && jobs.length === 0 && (
         <div className="placeholder-box">Chưa có task chủ đề nào được đăng.</div>
@@ -1034,7 +1101,9 @@ export default function TheoDoiChuDeV2Page() {
               </thead>
               <tbody>
                 {visibleJobs.length === 0 && (
-                  <tr><td colSpan={11} style={{ textAlign: "center", color: "var(--text-400)" }}>Không có task nào ở tình trạng này.</td></tr>
+                  <tr><td colSpan={11} style={{ textAlign: "center", color: "var(--text-400)" }}>
+                    {searchQuery ? "Không tìm thấy task nào khớp từ khoá tìm kiếm." : "Không có task nào ở tình trạng này."}
+                  </td></tr>
                 )}
                 {sortedJobs.map((job) => {
                   const supporters = job.supporters || [];
@@ -1151,6 +1220,7 @@ export default function TheoDoiChuDeV2Page() {
 const labelStyle = { fontSize: 12, fontWeight: 600, color: "var(--text-600)", display: "block", marginBottom: 6 };
 const inputStyle = { width: "100%", padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13.5, background: "#FAFBFD", boxSizing: "border-box" };
 const deleteBtnStyle = { background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "6px 12px", fontSize: 12, color: "var(--text-600)", cursor: "pointer" };
+const searchBtnStyle = { padding: "9px 16px", borderRadius: 8, border: "none", background: "var(--navy-800)", color: "#fff", fontSize: 13.5, fontWeight: 600, cursor: "pointer" };
 const overlayStyle = {
   position: "fixed", inset: 0, background: "rgba(10,20,40,0.45)",
   display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20,
