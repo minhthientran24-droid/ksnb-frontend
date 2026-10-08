@@ -7,6 +7,7 @@ import {
   downloadKetQuaKiemKeGuiMail, getKetQuaKiemKeGuiMailMonths,
   downloadKetQuaKiemKeGuiMailVaccine, getKetQuaKiemKeGuiMailVaccineMonths,
   downloadLcnbThanhLyHni, downloadLcnbThanhLyHcm, getLcnbThanhLyMonths,
+  exportDaKiemExcel,
 } from "../lib/api";
 import { useAllowedKeys } from "../lib/permissions";
 
@@ -670,6 +671,43 @@ export default function TheoDoiKiemKePage() {
     sortKey, sortDir,
   );
 
+  // Xuất Excel tab "Đã kiểm" (chốt 25/09) — đúng những gì đang hiển thị
+  // (kỳ + nhóm đang chọn, đã lọc tìm kiếm + sắp xếp), tách riêng Mã shop /
+  // Tên shop / Số ngày gửi trễ thành cột riêng cho dễ lọc trong Excel.
+  const [exportBusy, setExportBusy] = useState(false);
+
+  async function handleExportDaKiem() {
+    const numCols = nhom === "long_chau"
+      ? [["Kiểm kê Non CL", (r) => r.gia_tri_non_cl], ["Cân tồn Non CL", (r) => r.can_ton_non_cl],
+         ["Kiểm kê Cắt liều", (r) => r.gia_tri_cat_lieu], ["Cân tồn Cắt liều", (r) => r.can_ton_cat_lieu]]
+      : [["Kiểm kê VX", (r) => r.kiem_ke_vx], ["Kiểm kê VTYT", (r) => r.kiem_ke_vtyt], ["Kiểm kê VPKM", (r) => r.kiem_ke_vpkm]];
+    const cols = [
+      ["Vùng", (r) => r.vung, "text"],
+      ["Mã shop", (r) => r.ma_shop, "text"],
+      ["Tên shop", (r) => r.ten_shop, "text"],
+      ["Số ngày gửi trễ", (r) => r.so_ngay_gui_tre || "", "text"],
+      ["Ngày kiểm kê", (r) => r.ngay_kiem_ke, "text"],
+      ...numCols.map(([label, get]) => [label, get, "number"]),
+      ["Lũy Kế", (r) => r.luy_ke, "number"],
+      ["Ước tính truy thu", (r) => tinhUocTinhTruyThu(r), "number"],
+      ["Truy thu thanh lý", (r) => r.truy_thu_thanh_ly, "number"],
+      ["NV kiểm kê", (r) => r.nv_kiem_ke, "text"],
+    ];
+    setExportBusy(true);
+    try {
+      await exportDaKiemExcel({
+        period,
+        nhom,
+        columns: cols.map(([label, , type]) => ({ label, type })),
+        rows: displayRows.map((r) => cols.map(([, get]) => get(r) ?? null)),
+      });
+    } catch (e) {
+      alert("❌ " + e.message);
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
   return (
     <Layout crumb="Theo dõi kiểm kê">
       <div className="page-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
@@ -989,10 +1027,20 @@ export default function TheoDoiKiemKePage() {
         <div className="card">
           <div className="card-head">
             <h3>Kỳ {period}</h3>
-            <span className="note">
-              {searchQuery ? `${displayRows.length}/${rows.length} shop (đang lọc)` : `${rows.length} shop`}
-              {" · bấm tiêu đề cột để sắp xếp"}
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span className="note">
+                {searchQuery ? `${displayRows.length}/${rows.length} shop (đang lọc)` : `${rows.length} shop`}
+                {" · bấm tiêu đề cột để sắp xếp"}
+              </span>
+              <button
+                onClick={handleExportDaKiem}
+                disabled={exportBusy || displayRows.length === 0}
+                style={{ ...syncBtnStyle, padding: "7px 14px", fontSize: 13, opacity: exportBusy || displayRows.length === 0 ? 0.6 : 1 }}
+                title="Xuất đúng dữ liệu đang hiển thị (đã lọc + sắp xếp) ra file Excel"
+              >
+                {exportBusy ? "Đang xuất..." : "📊 Xuất Excel"}
+              </button>
+            </div>
           </div>
           <div className="card-body">
             <table>
