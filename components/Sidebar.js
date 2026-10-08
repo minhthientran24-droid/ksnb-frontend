@@ -12,6 +12,9 @@ const NAV_ITEMS = [
   // CẢ role (không có hideForRoles), tab đầu tiên "Hỗ trợ check lệch tồn VX".
   { href: "/ho-tro-shop", icon: "🛟", label: "Hỗ trợ shop" },
   { href: "/gui-mail-bcks", icon: "📧", label: "Gửi mail BCKS" },
+  // Chốt 08/10 — tra cứu thông tin shop theo Mã shop, dành cho TẤT CẢ role
+  // (không hideForRoles, menu_permissions mặc định cho phép mọi role).
+  { href: "/tra-cuu-thong-tin", icon: "🔎", label: "Tra cứu thông tin" },
   { href: "/theo-doi-kiem-ke", icon: "▦", label: "Theo dõi kiểm kê" },
   { href: "/theo-doi-chu-de", icon: "☰", label: "Theo dõi chủ đề" },
   // Chốt 23/09 — dời từ ADMIN_ITEMS lên đây (đứng ngay sau bản gốc "Theo
