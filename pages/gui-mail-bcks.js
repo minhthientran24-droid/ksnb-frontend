@@ -278,7 +278,7 @@ function SelfServicePanel({ smtpConfigured }) {
         )}
 
         {previewError && !previewing && (
-          <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14 }}>{previewError}</div>
+          <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14, whiteSpace: "pre-line" }}>{previewError}</div>
         )}
 
         {preview && !previewing && !sent && (
@@ -363,7 +363,7 @@ function SelfServicePanel({ smtpConfigured }) {
                 ⚠️ Anh/chị chưa cấu hình email gửi cá nhân ở mục phía trên — cấu hình xong mới gửi được.
               </div>
             )}
-            {sendError && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14 }}>{sendError}</div>}
+            {sendError && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14, whiteSpace: "pre-line" }}>{sendError}</div>}
 
             <button
               className="login-btn"
