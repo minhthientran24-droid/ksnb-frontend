@@ -196,7 +196,7 @@ export default function HoTroKiemKePage() {
       });
     } catch (err) {
       setTongHopError(err.message || "Xử lý thất bại");
-      if ((err.message || "").includes("thiếu mã kho con")) setKhoConErrorPopup(err.message);
+      if ((err.message || "").includes("Nhập Khác thiếu mã kho")) setKhoConErrorPopup(err.message);
     } finally {
       setTongHopProcessing(false);
     }
@@ -632,11 +632,8 @@ export default function HoTroKiemKePage() {
             <div style={{ fontSize: 15, fontWeight: 700, color: "#D6362F", marginBottom: 10, paddingRight: 20 }}>
               ❌ Lỗi dữ liệu Xuất Khác - Nhập Khác
             </div>
-            <p style={{ fontSize: 13.5, color: "#D6362F", lineHeight: 1.6, marginBottom: 8 }}>
+            <p style={{ fontSize: 13.5, color: "#D6362F", lineHeight: 1.6, marginBottom: 18 }}>
               {khoConErrorPopup}
-            </p>
-            <p style={{ fontSize: 12.5, color: "var(--text-600)", lineHeight: 1.6, marginBottom: 18 }}>
-              Kho 030 là Kho cắt liều, kho 010 là Kho hàng thường — kết quả xử lý phải có đồng thời cả 2 kho.
             </p>
             <button
               className="login-btn"
