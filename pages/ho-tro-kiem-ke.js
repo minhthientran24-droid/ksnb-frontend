@@ -55,6 +55,9 @@ export default function HoTroKiemKePage() {
   const [tongHopProcessing, setTongHopProcessing] = useState(false);
   const [tongHopResult, setTongHopResult] = useState(null); // { filename, blob, soDong, soDongThieuGia } | null
   const [tongHopError, setTongHopError] = useState("");
+  // Chốt 09/10 — popup riêng khi data Xuất Khác - Nhập Khác thiếu mã kho con
+  // 010/030 (xem backend tong_hop_bcks.py::_kiem_tra_du_kho_con).
+  const [khoConErrorPopup, setKhoConErrorPopup] = useState("");
   const xknkFileInputRef = useRef(null);
   const tlKetQuaFileInputRef = useRef(null);
 
@@ -193,6 +196,7 @@ export default function HoTroKiemKePage() {
       });
     } catch (err) {
       setTongHopError(err.message || "Xử lý thất bại");
+      if ((err.message || "").includes("thiếu mã kho con")) setKhoConErrorPopup(err.message);
     } finally {
       setTongHopProcessing(false);
     }
@@ -598,6 +602,51 @@ export default function HoTroKiemKePage() {
           </div>
           </div>
         </>
+      )}
+
+      {khoConErrorPopup && (
+        <div
+          style={{
+            position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20,
+          }}
+          onClick={() => setKhoConErrorPopup("")}
+        >
+          <div
+            style={{
+              background: "#fff", borderRadius: 12, padding: "22px 26px", width: 460, maxWidth: "100%",
+              boxShadow: "0 24px 60px rgba(0,0,0,0.3)", border: "2px solid #D6362F", position: "relative",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setKhoConErrorPopup("")}
+              aria-label="Đóng"
+              style={{
+                position: "absolute", top: 10, right: 12, border: "none", background: "none",
+                fontSize: 18, cursor: "pointer", color: "var(--text-600)", lineHeight: 1,
+              }}
+            >
+              ✕
+            </button>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#D6362F", marginBottom: 10, paddingRight: 20 }}>
+              ❌ Lỗi dữ liệu Xuất Khác - Nhập Khác
+            </div>
+            <p style={{ fontSize: 13.5, color: "#D6362F", lineHeight: 1.6, marginBottom: 8 }}>
+              {khoConErrorPopup}
+            </p>
+            <p style={{ fontSize: 12.5, color: "var(--text-600)", lineHeight: 1.6, marginBottom: 18 }}>
+              Kho 030 là Kho cắt liều, kho 010 là Kho hàng thường — kết quả xử lý phải có đồng thời cả 2 kho.
+            </p>
+            <button
+              className="login-btn"
+              style={{ width: "auto", padding: "9px 26px", margin: 0, background: "#D6362F" }}
+              onClick={() => setKhoConErrorPopup("")}
+            >
+              Đã hiểu
+            </button>
+          </div>
+        </div>
       )}
 
       {showEhoWarning && (
