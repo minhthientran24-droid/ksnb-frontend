@@ -7,7 +7,7 @@ import { useAllowedKeys } from "../lib/permissions";
 import {
   listPendingUploads, uploadPendingFile, deletePendingUpload, uploadKiemKeThangReport, getUser,
   getLuyKeStatus, uploadLuyKe, getXknkCanTonMonths, uploadXknkCanTon, downloadReferenceFilesTemplate,
-  downloadDanhSachShopTemplate,
+  downloadDanhSachShopTemplate, downloadKiemKeThangTemplate,
 } from "../lib/api";
 import { llv2BridgeLogin, llv2UploadDanhSach, llv2DownloadDanhSachUrl } from "../lib/llv2Api";
 
@@ -67,6 +67,19 @@ export default function TaiLenDuLieuPage() {
       alert(err.message || "Tải template thất bại");
     } finally {
       setRefTemplateBusy(false);
+    }
+  }
+
+  // Tải file mẫu "Báo cáo kiểm kê (tháng)" (chốt 13/10)
+  const [kiemKeTemplateBusy, setKiemKeTemplateBusy] = useState(false);
+  async function handleDownloadKiemKeTemplate() {
+    setKiemKeTemplateBusy(true);
+    try {
+      await downloadKiemKeThangTemplate();
+    } catch (err) {
+      alert(err.message || "Tải file mẫu thất bại");
+    } finally {
+      setKiemKeTemplateBusy(false);
     }
   }
 
@@ -291,6 +304,12 @@ export default function TaiLenDuLieuPage() {
                 disabled={uploadingType === "kiem_ke_thang"}
               >
                 📤 Tải lên file Excel
+              </button>
+            </div>
+            <div>
+              <label style={labelStyle}>File mẫu</label>
+              <button type="button" className="fbtn" disabled={kiemKeTemplateBusy} onClick={handleDownloadKiemKeTemplate}>
+                {kiemKeTemplateBusy ? "Đang tải..." : "📥 Tải template"}
               </button>
             </div>
             {uploadingType === "kiem_ke_thang" && <span style={{ fontSize: 12.5, color: "var(--text-400)" }}>Đang xử lý...</span>}
