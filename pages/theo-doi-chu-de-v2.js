@@ -1037,7 +1037,7 @@ export default function TheoDoiChuDeV2Page() {
             <button className="fbtn" onClick={() => setSelectedTopic("")}>✕ Bỏ lọc</button>
           )}
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           {CHU_DE_TABS.map((t) => {
             const count = jobs.filter((j) => jobMatchesTab(j, t.key)).length;
             const isActive = activeTab === t.key;
@@ -1054,15 +1054,9 @@ export default function TheoDoiChuDeV2Page() {
               </div>
             );
           })}
-        </div>
-      </div>
-
-      {/* Ô tìm kiếm (chốt 29/09, khớp bản gốc theo-doi-chu-de.js) — canh
-          phải, riêng 1 hàng (hàng trên đã có sẵn "Chọn chủ đề" + 3 tab tình
-          trạng chiếm hết chỗ). Tìm theo TẤT CẢ thông tin đang hiển thị trên
-          bảng (xem jobMatchesSearch). */}
-      <div className="month-tabs" style={{ justifyContent: "flex-end" }}>
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          {/* Ô tìm kiếm (chốt 29/09; dời 14/10 lên CÙNG HÀNG, nằm ngay SAU 3
+              nút trạng thái) — tìm theo TẤT CẢ thông tin đang hiển thị trên
+              bảng (xem jobMatchesSearch). */}
           <input
             type="text"
             placeholder="Tìm kiếm..."
