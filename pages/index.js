@@ -99,6 +99,8 @@ const tdStyle = { padding: "7px 10px", textAlign: "center", borderBottom: "1px s
 // Chốt 28/08 — thay toàn bộ "Truy cập nhanh" theo đúng 5 menu anh chọn
 // (icon lấy đúng như Sidebar.js để đồng bộ toàn web).
 const QUICK_LINKS = [
+  // Chốt 13/10 — "Tra cứu thông tin" đứng ĐẦU danh sách (cùng icon Sidebar.js).
+  { href: "/tra-cuu-thong-tin", icon: "🔎", label: "Tra cứu thông tin" },
   { href: "/ho-tro-kiem-ke", icon: "🧰", label: "Hỗ trợ kiểm kê" },
   { href: "/gui-mail-bcks", icon: "📧", label: "Gửi mail BCKS" },
   { href: "/theo-doi-kiem-ke", icon: "▦", label: "Theo dõi kiểm kê" },
