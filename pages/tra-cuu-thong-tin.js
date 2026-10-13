@@ -120,8 +120,9 @@ export default function TraCuuThongTinPage() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 18 }}>
                 <InfoItem label="Mã shop">{result.ma_shop}</InfoItem>
                 <InfoItem label="Tên shop">{result.ten_shop}</InfoItem>
-                <InfoItem label="Tên ASM">{result.ten_asm}</InfoItem>
-                <InfoItem label="Email ASM">{result.email_asm}</InfoItem>
+                <InfoItem label="ASM">
+                  <TenEmailList items={result.ten_asm ? [{ ten: result.ten_asm, email: result.email_asm }] : []} />
+                </InfoItem>
                 <InfoItem label={result.quan_ly_chuc_danh && result.quan_ly_chuc_danh !== "Trưởng Quản lý Nhà Thuốc" && result.quan_ly_chuc_danh !== "Bác sĩ trưởng"
                   ? `Quản lý (${result.quan_ly_chuc_danh})` : "Quản lý"}>
                   <TenEmailList items={result.quan_ly} />
