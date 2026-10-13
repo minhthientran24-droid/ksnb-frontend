@@ -318,6 +318,7 @@ function CompleteJobModal({ job, onDone, onCancel }) {
         ten_shop: job.ten_shop || "",
         vung: job.vung || "",
         nhan_vien_vi_pham: job.nhan_vien_phu_trach || "",
+        ma_phieu: job.ma_phieu || "",
       });
       router.push(`/ghi-nhan-case-v2?${params.toString()}`);
       return;
@@ -338,7 +339,9 @@ function CompleteJobModal({ job, onDone, onCancel }) {
     <div style={overlayStyle} onClick={onCancel}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         <h3 style={{ marginBottom: 4 }}>✅ Cập nhật kết quả xử lý</h3>
-        <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 16 }}>{job.ten_chu_de}</p>
+        <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 16 }}>
+          {job.ma_phieu && <strong>Mã phiếu {job.ma_phieu} · </strong>}{job.ten_chu_de}
+        </p>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: 16 }}>
             <label style={labelStyle}>Kết quả xử lý *</label>
@@ -905,6 +908,7 @@ export default function TheoDoiChuDeV2Page() {
   function jobMatchesSearch(job, query) {
     if (!query) return true;
     const haystack = [
+      job.ma_phieu,
       job.upload_date,
       job.ten_chu_de,
       job.loai_vi_pham,
@@ -923,6 +927,7 @@ export default function TheoDoiChuDeV2Page() {
   }
   const visibleJobs = jobs.filter((job) => jobMatchesTab(job, activeTab) && jobMatchesSearch(job, searchQuery));
   const sortedJobs = applySort(visibleJobs, sort.state, {
+    ma_phieu: (j) => j.ma_phieu || "",
     upload_date: (j) => j.upload_date || "",
     loai_vi_pham: (j) => j.loai_vi_pham || "",
     vung: (j) => j.vung || "",
@@ -1086,6 +1091,7 @@ export default function TheoDoiChuDeV2Page() {
             <table>
               <thead>
                 <tr>
+                  <SortTh label="Mã phiếu" sortKey="ma_phieu" sortState={sort.state} onSort={sort.onSort} />
                   <SortTh label="Ngày Upload" sortKey="upload_date" sortState={sort.state} onSort={sort.onSort} />
                   <SortTh label="Loại Vi Phạm" sortKey="loai_vi_pham" sortState={sort.state} onSort={sort.onSort} align="left" />
                   <SortTh label="Vùng" sortKey="vung" sortState={sort.state} onSort={sort.onSort} />
@@ -1101,7 +1107,7 @@ export default function TheoDoiChuDeV2Page() {
               </thead>
               <tbody>
                 {visibleJobs.length === 0 && (
-                  <tr><td colSpan={11} style={{ textAlign: "center", color: "var(--text-400)" }}>
+                  <tr><td colSpan={12} style={{ textAlign: "center", color: "var(--text-400)" }}>
                     {searchQuery ? "Không tìm thấy task nào khớp từ khoá tìm kiếm." : "Không có task nào ở tình trạng này."}
                   </td></tr>
                 )}
@@ -1114,6 +1120,7 @@ export default function TheoDoiChuDeV2Page() {
                   const soNgay = soNgayXuLy(job.ngay_bat_dau_check);
                   return (
                     <tr key={job.id}>
+                      <td style={{ fontWeight: 700, color: "var(--navy-900)", whiteSpace: "nowrap" }}>{job.ma_phieu || "-"}</td>
                       <td>{job.upload_date}</td>
                       <td style={{ textAlign: "left" }}>{job.loai_vi_pham || "-"}</td>
                       <td>{job.vung || "-"}</td>

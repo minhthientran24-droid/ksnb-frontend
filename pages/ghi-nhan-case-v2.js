@@ -311,6 +311,7 @@ export default function GhiNhanCaseV2Page() {
   // job đó mới TỰ ĐỘNG được đánh dấu Hoàn tất + Có vi phạm.
   const [linkedJobId, setLinkedJobId] = useState(null);
   const [linkedJobDone, setLinkedJobDone] = useState(false);
+  const [linkedMaPhieu, setLinkedMaPhieu] = useState("");
 
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState(null);
@@ -352,9 +353,10 @@ export default function GhiNhanCaseV2Page() {
 
   useEffect(() => {
     if (!router.isReady) return;
-    const { jobId, chu_de_vi_pham, loai_vi_pham, ma_shop, ten_shop, vung, nhan_vien_vi_pham } = router.query;
+    const { jobId, chu_de_vi_pham, loai_vi_pham, ma_shop, ten_shop, vung, nhan_vien_vi_pham, ma_phieu } = router.query;
     if (!jobId) return;
     setLinkedJobId(jobId);
+    setLinkedMaPhieu(ma_phieu || "");
     setForm((f) => ({
       ...f,
       chu_de_vi_pham: chu_de_vi_pham || f.chu_de_vi_pham,
@@ -371,7 +373,7 @@ export default function GhiNhanCaseV2Page() {
     setSaving(true);
     setAddError("");
     try {
-      await createViPhamCaseV2({ ...form, files });
+      await createViPhamCaseV2({ ...form, files, job_id: linkedJobId });
       setForm(EMPTY_FORM);
       setFiles([]);
       load();
@@ -478,7 +480,7 @@ export default function GhiNhanCaseV2Page() {
 
       {linkedJobId && (
         <div className="placeholder-box" style={{ borderColor: "var(--orange)", color: "var(--orange)", marginBottom: 16 }}>
-          🔗 Đang ghi nhận case cho job "Có vi phạm" bên Theo dõi chủ đề Ver2 — các trường đã điền sẵn theo job, có thể
+          🔗 Đang ghi nhận case cho job "Có vi phạm" bên Theo dõi chủ đề Ver2{linkedMaPhieu && <> (mã phiếu <strong>{linkedMaPhieu}</strong>, case sẽ dùng lại mã này)</>} — các trường đã điền sẵn theo job, có thể
           chỉnh sửa lại nếu cần rồi bấm "+ Ghi nhận case" là job đó sẽ tự động được đánh dấu <strong>Hoàn tất</strong>.
         </div>
       )}
@@ -523,6 +525,7 @@ export default function GhiNhanCaseV2Page() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
                   <div>
                     <span style={{ ...pillStyle, background: "#E8EFFC", color: "var(--blue-accent)" }}>{st.label}</span>{" "}
+                    {c.ma_phieu && <span style={{ ...pillStyle, background: "#FFF1E1", color: "var(--orange)" }}>Mã phiếu {c.ma_phieu}</span>}{" "}
                     <strong style={{ fontSize: 14.5, color: "var(--navy-900)" }}>{c.chu_de_vi_pham}</strong>
                     {c.loai_vi_pham && <span style={{ fontSize: 12, color: "var(--text-600)" }}> · {c.loai_vi_pham}</span>}
                     <div style={{ fontSize: 12, color: "var(--text-600)", marginTop: 4 }}>
