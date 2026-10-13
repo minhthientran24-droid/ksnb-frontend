@@ -111,7 +111,13 @@ export default function TraCuuThongTinPage() {
                 <InfoItem label="Email ASM">{result.email_asm}</InfoItem>
                 <InfoItem label={result.quan_ly_chuc_danh && result.quan_ly_chuc_danh !== "Trưởng Quản lý Nhà Thuốc" && result.quan_ly_chuc_danh !== "Bác sĩ trưởng"
                   ? `Quản lý (${result.quan_ly_chuc_danh})` : "Quản lý"}>
-                  {(result.quan_ly || []).join(", ")}
+                  {(result.quan_ly || []).length > 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      {result.quan_ly.map((q, i) => (
+                        <div key={`${q.ten}-${i}`}>{q.email ? `${q.ten} - ${q.email}` : q.ten}</div>
+                      ))}
+                    </div>
+                  )}
                 </InfoItem>
                 <InfoItem label="Trưởng ca">{(result.truong_ca || []).join(", ")}</InfoItem>
                 <InfoItem label="Tỉnh thành">{result.tinh_thanh}</InfoItem>
