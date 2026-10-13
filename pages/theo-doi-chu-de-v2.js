@@ -1107,6 +1107,12 @@ export default function TheoDoiChuDeV2Page() {
                 )}
                 {sortedJobs.map((job) => {
                   const supporters = job.supporters || [];
+                  // Chốt 14/10 — khớp quy tắc backend (_can_access_files): chỉ người đã nhận
+                  // đúng task này (chính/hỗ trợ) hoặc admin mới tải được file, còn lại ẩn hẳn nút
+                  // (không để bấm rồi mới báo "cần bấm Nhận Task").
+                  const canAccessFiles = ADMIN_ROLES.includes(me?.role)
+                    || (me && job.claimed_by_user_id === me.id)
+                    || (me && supporters.some((s) => s.user_id === me.id));
                   const canComplete = job.trang_thai === "Đang xử lý";
                   const canUnclaim = job.trang_thai === "Đang xử lý";
                   const canAddSupporters = job.trang_thai === "Đang xử lý";
@@ -1150,12 +1156,12 @@ export default function TheoDoiChuDeV2Page() {
                               Nhận Task
                             </button>
                           )}
-                          {job.has_data_file && (
+                          {job.has_data_file && canAccessFiles && (
                             <button className="fbtn" onClick={() => handleDownload(job)}>
                               📥 Tải data check
                             </button>
                           )}
-                          {job.has_result_file && (
+                          {job.has_result_file && canAccessFiles && (
                             <button className="fbtn" onClick={() => handleDownloadResult(job)}>
                               📥 Tải kết quả
                             </button>
