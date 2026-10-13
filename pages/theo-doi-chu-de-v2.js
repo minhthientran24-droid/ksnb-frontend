@@ -1181,10 +1181,14 @@ export default function TheoDoiChuDeV2Page() {
                               {busy ? "Đang trả..." : "↩️ Trả lại (chờ nhận)"}
                             </button>
                           )}
-                          <div style={{ display: "flex", gap: 6 }}>
-                            <button className="fbtn" onClick={() => { setEditingJob(job); setShowForm(true); }}>Sửa</button>
-                            <button className="fbtn danger" onClick={() => handleDelete(job)}>Xóa</button>
-                          </div>
+                          {/* Chốt 14/10 — Sửa/Xóa task CHỈ admin/super_admin làm được (khớp
+                              backend require_admin) nên ẩn hẳn với user khác. */}
+                          {ADMIN_ROLES.includes(me?.role) && (
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button className="fbtn" onClick={() => { setEditingJob(job); setShowForm(true); }}>Sửa</button>
+                              <button className="fbtn danger" onClick={() => handleDelete(job)}>Xóa</button>
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>
