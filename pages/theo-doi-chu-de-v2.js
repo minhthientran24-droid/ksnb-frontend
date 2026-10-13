@@ -5,6 +5,7 @@ import {
   getUser, listChuDeJobsV2, createChuDeJobV2, updateChuDeJobV2, deleteChuDeJobV2,
   claimChuDeJobV2, unclaimChuDeJobV2, addChuDeJobV2Supporters, listKsnbForChuDeV2,
   completeChuDeJobV2, downloadChuDeJobV2File, downloadChuDeJobV2ResultFile,
+  getChuDeJobV2LinkedCases, adjustChuDeJobV2ToKhongViPham,
   bulkUploadChuDeJobsV2, downloadChuDeJobV2BulkUploadTemplate, lookupChuDeShop,
   getChuDeJobV2Months, exportChuDeJobsV2,
   listChuDeTopicsV2, createChuDeTopicV2, deleteChuDeTopicV2, getChuDeTopicV2Stats,
@@ -297,6 +298,84 @@ function AddSupportersModal({ job, onDone, onCancel }) {
 // ghi-nhan-case-v2.js — đọc query "jobId"). Chọn "Không vi phạm" thì hoàn
 // tất ngay tại đây như cũ. NGOẠI LỆ thứ 2 (sau combo box Tên chủ đề) hai
 // menu Ver2 này chủ động liên kết với nhau, theo đúng yêu cầu. ----------
+// ---------- Popup xác nhận đổi "Có vi phạm" -> "Không vi phạm" (chốt 14/10) — chỉ admin.
+// Liệt kê các phiếu vi phạm (Ghi nhận case Ver2) liên kết với task qua Mã phiếu sẽ bị
+// XOÁ, bấm "Xóa phiếu & cập nhật" mới thật sự đổi. ----------
+function AdjustToKoViPhamModal({ job, onDone, onCancel }) {
+  const [info, setInfo] = useState(null);
+  const [loadError, setLoadError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    getChuDeJobV2LinkedCases(job.id).then(setInfo).catch((err) => setLoadError(err.message || "Không tải được danh sách phiếu"));
+  }, [job.id]);
+
+  async function handleConfirm() {
+    setSaving(true);
+    setError("");
+    try {
+      await adjustChuDeJobV2ToKhongViPham(job.id);
+      onDone();
+    } catch (err) {
+      setError(err.message || "Cập nhật thất bại");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const cases = info?.cases || [];
+  return (
+    <div style={overlayStyle} onClick={onCancel}>
+      <div style={{ ...modalStyle, border: "2px solid #D6362F" }} onClick={(e) => e.stopPropagation()}>
+        <h3 style={{ marginBottom: 4, color: "#D6362F" }}>⚠️ Đổi thành "Không vi phạm"</h3>
+        <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 14 }}>
+          {job.ma_phieu && <strong>Mã phiếu {job.ma_phieu} · </strong>}{job.ten_chu_de}
+        </p>
+        {loadError && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14 }}>{loadError}</div>}
+        {!info && !loadError && <div style={{ fontSize: 12.5, color: "var(--text-400)", marginBottom: 14 }}>Đang kiểm tra phiếu vi phạm liên kết...</div>}
+        {info && (
+          <>
+            {cases.length > 0 ? (
+              <>
+                <p style={{ fontSize: 13, color: "#D6362F", lineHeight: 1.6, marginBottom: 8 }}>
+                  Khi cập nhật, {cases.length === 1 ? "phiếu thông tin vi phạm" : `${cases.length} phiếu thông tin vi phạm`} đã ghi nhận
+                  trước đó cho task này sẽ bị <strong>XÓA</strong> (không thể hoàn tác):
+                </p>
+                <ul style={{ fontSize: 12.5, margin: "0 0 14px 18px", color: "var(--text-900)", lineHeight: 1.7 }}>
+                  {cases.map((c) => (
+                    <li key={c.id}>
+                      Phiếu <strong>{c.ma_phieu}</strong> — {[c.ma_shop, c.ten_shop].filter(Boolean).join(" - ") || "(không có shop)"}
+                      {c.nhan_vien_vi_pham ? ` · NV: ${c.nhan_vien_vi_pham}` : ""}
+                      {c.gia_tri_vi_pham !== null && c.gia_tri_vi_pham !== undefined ? ` · Giá trị: ${Math.round(c.gia_tri_vi_pham).toLocaleString("vi-VN")}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p style={{ fontSize: 13, color: "var(--text-600)", lineHeight: 1.6, marginBottom: 14 }}>
+                {job.ma_phieu
+                  ? "Task này chưa có phiếu vi phạm nào liên kết (không có phiếu nào bị xóa)."
+                  : "Task này đăng trước khi có Mã phiếu nên hệ thống không liên kết được với phiếu vi phạm nào (không có phiếu nào bị xóa) — nếu đã ghi nhận case cho task này, anh/chị tự vào Ghi nhận case vi phạm Ver2 xóa tay."}
+              </p>
+            )}
+          </>
+        )}
+        {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14 }}>{error}</div>}
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            type="button" disabled={saving || !info} onClick={handleConfirm}
+            className="login-btn" style={{ width: "auto", padding: "9px 22px", background: "#D6362F" }}
+          >
+            {saving ? "Đang cập nhật..." : cases.length > 0 ? "Xóa phiếu & cập nhật" : "Cập nhật"}
+          </button>
+          <button type="button" onClick={onCancel} style={{ ...deleteBtnStyle, padding: "9px 18px" }}>Hủy</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CompleteJobModal({ job, onDone, onCancel }) {
   const router = useRouter();
   const [ketQua, setKetQua] = useState("Không vi phạm");
@@ -784,6 +863,8 @@ export default function TheoDoiChuDeV2Page() {
   const [editingJob, setEditingJob] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [completingJob, setCompletingJob] = useState(null);
+  const [adjustingJob, setAdjustingJob] = useState(null);
+  const router = useRouter();
   const [claimingJob, setClaimingJob] = useState(null);
   const [addingSupportersJob, setAddingSupportersJob] = useState(null);
   // Mặc định tháng hiện tại (chốt 06/09) — dùng CHUNG 1 bộ lọc thang cho cả
@@ -972,6 +1053,28 @@ export default function TheoDoiChuDeV2Page() {
     } finally {
       setBusyId(null);
     }
+  }
+
+  // Chốt 14/10 — Không vi phạm -> Có vi phạm (admin): sang Ghi nhận case vi phạm Ver2,
+  // điền sẵn thông tin task (cùng luồng "Có vi phạm" ở popup Đánh dấu hoàn tất); kết quả
+  // task chỉ đổi thành "Có vi phạm" SAU KHI lưu case xong (bỏ dở giữa chừng thì giữ nguyên).
+  function handleAdjustToCoViPham(job) {
+    const params = new URLSearchParams({
+      jobId: String(job.id),
+      chu_de_vi_pham: job.ten_chu_de || "",
+      loai_vi_pham: job.loai_vi_pham || "",
+      ma_shop: job.ma_shop || "",
+      ten_shop: job.ten_shop || "",
+      vung: job.vung || "",
+      nhan_vien_vi_pham: job.nhan_vien_phu_trach || "",
+      ma_phieu: job.ma_phieu || "",
+    });
+    router.push(`/ghi-nhan-case-v2?${params.toString()}`);
+  }
+
+  function afterAdjust() {
+    setAdjustingJob(null);
+    load();
   }
 
   function afterComplete() {
@@ -1176,6 +1279,16 @@ export default function TheoDoiChuDeV2Page() {
                               ➕ Thêm người hỗ trợ
                             </button>
                           )}
+                          {ADMIN_ROLES.includes(me?.role) && job.trang_thai === "Hoàn tất" && job.ket_qua_vi_pham === "Có vi phạm" && (
+                            <button className="fbtn" onClick={() => setAdjustingJob(job)}>
+                              🔁 Đổi thành Không vi phạm
+                            </button>
+                          )}
+                          {ADMIN_ROLES.includes(me?.role) && job.trang_thai === "Hoàn tất" && job.ket_qua_vi_pham === "Không vi phạm" && (
+                            <button className="fbtn" onClick={() => handleAdjustToCoViPham(job)}>
+                              🔁 Đổi thành Có vi phạm
+                            </button>
+                          )}
                           {canUnclaim && (
                             <button className="fbtn" disabled={busy} onClick={() => handleUnclaim(job)}>
                               {busy ? "Đang trả..." : "↩️ Trả lại (chờ nhận)"}
@@ -1208,6 +1321,9 @@ export default function TheoDoiChuDeV2Page() {
       )}
       {completingJob && (
         <CompleteJobModal job={completingJob} onDone={afterComplete} onCancel={() => setCompletingJob(null)} />
+      )}
+      {adjustingJob && (
+        <AdjustToKoViPhamModal job={adjustingJob} onDone={afterAdjust} onCancel={() => setAdjustingJob(null)} />
       )}
       {topicPickerOpen && (
         <TopicPickerModal
