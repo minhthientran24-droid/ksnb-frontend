@@ -28,6 +28,19 @@ function InfoItem({ label, children }) {
   );
 }
 
+// Danh sách nhân viên hiển thị theo cặp "Tên - email", mỗi người 1 dòng
+// (không có email thì chỉ hiện tên).
+function TenEmailList({ items }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      {items.map((p, i) => (
+        <div key={`${p.ten}-${i}`}>{p.email ? `${p.ten} - ${p.email}` : p.ten}</div>
+      ))}
+    </div>
+  );
+}
+
 export default function TraCuuThongTinPage() {
   const [checked, setChecked] = useState(false);
   const [input, setInput] = useState("");
@@ -111,15 +124,9 @@ export default function TraCuuThongTinPage() {
                 <InfoItem label="Email ASM">{result.email_asm}</InfoItem>
                 <InfoItem label={result.quan_ly_chuc_danh && result.quan_ly_chuc_danh !== "Trưởng Quản lý Nhà Thuốc" && result.quan_ly_chuc_danh !== "Bác sĩ trưởng"
                   ? `Quản lý (${result.quan_ly_chuc_danh})` : "Quản lý"}>
-                  {(result.quan_ly || []).length > 0 && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                      {result.quan_ly.map((q, i) => (
-                        <div key={`${q.ten}-${i}`}>{q.email ? `${q.ten} - ${q.email}` : q.ten}</div>
-                      ))}
-                    </div>
-                  )}
+                  <TenEmailList items={result.quan_ly} />
                 </InfoItem>
-                <InfoItem label="Trưởng ca">{(result.truong_ca || []).join(", ")}</InfoItem>
+                <InfoItem label="Trưởng ca"><TenEmailList items={result.truong_ca} /></InfoItem>
                 <InfoItem label="Tỉnh thành">{result.tinh_thanh}</InfoItem>
                 <InfoItem label="Ngày mở bán">{result.ngay_mo_ban ? fmtDate(result.ngay_mo_ban) : ""}</InfoItem>
                 <InfoItem label="Ngày kiểm kê gần nhất">
