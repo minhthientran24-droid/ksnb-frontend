@@ -642,7 +642,9 @@ function DanhSachShopUploadBar() {
         : "";
       setMsg({
         ok: true,
-        text: `✅ Đã xử lý ${r.total_rows} dòng — thêm mới ${r.shop_added} shop, cập nhật kết quả kiểm gần nhất cho ${r.report_rows_updated} shop. File trạng thái trên server đã được ghi lại.${errText}`,
+        text: `✅ Đã xử lý ${r.total_rows} dòng — thêm mới ${r.shop_added} shop.` +
+          (r.shop_existing_skipped ? ` Bỏ qua ${r.shop_existing_skipped} shop ĐÃ CÓ trong hệ thống (không thay đổi gì).` : "") +
+          ` File trạng thái trên server đã được ghi lại.${errText}`,
       });
       if (r.error_file_base64) {
         setErrorFile({ base64: r.error_file_base64, filename: r.error_filename, count: r.error_rows_count });
@@ -678,7 +680,7 @@ function DanhSachShopUploadBar() {
         </label>
         <a className="fbtn" href={llv2DownloadDanhSachUrl()} target="_blank" rel="noreferrer">⬇️ Tải file trạng thái hiện tại</a>
         <span style={{ fontSize: 12, color: "var(--text-600)" }}>
-          Upload lại cùng file mẫu (cột Mã Shop, Tên Shop, Vùng...) để thêm shop mới hoặc cập nhật kết quả kiểm gần nhất — không ảnh hưởng lịch đang chia.
+          Chỉ THÊM SHOP MỚI (cộng dồn): dòng nào có Mã Shop đã có trong hệ thống sẽ bị bỏ qua hoàn toàn, không đổi gì shop cũ hay lịch đang chia.
         </span>
         {msg && <div style={{ width: "100%", fontSize: 12.5, color: msg.ok ? "#3E7A2A" : "var(--danger)" }}>{msg.text}</div>}
         {errorFile && (
