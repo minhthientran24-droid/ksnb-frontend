@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
-import { getHomepageContent, updateHomepageContent, getUser, getDangKiem } from "../lib/api";
+import { getHomepageContent, updateHomepageContent, getUser, getDangKiem, getChuDeV2StaffOverview } from "../lib/api";
+import StaffAlertModal, { hasStaffAlertContent } from "../components/StaffAlertModal";
 import { useAllowedKeys } from "../lib/permissions";
 
 // Số ngày kiểm = Hôm nay - Ngày kiểm, trừ các ngày Chủ nhật rơi vào khoảng
@@ -116,10 +117,29 @@ export default function HomePage() {
   const [saving, setSaving] = useState(false);
   const isAdmin = ["admin", "super_admin"].includes(getUser()?.role);
   const { can } = useAllowedKeys();
+  // Chuỗi popup sau đăng nhập (chốt 15/10): (1) Cảnh báo phân việc Ver2 trước — admin xem FULL, user
+  // khác chỉ thấy của chính mình (nếu có) — (2) sau khi đóng/không có thì mới tới cảnh báo thời hạn
+  // kiểm kê (trễ hạn) bên dưới. phanViecDone = đã xong bước (1) (đóng, hoặc không có gì để hiện).
+  const [phanViec, setPhanViec] = useState(null);
+  const [phanViecDone, setPhanViecDone] = useState(false);
   const [treHanShops, setTreHanShops] = useState(null); // null = chưa xong/không hiện; [] hoặc mảng = đã kiểm tra xong
 
   useEffect(() => {
     getHomepageContent().then(setContent).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const user = getUser();
+    if (!user) { setPhanViecDone(true); return; }
+    const flagKey = `ksnb_phan_viec_checked_${user.id}`;
+    if (typeof window !== "undefined" && window.sessionStorage.getItem(flagKey)) { setPhanViecDone(true); return; }
+    getChuDeV2StaffOverview()
+      .then((d) => {
+        if (typeof window !== "undefined") window.sessionStorage.setItem(flagKey, "1");
+        if (hasStaffAlertContent(d)) setPhanViec(d);
+        else setPhanViecDone(true);
+      })
+      .catch(() => setPhanViecDone(true));
   }, []);
 
   // Popup cảnh báo shop sắp/đã trễ hạn (chốt 08/09) — chỉ kiểm tra + hiện
@@ -250,7 +270,11 @@ export default function HomePage() {
         </div>
       )}
 
-      {treHanShops && treHanShops.length > 0 && (
+      {phanViec && (
+        <StaffAlertModal data={phanViec} onClose={() => { setPhanViec(null); setPhanViecDone(true); }} />
+      )}
+
+      {phanViecDone && treHanShops && treHanShops.length > 0 && (
         <TreHanModal
           shops={treHanShops}
           onTat={() => setTreHanShops([])}

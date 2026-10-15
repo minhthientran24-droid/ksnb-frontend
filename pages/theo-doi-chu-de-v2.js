@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
+import StaffAlertModal, { hasStaffAlertContent } from "../components/StaffAlertModal";
 import Layout from "../components/Layout";
 import {
   getUser, listChuDeJobsV2, createChuDeJobV2, updateChuDeJobV2, deleteChuDeJobV2,
@@ -298,105 +299,6 @@ function AddSupportersModal({ job, onDone, onCancel }) {
 // ghi-nhan-case-v2.js — đọc query "jobId"). Chọn "Không vi phạm" thì hoàn
 // tất ngay tại đây như cũ. NGOẠI LỆ thứ 2 (sau combo box Tên chủ đề) hai
 // menu Ver2 này chủ động liên kết với nhau, theo đúng yêu cầu. ----------
-// ---------- Popup cảnh báo phân việc (chốt 15/10) — CHỈ admin/super_admin thấy, hiện mỗi lần vào menu.
-// (1) NV có Quyền Kiểm Kê chưa nhận task nào, (2) NV nhận task quá 5 ngày chưa hoàn tất. ----------
-function groupByVung(list) {
-  const groups = [];
-  for (const item of list) {
-    const label = item.khu_vuc || "Chưa khai báo vùng";
-    let g = groups.find((x) => x.label === label);
-    if (!g) { g = { label, items: [] }; groups.push(g); }
-    g.items.push(item);
-  }
-  return groups;
-}
-
-function fmtNgayVn(iso) {
-  if (!iso) return "";
-  const [y, m, d] = String(iso).split("-");
-  return y && m && d ? `${d}/${m}/${y}` : iso;
-}
-
-// Popup cảnh báo phân việc — rộng, chia cột theo vùng (HCM | HNI) cho cân đối.
-function StaffAlertModal({ data, onClose }) {
-  const idleGroups = groupByVung(data.chua_nhan_task || []);
-  const overdueGroups = groupByVung(data.nhan_task_qua_han || []);
-  const cols = (n) => ({ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, Math.min(n, 2))}, minmax(0, 1fr))`, gap: 18, alignItems: "start" });
-  const regionHead = (label, n, color) => (
-    <div style={{ fontSize: 12.5, fontWeight: 700, color, marginBottom: 7, paddingBottom: 4, borderBottom: `2px solid ${color}` }}>{label} ({n})</div>
-  );
-  const nIdle = (data.chua_nhan_task || []).length;
-  const nOver = (data.nhan_task_qua_han || []).length;
-  return (
-    <div style={overlayStyle} onClick={onClose}>
-      <div style={{ ...modalStyle, width: 1320, maxWidth: "94vw", maxHeight: "88vh", overflowY: "auto", border: "2px solid #E8A33D" }} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ marginBottom: 16, color: "#B26A00" }}>📣 Cảnh báo phân việc — Theo dõi chủ đề Ver2</h3>
-
-        <div style={{ marginBottom: 22 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--navy-900)", marginBottom: 10 }}>
-            ⏳ Nhân viên đang KHÔNG nhận xử lý task nào ({nIdle}/{data.tong_nhan_vien_co_quyen})
-          </div>
-          {nIdle === 0 ? (
-            <div style={{ fontSize: 12.5, color: "var(--text-400)" }}>Tất cả nhân viên có Quyền Kiểm Kê đều đang có task.</div>
-          ) : (
-            <div style={cols(idleGroups.length)}>
-              {idleGroups.map((g) => (
-                <div key={g.label}>
-                  {regionHead(g.label, g.items.length, "#8A4B00")}
-                  {g.items.map((u) => (
-                    <div key={u.user_id} style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline", background: "#FFF8EF", border: "1px solid #F3D9AE", borderRadius: 8, padding: "7px 11px", marginBottom: 6, fontSize: 12.5 }}>
-                      <strong style={{ color: "#6B3A00" }}>{u.full_name}</strong>
-                      <span style={{ color: "var(--text-600)", textAlign: "right", whiteSpace: "nowrap" }}>
-                        {u.ngay_xu_ly_cuoi
-                          ? <>Xử lý gần nhất: <strong>{fmtNgayVn(u.ngay_xu_ly_cuoi)}</strong>{u.so_ngay_chua_xu_ly != null ? ` (${u.so_ngay_chua_xu_ly} ngày trước)` : ""}</>
-                          : "Chưa từng xử lý task"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div style={{ marginBottom: 22 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--navy-900)", marginBottom: 10 }}>
-            ⚠️ Nhân viên có task nhận quá {data.so_ngay_nguong} ngày chưa hoàn tất ({nOver})
-          </div>
-          {nOver === 0 ? (
-            <div style={{ fontSize: 12.5, color: "var(--text-400)" }}>Không có task nào nhận quá {data.so_ngay_nguong} ngày.</div>
-          ) : (
-            <div style={cols(overdueGroups.length)}>
-              {overdueGroups.map((g) => (
-                <div key={g.label}>
-                  {regionHead(g.label, g.items.length, "#B3261E")}
-                  {g.items.map((u) => (
-                    <div key={u.user_id} style={{ border: "1px solid #F0C4C0", background: "#FDF4F3", borderRadius: 8, padding: "9px 12px", marginBottom: 8 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#B3261E" }}>{u.full_name} — {u.tasks.length} task</div>
-                      <ul style={{ margin: "5px 0 0 18px", padding: 0, fontSize: 12.5, color: "var(--text-900)", lineHeight: 1.6 }}>
-                        {u.tasks.map((t) => (
-                          <li key={t.id}>
-                            {t.ma_phieu ? <strong>{t.ma_phieu} · </strong> : null}
-                            {t.ten_chu_de}
-                            {(t.ma_shop || t.ten_shop) ? ` · ${[t.ma_shop, t.ten_shop].filter(Boolean).join(" - ")}` : ""}
-                            {" — "}<strong style={{ color: "#B3261E" }}>{t.so_ngay} ngày</strong>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <button type="button" className="login-btn" style={{ width: "auto", padding: "9px 26px" }} onClick={onClose}>Đóng</button>
-      </div>
-    </div>
-  );
-}
-
 // ---------- Popup xác nhận đổi "Có vi phạm" -> "Không vi phạm" (chốt 14/10) — chỉ admin.
 // Liệt kê các phiếu vi phạm (Ghi nhận case Ver2) liên kết với task qua Mã phiếu sẽ bị
 // XOÁ, bấm "Xóa phiếu & cập nhật" mới thật sự đổi. ----------
@@ -1024,7 +926,7 @@ export default function TheoDoiChuDeV2Page() {
     if (!checked || !me || !ADMIN_ROLES.includes(me.role)) return;
     getChuDeV2StaffOverview()
       .then((d) => {
-        if ((d.chua_nhan_task || []).length > 0 || (d.nhan_task_qua_han || []).length > 0) setStaffAlert(d);
+        if (hasStaffAlertContent(d)) setStaffAlert(d);
       })
       .catch(() => {});
   }, [checked, me?.id]);
