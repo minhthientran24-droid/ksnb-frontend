@@ -143,7 +143,7 @@ export default function TraCuuThongTinPage() {
             <div className="card-head">
               <h3>3 kỳ kiểm kê gần nhất</h3>
               <span className="note">
-                Giá trị thất thoát = Kiểm kê Non CL + Cắt liều (Long Châu) hoặc VX + VTYT + VPKM (Vaccine)
+                Giá trị thất thoát = Ước tính truy thu của kỳ (đúng cột "Ước tính truy thu" ở Theo dõi kiểm kê)
               </span>
             </div>
             <div className="card-body" style={{ overflowX: "auto" }}>
