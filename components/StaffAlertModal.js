@@ -85,7 +85,7 @@ export default function StaffAlertModal({ data, onClose }) {
                         <span style={{ color: "var(--text-600)", textAlign: "right", whiteSpace: "nowrap" }}>
                           {u.ngay_xu_ly_cuoi
                             ? <>Xử lý gần nhất: <strong>{fmtNgayVn(u.ngay_xu_ly_cuoi)}{u.ngay_hoan_tat_cuoi ? ` - ${fmtNgayVn(u.ngay_hoan_tat_cuoi)}` : ""}</strong>{u.so_ngay_chua_xu_ly != null ? ` (${u.so_ngay_chua_xu_ly} ngày trước)` : ""}</>
-                            : "Chưa từng xử lý task"}
+                            : "Hiện không xử lý task"}
                         </span>
                       </div>
                     ))}
