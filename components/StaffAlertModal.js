@@ -1,4 +1,4 @@
-// Popup "Cảnh báo phân việc — Theo dõi chủ đề Ver2" (chốt 15/10) — dùng chung cho:
+// Popup "Cảnh Báo Xử lý Task Theo dõi chủ đề" (chốt 15/10; trước đó tên "Cảnh báo phân việc — Theo dõi chủ đề Ver2") — dùng chung cho:
 //  - trang Theo dõi chủ đề Ver2 (admin/super_admin xem FULL mỗi lần vào menu),
 //  - trang chủ ngay sau khi đăng nhập (admin xem FULL; user khác chỉ thấy thông tin CỦA CHÍNH MÌNH,
 //    nếu có — backend trả sẵn data đã lọc theo quyền, che_do = "admin" | "ca_nhan").
@@ -55,7 +55,7 @@ export default function StaffAlertModal({ data, onClose }) {
         onClick={(e) => e.stopPropagation()}
       >
         <h3 style={{ marginBottom: 16, color: "#B26A00" }}>
-          {caNhan ? "📣 Cảnh báo phân việc — Thông tin của bạn" : "📣 Cảnh báo phân việc — Theo dõi chủ đề Ver2"}
+          {caNhan ? "📣 Cảnh Báo Xử lý Task Theo dõi chủ đề — Thông tin của bạn" : "📣 Cảnh Báo Xử lý Task Theo dõi chủ đề"}
         </h3>
 
         {(!caNhan || nIdle > 0) && (
