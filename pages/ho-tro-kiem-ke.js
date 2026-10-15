@@ -58,6 +58,8 @@ export default function HoTroKiemKePage() {
   // Chốt 09/10 — popup riêng khi data Xuất Khác - Nhập Khác thiếu mã kho con
   // 010/030 (xem backend tong_hop_bcks.py::_kiem_tra_du_kho_con).
   const [khoConErrorPopup, setKhoConErrorPopup] = useState("");
+  // Chốt 15/10 — tick: shop thật sự không có hàng cắt liều/thường -> bỏ qua cảnh báo thiếu kho con.
+  const [boQuaKhoCon, setBoQuaKhoCon] = useState(false);
   const xknkFileInputRef = useRef(null);
   const tlKetQuaFileInputRef = useRef(null);
 
@@ -184,7 +186,7 @@ export default function HoTroKiemKePage() {
     setTongHopResult(null);
     setTongHopError("");
     try {
-      const { blob, soDong, soDongThieuGia, soDongGoc, soDongCatLieu, soDongThanhLy, tenFile } = await tongHopBcksFromXknk(xknkFile, tlKetQuaFile);
+      const { blob, soDong, soDongThieuGia, soDongGoc, soDongCatLieu, soDongThanhLy, tenFile } = await tongHopBcksFromXknk(xknkFile, tlKetQuaFile, boQuaKhoCon);
       setTongHopResult({
         filename: `${tenFile || `BaoCaoKiemSoatSauKiemKe_${xknkFile.name.replace(/\.[^.]+$/, "")}`}.xlsx`,
         blob,
@@ -394,7 +396,7 @@ export default function HoTroKiemKePage() {
                   type="file"
                   accept=".xlsx,.xls,.csv"
                   style={{ display: "none" }}
-                  onChange={(e) => setXknkFile(e.target.files?.[0] || null)}
+                  onChange={(e) => { setXknkFile(e.target.files?.[0] || null); setBoQuaKhoCon(false); }}
                 />
                 <button className="upload-btn" onClick={() => xknkFileInputRef.current?.click()}>
                   {xknkFile ? "Đổi file khác" : "📤 Tải lên báo cáo Xuất Khác - Nhập Khác"}
@@ -424,13 +426,24 @@ export default function HoTroKiemKePage() {
               </div>
             </div>
 
-            <button
-              onClick={handleTongHopProcess}
-              disabled={tongHopProcessing || !xknkFile}
-              style={actionBtnStyle}
-            >
-              {tongHopProcessing ? "Đang xử lý..." : "🚀 Bắt đầu xử lý Báo Cáo"}
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
+              <button
+                onClick={handleTongHopProcess}
+                disabled={tongHopProcessing || !xknkFile}
+                style={actionBtnStyle}
+              >
+                {tongHopProcessing ? "Đang xử lý..." : "🚀 Bắt đầu xử lý Báo Cáo"}
+              </button>
+              <label style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, color: "var(--text-900)", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={boQuaKhoCon}
+                  disabled={tongHopProcessing}
+                  onChange={(e) => setBoQuaKhoCon(e.target.checked)}
+                />
+                Shop không có hàng cắt liều — bỏ qua cảnh báo thiếu kho con (010/030)
+              </label>
+            </div>
 
             {tongHopProcessing && (
               <div style={{ marginTop: 14, fontSize: 12.5, color: "var(--text-600)", display: "flex", alignItems: "center", gap: 8 }}>
