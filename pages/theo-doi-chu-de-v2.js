@@ -329,7 +329,7 @@ function StaffAlertModal({ data, onClose }) {
   const nOver = (data.nhan_task_qua_han || []).length;
   return (
     <div style={overlayStyle} onClick={onClose}>
-      <div style={{ ...modalStyle, width: 880, maxWidth: "94vw", maxHeight: "88vh", overflowY: "auto", border: "2px solid #E8A33D" }} onClick={(e) => e.stopPropagation()}>
+      <div style={{ ...modalStyle, width: 1320, maxWidth: "94vw", maxHeight: "88vh", overflowY: "auto", border: "2px solid #E8A33D" }} onClick={(e) => e.stopPropagation()}>
         <h3 style={{ marginBottom: 16, color: "#B26A00" }}>📣 Cảnh báo phân việc — Theo dõi chủ đề Ver2</h3>
 
         <div style={{ marginBottom: 22 }}>
