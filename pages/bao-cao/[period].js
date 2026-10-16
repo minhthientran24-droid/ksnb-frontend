@@ -820,7 +820,7 @@ export default function BaoCaoDetailPage() {
                   <BlockRenderer blocks={cd.blocks} />
                 ) : (
                   <div className="placeholder-box">
-                    Chưa có case nào được ghi nhận cho kỳ này. Vào mục &quot;Ghi nhận case vi phạm&quot; để thêm,
+                    Chưa có case nào được ghi nhận cho kỳ này. Vào mục &quot;Ghi nhận case vi phạm Ver1&quot; để thêm,
                     rồi bấm &quot;Sinh báo cáo từ case đã ghi&quot;.
                   </div>
                 )

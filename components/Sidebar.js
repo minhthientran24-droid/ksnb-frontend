@@ -16,7 +16,6 @@ const NAV_ITEMS = [
   // (không hideForRoles, menu_permissions mặc định cho phép mọi role).
   { href: "/tra-cuu-thong-tin", icon: "🔎", label: "Tra cứu thông tin" },
   { href: "/theo-doi-kiem-ke", icon: "▦", label: "Theo dõi kiểm kê" },
-  { href: "/theo-doi-chu-de", icon: "☰", label: "Theo dõi chủ đề" },
   // Chốt 23/09 — dời từ ADMIN_ITEMS lên đây (đứng ngay sau bản gốc "Theo
   // dõi chủ đề" cho dễ tìm) vì anh Thiện đã mở quyền dùng cho editor/
   // editor_base/viewer qua menu_permissions — không còn là menu riêng
@@ -26,7 +25,6 @@ const NAV_ITEMS = [
   { href: "/theo-doi-chu-de-v2", icon: "🧪", label: "Theo dõi chủ đề Ver2" },
   { href: "/theo-doi-xknk", icon: "📦", label: "Theo dõi XK-NK" },
   { href: "/de-xuat-kiem-ke", icon: "📮", label: "Đề xuất kiểm kê", hideForRoles: ["editor_base", "viewer"] },
-  { href: "/ghi-nhan-case", icon: "📝", label: "Ghi nhận case vi phạm" },
   // Chốt 23/09 — cùng lý do dời lên như "Theo dõi chủ đề Ver2" ở trên.
   { href: "/ghi-nhan-case-v2", icon: "🧪", label: "Ghi nhận case vi phạm Ver2" },
   { href: "/nhan-su", icon: "🧑‍💼", label: "Giới thiệu nhân sự KSNB" },
@@ -42,6 +40,12 @@ const ADMIN_ITEMS = [
   { href: "/tai-len-du-lieu", icon: "⬆️", label: "Tải lên dữ liệu", hideForRoles: ["editor", "editor_base", "viewer"] },
   { href: "/quan-ly-tai-khoan", icon: "🔑", label: "Quản lý tài khoản", hideForRoles: ["editor", "editor_base", "viewer"] },
   { href: "/nhat-ky-hoat-dong", icon: "📊", label: "Nhật ký hoạt động", hideForRoles: ["editor", "editor_base", "viewer"] },
+];
+// Chốt 16/10 — 2 menu bản cũ (Ver1) dời xuống CUỐI CÙNG của sidebar, chỉ admin/super_admin thấy
+// (hideForRoles khi chưa tải xong phân quyền; sau đó theo menu_permissions: editor/editor_base/viewer = false).
+const LEGACY_ITEMS = [
+  { href: "/theo-doi-chu-de", icon: "☰", label: "Theo dõi chủ đề Ver1", hideForRoles: ["editor", "editor_base", "viewer"] },
+  { href: "/ghi-nhan-case", icon: "📝", label: "Ghi nhận case vi phạm Ver1", hideForRoles: ["editor", "editor_base", "viewer"] },
 ];
 const STORAGE_KEY = "ksnb_sidebar_collapsed";
 
@@ -123,6 +127,7 @@ export default function Sidebar() {
 
   const visibleNavItems = NAV_ITEMS.filter(isVisible);
   const visibleAdminItems = ADMIN_ITEMS.filter(isVisible);
+  const visibleLegacyItems = LEGACY_ITEMS.filter(isVisible);
 
   return (
     <>
@@ -147,6 +152,13 @@ export default function Sidebar() {
             <>
               <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "10px 14px" }} />
               {visibleAdminItems.map(renderItem)}
+            </>
+          )}
+
+          {visibleLegacyItems.length > 0 && (
+            <>
+              <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "10px 14px" }} />
+              {visibleLegacyItems.map(renderItem)}
             </>
           )}
         </nav>

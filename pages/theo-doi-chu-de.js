@@ -257,7 +257,7 @@ function AddSupportersModal({ job, onDone, onCancel }) {
 
 // ---------- Popup: đánh dấu Hoàn tất — chọn kết quả + upload file kết quả ----------
 // Chọn "Có vi phạm" (chốt 02/09): KHÔNG hoàn tất job ngay tại đây nữa — thay
-// vào đó chuyển thẳng sang "Ghi nhận case vi phạm" (điền sẵn Chủ đề/Đối
+// vào đó chuyển thẳng sang "Ghi nhận case vi phạm Ver1" (điền sẵn Chủ đề/Đối
 // tượng/Vùng theo đúng job), bắt buộc nhập đủ thông tin case rồi Lưu; job
 // bên này sẽ TỰ ĐỘNG được đánh dấu Hoàn tất + Có vi phạm ngay sau khi lưu
 // case xong (xem ghi-nhan-case.js — đọc query "jobId"), tránh trường hợp
@@ -320,7 +320,7 @@ function CompleteJobModal({ job, onDone, onCancel }) {
 
           {ketQua === "Có vi phạm" ? (
             <div style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 16 }}>
-              Đang chuyển sang "Ghi nhận case vi phạm"...
+              Đang chuyển sang "Ghi nhận case vi phạm Ver1"...
             </div>
           ) : (
             <>
@@ -787,7 +787,7 @@ export default function TheoDoiChuDePage() {
   async function handleAdjustToKoViPham(job) {
     if (!confirm(
       `Đổi kết quả task "${job.ten_chu_de}" từ "Có vi phạm" thành "Không vi phạm"?\n\n` +
-      `⚠️ Hệ thống KHÔNG tự xóa case đã ghi nhận cho task này bên menu "Ghi nhận case vi phạm" — ` +
+      `⚠️ Hệ thống KHÔNG tự xóa case đã ghi nhận cho task này bên menu "Ghi nhận case vi phạm Ver1" — ` +
       `anh/chị cần tự vào đó xóa case tương ứng, tránh còn sót case của 1 task đã đổi lại "Không vi phạm".`
     )) return;
     setBusyId(job.id);
@@ -849,9 +849,9 @@ export default function TheoDoiChuDePage() {
   }
 
   return (
-    <Layout crumb="Theo dõi chủ đề">
+    <Layout crumb="Theo dõi chủ đề Ver1">
       <div className="page-head">
-        <h1>Theo dõi chủ đề</h1>
+        <h1>Theo dõi chủ đề Ver1</h1>
         {!canUpload && (
           <p>Bấm "Nhận Task" để nhận xử lý — task có file data check sẽ hiện nút tải về.</p>
         )}

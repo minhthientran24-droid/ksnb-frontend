@@ -65,7 +65,7 @@ export default function GhiNhanCasePage() {
   const canCreate = ["editor", "editor_base", "admin", "super_admin"].includes(me?.role);
   const { can } = useAllowedKeys();
 
-  // Sang từ popup "Cập nhật kết quả xử lý" bên Theo dõi chủ đề khi chọn "Có
+  // Sang từ popup "Cập nhật kết quả xử lý" bên Theo dõi chủ đề Ver1 khi chọn "Có
   // vi phạm" (chốt 02/09, xem CompleteJobModal trong theo-doi-chu-de.js) —
   // điền sẵn Chủ đề/Đối tượng/Vùng theo đúng job, bắt buộc nhập đủ case rồi
   // Lưu; job đó sẽ TỰ ĐỘNG được đánh dấu Hoàn tất + Có vi phạm ngay sau đó.
@@ -110,7 +110,7 @@ export default function GhiNhanCasePage() {
           setLinkedJobDone(true);
         } catch (err) {
           alert(
-            "Đã ghi nhận case thành công, nhưng đánh dấu Hoàn tất task bên Theo dõi chủ đề bị lỗi: " +
+            "Đã ghi nhận case thành công, nhưng đánh dấu Hoàn tất task bên Theo dõi chủ đề Ver1 bị lỗi: " +
             (err.message || "không rõ nguyên nhân") + " — anh vào Theo dõi chủ đề đánh dấu tay giúp em."
           );
         } finally {
@@ -172,9 +172,9 @@ export default function GhiNhanCasePage() {
   }
 
   return (
-    <Layout crumb="Ghi nhận case vi phạm">
+    <Layout crumb="Ghi nhận case vi phạm Ver1">
       <div className="page-head">
-        <h1>Ghi nhận case vi phạm</h1>
+        <h1>Ghi nhận case vi phạm Ver1</h1>
         <p>
           Không có biểu mẫu cố định — ghi nhận từng case theo diễn biến thực tế trong tháng.
           Cuối tháng, các case này sẽ được gom lại thành báo cáo kiểm soát theo chủ đề.
@@ -183,19 +183,19 @@ export default function GhiNhanCasePage() {
 
       {linkedJobId && canCreate && (
         <div className="placeholder-box" style={{ borderColor: "var(--orange)", color: "var(--orange)", marginBottom: 16 }}>
-          🔗 Đang ghi nhận case cho task "Có vi phạm" bên Theo dõi chủ đề — điền đủ thông tin bên dưới rồi bấm
+          🔗 Đang ghi nhận case cho task "Có vi phạm" bên Theo dõi chủ đề Ver1 — điền đủ thông tin bên dưới rồi bấm
           "+ Ghi nhận case" là task đó sẽ tự động được đánh dấu <strong>Hoàn tất</strong>.
         </div>
       )}
       {linkedJobId && !canCreate && (
         <div className="placeholder-box" style={{ borderColor: "var(--danger)", color: "var(--danger)", marginBottom: 16 }}>
-          ⚠️ Tài khoản của anh (Viewer) không có quyền ghi nhận case — task bên Theo dõi chủ đề vẫn đang ở "Đang xử lý",
+          ⚠️ Tài khoản của anh (Viewer) không có quyền ghi nhận case — task bên Theo dõi chủ đề Ver1 vẫn đang ở "Đang xử lý",
           chưa được đánh dấu Hoàn tất. Nhờ Editor/Admin ghi nhận case cho task này giúp.
         </div>
       )}
       {linkedJobDone && (
         <div className="placeholder-box" style={{ borderColor: "#4C9A2A", color: "#4C9A2A", marginBottom: 16 }}>
-          ✅ Đã ghi nhận case và đánh dấu Hoàn tất task bên Theo dõi chủ đề.
+          ✅ Đã ghi nhận case và đánh dấu Hoàn tất task bên Theo dõi chủ đề Ver1.
         </div>
       )}
 

@@ -105,7 +105,7 @@ const QUICK_LINKS = [
   { href: "/ho-tro-kiem-ke", icon: "🧰", label: "Hỗ trợ kiểm kê" },
   { href: "/gui-mail-bcks", icon: "📧", label: "Gửi mail BCKS" },
   { href: "/theo-doi-kiem-ke", icon: "▦", label: "Theo dõi kiểm kê" },
-  { href: "/theo-doi-chu-de", icon: "☰", label: "Theo dõi chủ đề" },
+  { href: "/theo-doi-chu-de", icon: "☰", label: "Theo dõi chủ đề Ver1" },
   { href: "/lich-nghi", icon: "🏖️", label: "Lịch làm việc & nghỉ phép" },
 ];
 
@@ -224,7 +224,7 @@ export default function HomePage() {
       <div className="card">
         <div className="card-head"><h3>Truy cập nhanh</h3></div>
         <div className="card-body" style={{ padding: "18px 20px", display: "flex", gap: 14, flexWrap: "wrap" }}>
-          {QUICK_LINKS.map((item) => (
+          {QUICK_LINKS.filter((item) => can(item.href)).map((item) => (
             <Link key={item.href} href={item.href}>
               <div className="org-card" style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 18 }}>{item.icon}</span>
