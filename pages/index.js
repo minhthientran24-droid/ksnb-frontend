@@ -105,7 +105,8 @@ const QUICK_LINKS = [
   { href: "/ho-tro-kiem-ke", icon: "🧰", label: "Hỗ trợ kiểm kê" },
   { href: "/gui-mail-bcks", icon: "📧", label: "Gửi mail BCKS" },
   { href: "/theo-doi-kiem-ke", icon: "▦", label: "Theo dõi kiểm kê" },
-  { href: "/theo-doi-chu-de", icon: "☰", label: "Theo dõi chủ đề Ver1" },
+  // Chốt 16/10 — trỏ sang Theo dõi chủ đề Ver2 (Ver1 chỉ còn admin, nằm cuối sidebar).
+  { href: "/theo-doi-chu-de-v2", icon: "🧪", label: "Theo dõi chủ đề Ver2" },
   { href: "/lich-nghi", icon: "🏖️", label: "Lịch làm việc & nghỉ phép" },
 ];
 
