@@ -7,7 +7,7 @@ import {
 } from "../lib/api";
 import { useAllowedKeys } from "../lib/permissions";
 
-const emptyForm = { email: "", full_name: "", position: "", password: "", role: "viewer", kiem_ke_permission: false, khu_vuc: "" };
+const emptyForm = { email: "", full_name: "", position: "", password: "", role: "viewer", kiem_ke_permission: false, khu_vuc: "", ngay_sinh: "" };
 const ADMIN_ROLES = ["admin", "super_admin"];
 const ROLE_LABELS = { super_admin: "Super Admin", admin: "Admin", editor: "Editor", viewer: "Viewer" };
 const KHU_VUC_OPTIONS = ["VP HCM", "VP HNI"];
@@ -72,7 +72,7 @@ export default function QuanLyTaiKhoanPage() {
     setSaving(true);
     setSaveError("");
     try {
-      await createUserAccount(form);
+      await createUserAccount({ ...form, ngay_sinh: form.ngay_sinh || null });
       setForm(emptyForm);
       setShowForm(false);
       load();
@@ -105,6 +105,16 @@ export default function QuanLyTaiKhoanPage() {
     if (value === (u.position || "")) return;
     try {
       await updateUserAccount(u.id, { position: value });
+      load();
+    } catch (err) {
+      alert(err.message || "Cập nhật thất bại");
+    }
+  }
+
+  async function handleNgaySinhBlur(u, value) {
+    if (value === (u.ngay_sinh || "")) return;
+    try {
+      await updateUserAccount(u.id, { ngay_sinh: value || null });
       load();
     } catch (err) {
       alert(err.message || "Cập nhật thất bại");
@@ -230,6 +240,8 @@ export default function QuanLyTaiKhoanPage() {
               <input style={inputStyle} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="thientm@fpt.com" /></div>
             <div><label style={labelStyle}>Họ tên *</label>
               <input style={inputStyle} value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} /></div>
+            <div><label style={labelStyle}>Ngày sinh</label>
+              <input style={inputStyle} type="date" value={form.ngay_sinh} onChange={(e) => setForm({ ...form, ngay_sinh: e.target.value })} /></div>
             <div><label style={labelStyle}>Chức danh</label>
               <input style={inputStyle} value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} placeholder="VD: Chuyên viên KSNB" /></div>
             <div><label style={labelStyle}>Mật khẩu tạm thời *</label>
@@ -276,7 +288,7 @@ export default function QuanLyTaiKhoanPage() {
           <table>
             <thead>
               <tr>
-                {["STT", "Email", "Họ tên", "Chức danh", "Khu vực", "Quyền", "Trạng thái", "Quyền Kiểm Kê", ""].map((h) => (
+                {["STT", "Email", "Họ tên", "Ngày sinh", "Chức danh", "Khu vực", "Quyền", "Trạng thái", "Quyền Kiểm Kê", ""].map((h) => (
                   <th key={h} style={{ position: "sticky", top: 0, zIndex: 2, background: "#eaf1fc" }}>{h}</th>
                 ))}
               </tr>
@@ -288,6 +300,15 @@ export default function QuanLyTaiKhoanPage() {
                     <td>{idx + 1}</td>
                     <td>{u.email}</td>
                     <td>{u.full_name}</td>
+                    <td>
+                      <input
+                        type="date"
+                        key={u.ngay_sinh || ""}
+                        defaultValue={u.ngay_sinh || ""}
+                        onBlur={(e) => handleNgaySinhBlur(u, e.target.value)}
+                        style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 12.5 }}
+                      />
+                    </td>
                     <td>
                       <input
                         defaultValue={u.position || ""}
@@ -350,7 +371,7 @@ export default function QuanLyTaiKhoanPage() {
                   </tr>
                   {editingId === u.id && (
                     <tr>
-                      <td colSpan={9} style={{ background: "var(--bg)", padding: "14px 16px" }}>
+                      <td colSpan={10} style={{ background: "var(--bg)", padding: "14px 16px" }}>
                         <div style={{ display: "flex", gap: 14, alignItems: "flex-end", flexWrap: "wrap" }}>
                           <div>
                             <label style={labelStyle}>Họ tên</label>

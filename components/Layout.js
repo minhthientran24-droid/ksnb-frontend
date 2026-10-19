@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Sidebar from "./Sidebar";
+import BirthdayPopup from "./BirthdayPopup";
 import { getToken, getUser, clearSession, getMyAllowedMenusCached } from "../lib/api";
 
 // Rút gọn pathname về đúng menu_key gốc (VD "/bao-cao/2026-08" ->
@@ -112,6 +113,7 @@ export default function Layout({ crumb, children }) {
         </div>
         <div className="content">{children}</div>
       </div>
+      <BirthdayPopup />
     </div>
   );
 }
