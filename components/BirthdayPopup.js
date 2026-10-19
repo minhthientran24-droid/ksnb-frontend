@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { listUpcomingBirthdays } from "../lib/api";
 
-// Popup chúc mừng sinh nhật góc dưới bên phải (rộng ~20% màn hình) — hiện từ
+// Popup chúc mừng sinh nhật góc dưới bên phải (rộng ~14% màn hình) — hiện từ
 // D-2 tới hết ngày D (D = ngày sinh nhật, theo trường "Ngày sinh" ở Quản lý
 // tài khoản), báo cho mọi người TRỪ chính người có sinh nhật. Bấm đóng thì ẩn tới hết ngày hôm đó, sáng hôm sau hiện lại.
 const DISMISS_KEY = "birthday_popup_dismissed";
@@ -76,7 +76,7 @@ export default function BirthdayPopup() {
 
 const wrapStyle = {
   position: "fixed", right: 16, bottom: 16, zIndex: 1000,
-  width: "20vw", minWidth: 260, maxWidth: "calc(100vw - 32px)",
+  width: "14vw", minWidth: 200, maxWidth: "calc(100vw - 32px)",
   maxHeight: "50vh", overflowY: "auto",
   background: "#fff", borderRadius: 12, border: "1px solid var(--border)",
   boxShadow: "0 10px 30px rgba(15, 40, 80, 0.18)",

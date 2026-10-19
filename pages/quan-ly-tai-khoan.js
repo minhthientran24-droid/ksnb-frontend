@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
+import BirthdayInput from "../components/BirthdayInput";
 import {
   listUsers, createUserAccount, updateUserAccount, deleteUserAccount, exportUsersExcel, getUser,
   getMenuPermissionCatalog, saveMenuPermissions,
@@ -111,7 +112,7 @@ export default function QuanLyTaiKhoanPage() {
     }
   }
 
-  async function handleNgaySinhBlur(u, value) {
+  async function handleNgaySinhChange(u, value) {
     if (value === (u.ngay_sinh || "")) return;
     try {
       await updateUserAccount(u.id, { ngay_sinh: value || null });
@@ -241,7 +242,7 @@ export default function QuanLyTaiKhoanPage() {
             <div><label style={labelStyle}>Họ tên *</label>
               <input style={inputStyle} value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} /></div>
             <div><label style={labelStyle}>Ngày sinh</label>
-              <input style={inputStyle} type="date" value={form.ngay_sinh} onChange={(e) => setForm({ ...form, ngay_sinh: e.target.value })} /></div>
+              <BirthdayInput value={form.ngay_sinh} onChange={(v) => setForm({ ...form, ngay_sinh: v })} style={{ flex: 1, padding: "9px 8px", fontSize: 13.5 }} /></div>
             <div><label style={labelStyle}>Chức danh</label>
               <input style={inputStyle} value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} placeholder="VD: Chuyên viên KSNB" /></div>
             <div><label style={labelStyle}>Mật khẩu tạm thời *</label>
@@ -301,12 +302,10 @@ export default function QuanLyTaiKhoanPage() {
                     <td>{u.email}</td>
                     <td>{u.full_name}</td>
                     <td>
-                      <input
-                        type="date"
+                      <BirthdayInput
                         key={u.ngay_sinh || ""}
-                        defaultValue={u.ngay_sinh || ""}
-                        onBlur={(e) => handleNgaySinhBlur(u, e.target.value)}
-                        style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 12.5 }}
+                        value={u.ngay_sinh || ""}
+                        onChange={(v) => handleNgaySinhChange(u, v)}
                       />
                     </td>
                     <td>
