@@ -1,15 +1,13 @@
 import { useEffect, useState } from "react";
-import { listUpcomingBirthdays } from "../lib/api";
+import { getUser, listUpcomingBirthdays } from "../lib/api";
 
 // Popup chúc mừng sinh nhật góc dưới bên phải (rộng ~14% màn hình) — hiện từ
 // D-2 tới hết ngày D (D = ngày sinh nhật, theo trường "Ngày sinh" ở Quản lý
-// tài khoản), báo cho mọi người TRỪ chính người có sinh nhật. Bấm đóng thì ẩn tới hết ngày hôm đó, sáng hôm sau hiện lại.
-const DISMISS_KEY = "birthday_popup_dismissed";
-
-function todayKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-}
+// tài khoản), báo cho mọi người TRỪ chính người có sinh nhật.
+// Tần suất giống popup cảnh báo trễ hạn kiểm kê: mỗi lần ĐĂNG NHẬP hiện 1 lần
+// — popup ở lại khi chuyển trang, bấm đóng thì ẩn tới lần đăng nhập sau (cờ ở
+// sessionStorage theo user id, lib/api.js::saveSession xoá cờ khi đăng nhập).
+const flagKey = (userId) => `ksnb_sinh_nhat_checked_${userId}`;
 
 function whenText(daysLeft) {
   if (daysLeft === 0) return "Hôm nay";
@@ -27,8 +25,10 @@ export default function BirthdayPopup() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    const user = getUser();
+    if (!user) return;
     try {
-      if (localStorage.getItem(DISMISS_KEY) === todayKey()) return;
+      if (sessionStorage.getItem(flagKey(user.id))) return;
     } catch {}
     listUpcomingBirthdays()
       .then((list) => {
@@ -42,8 +42,9 @@ export default function BirthdayPopup() {
 
   function handleClose() {
     setOpen(false);
+    const user = getUser();
     try {
-      localStorage.setItem(DISMISS_KEY, todayKey());
+      if (user) sessionStorage.setItem(flagKey(user.id), "1");
     } catch {}
   }
 
