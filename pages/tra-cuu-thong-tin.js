@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
-import { getUser, traCuuThongTinShop, traCuuTruyThuNhanVien } from "../lib/api";
+import { getUser, traCuuThongTinShop, traCuuTruyThuNhanVien, timShopTheoTen } from "../lib/api";
 
 function fmtDate(iso) {
   if (!iso) return "—";
@@ -196,6 +196,8 @@ export default function TraCuuThongTinPage() {
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
   const [searched, setSearched] = useState("");
+  // Gõ TÊN shop (gần đúng) -> danh sách shop khớp để chọn (chốt 22/10)
+  const [candidates, setCandidates] = useState(null); // {q, mode, total, matches:[{ma_shop, ten_shop}]}
 
   // Ô tìm theo tên nhân viên (truy thu thực tế)
   const [nvInput, setNvInput] = useState("");
@@ -214,16 +216,15 @@ export default function TraCuuThongTinPage() {
 
   // Gõ Mã shop rồi bấm Tab (onBlur) hoặc Enter là tra cứu ngay. Tab rồi bấm
   // lại đúng mã vừa tra thì không gọi lại API (tránh gọi 2 lần Enter + blur).
-  async function handleLookup() {
-    const q = input.trim();
-    if (!q || q === searched) return;
-    setSearched(q);
+  async function loadShopByCode(code) {
+    setSearched(code);
     setLoading(true);
     setError("");
+    setCandidates(null);
     setNvResult(null); // đang xem theo shop thì ẩn kết quả theo nhân viên cho gọn
     setNvSearched("");
     try {
-      setResult(await traCuuThongTinShop(q));
+      setResult(await traCuuThongTinShop(code));
     } catch (err) {
       setResult(null);
       setSearched("");
@@ -231,6 +232,47 @@ export default function TraCuuThongTinPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  // Ô nhập nhận Mã shop (toàn chữ số) HOẶC tên shop gần đúng. Tên: 1 shop khớp -> mở luôn; nhiều shop -> hiện danh sách để chọn.
+  async function handleLookup() {
+    const q = input.trim();
+    if (!q || q === searched) return;
+    if (/^\d{1,5}$/.test(q)) {
+      await loadShopByCode(q);
+      return;
+    }
+    setSearched(q);
+    setLoading(true);
+    setError("");
+    setResult(null);
+    setCandidates(null);
+    setNvResult(null);
+    setNvSearched("");
+    try {
+      const r = await timShopTheoTen(q);
+      if (r.matches.length === 1) {
+        setInput(r.matches[0].ma_shop);
+        await loadShopByCode(r.matches[0].ma_shop);
+        return;
+      }
+      if (r.matches.length === 0) {
+        setSearched("");
+        setError(`Không tìm thấy shop nào có tên gần đúng "${q}".`);
+      } else {
+        setCandidates(r);
+      }
+    } catch (err) {
+      setSearched("");
+      setError(err.message || "Tra cứu thất bại");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function pickCandidate(ma) {
+    setInput(ma);
+    loadShopByCode(ma);
   }
 
   async function handleLookupNv() {
@@ -267,12 +309,12 @@ export default function TraCuuThongTinPage() {
 
       <div className="card">
         <div className="card-body" style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
-          <div style={{ flex: "1 1 240px", maxWidth: 320 }}>
-            <label style={labelStyle}>Mã shop</label>
+          <div style={{ flex: "1 1 280px", maxWidth: 380 }}>
+            <label style={labelStyle}>Mã shop hoặc tên shop</label>
             <input
               type="text"
               autoFocus
-              placeholder="VD: 80834"
+              placeholder="VD: 80834 hoặc Nguyễn Văn Cừ"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onBlur={handleLookup}
@@ -295,6 +337,30 @@ export default function TraCuuThongTinPage() {
           {(loading || nvLoading) && <span style={{ fontSize: 13, color: "var(--text-400)", paddingBottom: 10 }}>Đang tra cứu...</span>}
         </div>
       </div>
+
+      {candidates && (
+        <div className="card">
+          <div className="card-head">
+            <h3>Chọn shop</h3>
+            <span className="note">
+              {candidates.mode === "fuzzy"
+                ? `Không có shop khớp chính xác — gợi ý ${candidates.total} shop gần giống "${candidates.q}"`
+                : `Có ${candidates.total} shop khớp "${candidates.q}"${candidates.total > candidates.matches.length ? ` (hiện ${candidates.matches.length} shop đầu — gõ cụ thể hơn để thu hẹp)` : ""}`}
+            </span>
+          </div>
+          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {candidates.matches.map((m) => (
+              <div
+                key={m.ma_shop}
+                onClick={() => pickCandidate(m.ma_shop)}
+                style={{ cursor: "pointer", padding: "8px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}
+              >
+                <strong>{m.ma_shop}</strong> - {m.ten_shop}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {error && <div className="placeholder-box">{error}</div>}
       {!error && result && result.found === false && (
