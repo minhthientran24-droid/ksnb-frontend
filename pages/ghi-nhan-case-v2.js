@@ -7,17 +7,17 @@ import {
   downloadViPhamCaseV2File, deleteViPhamCaseV2File,
 } from "../lib/api";
 
-// "Ghi nhận case vi phạm Ver2" (chốt 06/09) — menu THỬ NGHIỆM, chỉ
+// "Ghi nhận case vi phạm" (chốt 06/09) — menu THỬ NGHIỆM, chỉ
 // admin/super_admin xem được, dùng để thiết kế/thử tính năng mới trước
 // khi đưa vào bản thật "Ghi nhận case vi phạm" (đang chạy thật cho mọi
-// NV KSNB). ĐỘC LẬP hoàn toàn với "Theo dõi chủ đề Ver2" — không dùng
+// NV KSNB). ĐỘC LẬP hoàn toàn với "Theo dõi chủ đề" — không dùng
 // chung rule/data/component nào với menu đó.
 // NGOẠI LỆ DUY NHẤT (chốt 06/09 lần 2): trường "Chủ Đề vi phạm" dùng
-// CHUNG danh sách "Tên chủ đề" ở "Quản lý chủ đề" (Theo dõi chủ đề Ver2,
+// CHUNG danh sách "Tên chủ đề" ở "Quản lý chủ đề" (Theo dõi chủ đề,
 // combo box do super_admin quản lý) — CHỈ ĐỌC (listChuDeTopicsV2()),
 // không sửa/xóa/thêm gì vào danh sách đó từ trang này. Không cho nhập tự
 // do ngoài danh sách này nữa.
-// NGOẠI LỆ THỨ 2 (chốt 06/09 lần 3): khi "Theo dõi chủ đề Ver2" đánh dấu
+// NGOẠI LỆ THỨ 2 (chốt 06/09 lần 3): khi "Theo dõi chủ đề" đánh dấu
 // Hoàn tất 1 job với kết quả "Có vi phạm", job đó chuyển sang đây kèm
 // query "jobId" + điền sẵn Tên chủ đề/Loại vi phạm/Mã shop/Tên Shop/Vùng/
 // Nhân Viên Vi phạm theo đúng job (xem CompleteJobModal trong
@@ -32,7 +32,7 @@ import {
 const ADMIN_ROLES = ["admin", "super_admin"];
 
 // Sắp xếp "Tên chủ đề" A→Z (locale "vi"), "Khác" luôn cuối — y hệt rule
-// đang dùng ở "Theo dõi chủ đề Ver2" (sortTopics trong theo-doi-chu-de-v2.js),
+// đang dùng ở "Theo dõi chủ đề" (sortTopics trong theo-doi-chu-de-v2.js),
 // copy riêng ở đây để KHÔNG import chéo giữa 2 trang thử nghiệm độc lập.
 function sortTopicNames(names) {
   return [...names].sort((a, b) => {
@@ -157,7 +157,7 @@ function CaseForm({
           </select>
           {topics.length === 0 && (
             <div style={{ fontSize: 11, color: "var(--danger)", marginTop: 4 }}>
-              Chưa có Tên chủ đề nào — nhờ super_admin vào "Theo dõi chủ đề Ver2" &gt; "Quản lý chủ đề" thêm trước.
+              Chưa có Tên chủ đề nào — nhờ super_admin vào "Theo dõi chủ đề" &gt; "Quản lý chủ đề" thêm trước.
             </div>
           )}
         </div>
@@ -298,14 +298,14 @@ export default function GhiNhanCaseV2Page() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   // "Chủ Đề vi phạm" (chốt 06/09 lần 2) — CHỈ ĐỌC danh sách "Tên chủ đề"
-  // của "Theo dõi chủ đề Ver2" (Quản lý chủ đề), không sửa/thêm gì ở đây.
+  // của "Theo dõi chủ đề" (Quản lý chủ đề), không sửa/thêm gì ở đây.
   const [topics, setTopics] = useState([]);
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [files, setFiles] = useState([]);
   const [saving, setSaving] = useState(false);
   const [addError, setAddError] = useState("");
-  // Sang từ popup "Cập nhật kết quả xử lý" bên "Theo dõi chủ đề Ver2" khi
+  // Sang từ popup "Cập nhật kết quả xử lý" bên "Theo dõi chủ đề" khi
   // chọn "Có vi phạm" (chốt 06/09 lần 3, xem CompleteJobModal trong
   // theo-doi-chu-de-v2.js) — điền sẵn theo đúng job, bắt buộc lưu case rồi
   // job đó mới TỰ ĐỘNG được đánh dấu Hoàn tất + Có vi phạm.
@@ -383,8 +383,8 @@ export default function GhiNhanCaseV2Page() {
           setLinkedJobDone(true);
         } catch (err) {
           alert(
-            "Đã ghi nhận case thành công, nhưng đánh dấu Hoàn tất job bên Theo dõi chủ đề Ver2 bị lỗi: " +
-            (err.message || "không rõ nguyên nhân") + " — anh vào Theo dõi chủ đề Ver2 đánh dấu tay giúp em."
+            "Đã ghi nhận case thành công, nhưng đánh dấu Hoàn tất job bên Theo dõi chủ đề bị lỗi: " +
+            (err.message || "không rõ nguyên nhân") + " — anh vào Theo dõi chủ đề đánh dấu tay giúp em."
           );
         } finally {
           setLinkedJobId(null);
@@ -469,9 +469,9 @@ export default function GhiNhanCaseV2Page() {
   if (!checked) return null;
 
   return (
-    <Layout crumb="Ghi nhận case vi phạm Ver2">
+    <Layout crumb="Ghi nhận case vi phạm">
       <div className="page-head">
-        <h1>🧪 Ghi nhận case vi phạm Ver2</h1>
+        <h1>🚨 Ghi nhận case vi phạm</h1>
         <p>
           Menu thử nghiệm — chỉ admin/super_admin xem được. Dùng để thiết kế/thử tính năng mới
           trước khi đưa vào bản thật "Ghi nhận case vi phạm" đang chạy cho mọi NV KSNB.
@@ -480,13 +480,13 @@ export default function GhiNhanCaseV2Page() {
 
       {linkedJobId && (
         <div className="placeholder-box" style={{ borderColor: "var(--orange)", color: "var(--orange)", marginBottom: 16 }}>
-          🔗 Đang ghi nhận case cho job "Có vi phạm" bên Theo dõi chủ đề Ver2{linkedMaPhieu && <> (mã phiếu <strong>{linkedMaPhieu}</strong>, case sẽ dùng lại mã này)</>} — các trường đã điền sẵn theo job, có thể
+          🔗 Đang ghi nhận case cho job "Có vi phạm" bên Theo dõi chủ đề{linkedMaPhieu && <> (mã phiếu <strong>{linkedMaPhieu}</strong>, case sẽ dùng lại mã này)</>} — các trường đã điền sẵn theo job, có thể
           chỉnh sửa lại nếu cần rồi bấm "+ Ghi nhận case" là job đó sẽ tự động được đánh dấu <strong>Hoàn tất</strong>.
         </div>
       )}
       {linkedJobDone && (
         <div className="placeholder-box" style={{ borderColor: "#4C9A2A", color: "#4C9A2A", marginBottom: 16 }}>
-          ✅ Đã ghi nhận case và đánh dấu Hoàn tất job bên Theo dõi chủ đề Ver2.
+          ✅ Đã ghi nhận case và đánh dấu Hoàn tất job bên Theo dõi chủ đề.
         </div>
       )}
 

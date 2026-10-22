@@ -22,11 +22,11 @@ const NAV_ITEMS = [
   // admin nữa, nên bỏ hẳn hideForRoles hardcode, để menu_permissions
   // (allowed_menus) quyết định hoàn toàn, giống hệt các menu "bản thật"
   // khác trong danh sách này.
-  { href: "/theo-doi-chu-de-v2", icon: "🧪", label: "Theo dõi chủ đề Ver2" },
+  { href: "/theo-doi-chu-de-v2", icon: "🎯", label: "Theo dõi chủ đề" },
   { href: "/theo-doi-xknk", icon: "📦", label: "Theo dõi XK-NK" },
   { href: "/de-xuat-kiem-ke", icon: "📮", label: "Đề xuất kiểm kê", hideForRoles: ["editor_base", "viewer"] },
-  // Chốt 23/09 — cùng lý do dời lên như "Theo dõi chủ đề Ver2" ở trên.
-  { href: "/ghi-nhan-case-v2", icon: "🧪", label: "Ghi nhận case vi phạm Ver2" },
+  // Chốt 23/09 — cùng lý do dời lên như "Theo dõi chủ đề" ở trên.
+  { href: "/ghi-nhan-case-v2", icon: "🚨", label: "Ghi nhận case vi phạm" },
   { href: "/nhan-su", icon: "🧑‍💼", label: "Giới thiệu nhân sự KSNB" },
   { href: "/hoat-dong", icon: "🎉", label: "Hoạt động phòng ban" },
   { href: "/lich-nghi", icon: "🏖️", label: "Lịch làm việc & nghỉ phép" },

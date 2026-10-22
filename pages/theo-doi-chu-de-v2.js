@@ -12,7 +12,7 @@ import {
   listChuDeTopicsV2, createChuDeTopicV2, deleteChuDeTopicV2, getChuDeTopicV2Stats,
 } from "../lib/api";
 
-// "Theo dõi chủ đề Ver2" (chốt 03/09) — bản sao pages/theo-doi-chu-de.js
+// "Theo dõi chủ đề" (chốt 03/09) — bản sao pages/theo-doi-chu-de.js
 // dùng để thiết kế/thử tính năng mới, KHÔNG đụng dữ liệu thật (API riêng
 // /chu-de-jobs-v2, bảng chu_de_jobs_v2 riêng — xem routers/chu_de_jobs_v2.py).
 // Menu này CHỈ admin/super_admin xem/dùng được (chặn ở Layout.js theo
@@ -292,7 +292,7 @@ function AddSupportersModal({ job, onDone, onCancel }) {
 // ---------- Popup: đánh dấu Hoàn tất — chỉ chọn Có/Không vi phạm, KHÔNG
 // có nút chọn file kết quả (chốt 06/09 lần 3 — bỏ hẳn phần file, khác bản
 // thật). Chọn "Có vi phạm" rồi bấm "Xác nhận hoàn tất": KHÔNG hoàn tất
-// job ngay ở đây — chuyển thẳng sang "Ghi nhận case vi phạm Ver2" (điền
+// job ngay ở đây — chuyển thẳng sang "Ghi nhận case vi phạm" (điền
 // sẵn Tên chủ đề/Loại vi phạm/Mã shop/Tên Shop/Vùng/Nhân Viên Vi phạm
 // theo đúng job, CHO PHÉP sửa lại trước khi lưu — không fix cứng), job
 // chỉ thật sự chuyển "Hoàn tất" sau khi lưu case xong bên đó (xem
@@ -357,7 +357,7 @@ function AdjustToKoViPhamModal({ job, onDone, onCancel }) {
               <p style={{ fontSize: 13, color: "var(--text-600)", lineHeight: 1.6, marginBottom: 14 }}>
                 {job.ma_phieu
                   ? "Task này chưa có phiếu vi phạm nào liên kết (không có phiếu nào bị xóa)."
-                  : "Task này đăng trước khi có Mã phiếu nên hệ thống không liên kết được với phiếu vi phạm nào (không có phiếu nào bị xóa) — nếu đã ghi nhận case cho task này, anh/chị tự vào Ghi nhận case vi phạm Ver2 xóa tay."}
+                  : "Task này đăng trước khi có Mã phiếu nên hệ thống không liên kết được với phiếu vi phạm nào (không có phiếu nào bị xóa) — nếu đã ghi nhận case cho task này, anh/chị tự vào Ghi nhận case vi phạm xóa tay."}
               </p>
             )}
           </>
@@ -1068,7 +1068,7 @@ export default function TheoDoiChuDeV2Page() {
     }
   }
 
-  // Chốt 14/10 — Không vi phạm -> Có vi phạm (admin): sang Ghi nhận case vi phạm Ver2,
+  // Chốt 14/10 — Không vi phạm -> Có vi phạm (admin): sang Ghi nhận case vi phạm,
   // điền sẵn thông tin task (cùng luồng "Có vi phạm" ở popup Đánh dấu hoàn tất); kết quả
   // task chỉ đổi thành "Có vi phạm" SAU KHI lưu case xong (bỏ dở giữa chừng thì giữ nguyên).
   function handleAdjustToCoViPham(job) {
@@ -1124,9 +1124,9 @@ export default function TheoDoiChuDeV2Page() {
   if (!checked) return null;
 
   return (
-    <Layout crumb="Theo dõi chủ đề Ver2">
+    <Layout crumb="Theo dõi chủ đề">
       <div className="page-head">
-        <h1>🧪 Theo dõi chủ đề Ver2</h1>
+        <h1>🎯 Theo dõi chủ đề</h1>
         <p>Menu thử nghiệm — chỉ admin/super_admin xem được, dữ liệu riêng biệt với "Theo dõi chủ đề" thật.</p>
       </div>
 
