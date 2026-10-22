@@ -5,7 +5,7 @@ import { getUser, getMyAllowedMenusCached } from "../lib/api";
 
 const NAV_ITEMS = [
   { href: "/", icon: "🏠", label: "Trang chủ" },
-  { href: "/chat-nhom", icon: "💬", label: "Chat nhóm" },
+  { href: "/chat-nhom", icon: "💬", label: "Chat nhóm", hideForRoles: ["admin", "editor", "editor_base", "viewer"] }, // chốt 22/10: chỉ super_admin
   { href: "/bao-cao", icon: "▤", label: "Báo cáo tháng", hideForRoles: ["editor_base"] },
   { href: "/ho-tro-kiem-ke", icon: "🧰", label: "Hỗ Trợ Kiểm Kê" },
   // Chốt 09/09 — menu mới, nhiều tab hỗ trợ xử lý cho shop, dành cho TẤT
@@ -41,11 +41,11 @@ const ADMIN_ITEMS = [
   { href: "/quan-ly-tai-khoan", icon: "🔑", label: "Quản lý tài khoản", hideForRoles: ["editor", "editor_base", "viewer"] },
   { href: "/nhat-ky-hoat-dong", icon: "📊", label: "Nhật ký hoạt động", hideForRoles: ["editor", "editor_base", "viewer"] },
 ];
-// Chốt 16/10 — 2 menu bản cũ (Ver1) dời xuống CUỐI CÙNG của sidebar, chỉ admin/super_admin thấy
+// Chốt 16/10 — 2 menu bản cũ (Ver1) dời xuống CUỐI CÙNG của sidebar, chỉ super_admin thấy (từ 22/10; trước đó cả admin)
 // (hideForRoles khi chưa tải xong phân quyền; sau đó theo menu_permissions: editor/editor_base/viewer = false).
 const LEGACY_ITEMS = [
-  { href: "/theo-doi-chu-de", icon: "☰", label: "Theo dõi chủ đề Ver1", hideForRoles: ["editor", "editor_base", "viewer"] },
-  { href: "/ghi-nhan-case", icon: "📝", label: "Ghi nhận case vi phạm Ver1", hideForRoles: ["editor", "editor_base", "viewer"] },
+  { href: "/theo-doi-chu-de", icon: "☰", label: "Theo dõi chủ đề Ver1", hideForRoles: ["admin", "editor", "editor_base", "viewer"] },
+  { href: "/ghi-nhan-case", icon: "📝", label: "Ghi nhận case vi phạm Ver1", hideForRoles: ["admin", "editor", "editor_base", "viewer"] },
 ];
 const STORAGE_KEY = "ksnb_sidebar_collapsed";
 
