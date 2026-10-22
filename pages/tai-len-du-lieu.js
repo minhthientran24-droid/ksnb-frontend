@@ -7,7 +7,7 @@ import { useAllowedKeys } from "../lib/permissions";
 import {
   listPendingUploads, uploadPendingFile, deletePendingUpload, uploadKiemKeThangReport, getUser,
   getLuyKeStatus, uploadLuyKe, getXknkCanTonMonths, uploadXknkCanTon, downloadReferenceFilesTemplate,
-  downloadDanhSachShopTemplate, downloadKiemKeThangTemplate,
+  downloadDanhSachShopTemplate, downloadKiemKeThangTemplate, getTruyThuStatus, uploadTruyThu, downloadTruyThuTemplate,
 } from "../lib/api";
 import { llv2BridgeLogin, llv2UploadDanhSach, llv2DownloadDanhSachUrl } from "../lib/llv2Api";
 
@@ -55,6 +55,7 @@ export default function TaiLenDuLieuPage() {
   const kiemKeFileInputRef = useRef(null);
   const chuDeFileInputRef = useRef(null);
   const luyKeFileInputRef = useRef(null);
+  const truyThuFileInputRef = useRef(null);
   const xknkFileInputRef = useRef(null);
 
   // Tải template 10 sheet cho khối "Dữ liệu tham chiếu" (chốt 27/08 lần 24)
@@ -98,6 +99,13 @@ export default function TaiLenDuLieuPage() {
   const [luyKeResult, setLuyKeResult] = useState(null);
   const [luyKeError, setLuyKeError] = useState("");
 
+  // Truy thu thực tế (chốt 22/10) — mỗi tháng 1 bộ data, hiển thị ở "Tra cứu thông tin"
+  const [truyThuPeriod, setTruyThuPeriod] = useState({ month: CURRENT_MONTH, year: CURRENT_YEAR });
+  const [truyThuMonths, setTruyThuMonths] = useState([]); // [{thang, count, shops, uploaded_at, uploaded_by}]
+  const [truyThuResult, setTruyThuResult] = useState(null);
+  const [truyThuError, setTruyThuError] = useState("");
+  const [truyThuTemplateBusy, setTruyThuTemplateBusy] = useState(false);
+
   // Data Cân tồn XK-NK (chốt 27/08 lần 5, dời từ "Theo dõi XK-NK" sang +
   // thêm chiều tháng) — mỗi tháng 1 bộ data riêng, up tháng nào chỉ
   // xóa/ghi đúng tháng đó.
@@ -115,6 +123,7 @@ export default function TaiLenDuLieuPage() {
     setChecked(true);
     load();
     reloadLuyKeStatus();
+    reloadTruyThuStatus();
     reloadXknkStatus();
     // Bridge sang phiên app1_ (Phân công & Quản lý) — cần cho nút Upload/
     // Tải "Danh sách shop" bên dưới (dời từ "Phân công KSNB kiểm kê" sang,
@@ -130,6 +139,44 @@ export default function TaiLenDuLieuPage() {
 
   function reloadLuyKeStatus() {
     getLuyKeStatus().then((r) => setLuyKeMonths(r.months || [])).catch(() => {});
+  }
+
+  function reloadTruyThuStatus() {
+    getTruyThuStatus().then((r) => setTruyThuMonths(r.months || [])).catch(() => {});
+  }
+
+  async function handleDownloadTruyThuTemplate() {
+    setTruyThuTemplateBusy(true);
+    try {
+      await downloadTruyThuTemplate();
+    } catch (err) {
+      alert(err.message || "Tải file mẫu thất bại");
+    } finally {
+      setTruyThuTemplateBusy(false);
+    }
+  }
+
+  async function handleTruyThuFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const thang = `${truyThuPeriod.year}-${truyThuPeriod.month}`;
+    if (!confirm(`Upload file này sẽ XÓA SẠCH dữ liệu Truy thu thực tế của THÁNG ${thang} hiện có (nếu có) rồi ghi lại từ đầu. Các tháng khác không bị ảnh hưởng. Tiếp tục?`)) {
+      e.target.value = "";
+      return;
+    }
+    setUploadingType("truy_thu");
+    setTruyThuError("");
+    setTruyThuResult(null);
+    try {
+      const res = await uploadTruyThu(thang, file);
+      setTruyThuResult(res);
+      reloadTruyThuStatus();
+    } catch (err) {
+      setTruyThuError(err.message || "Upload thất bại");
+    } finally {
+      e.target.value = "";
+      setUploadingType(null);
+    }
   }
 
   function reloadXknkStatus() {
@@ -492,6 +539,105 @@ export default function TaiLenDuLieuPage() {
                     <td>{m.thang}</td>
                     <td>{m.count}</td>
                     <td>{m.uploaded_at ? new Date(m.uploaded_at).toLocaleString("vi-VN") : "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* ---- Dữ liệu Truy thu thực tế (chốt 22/10) — mỗi THÁNG 1 bộ data, up tháng nào chỉ thay đúng tháng đó;
+          hiển thị ở "Tra cứu thông tin" (theo Mã shop / theo tên nhân viên, tối đa 12 tháng gần nhất) ---- */}
+      <div className="card" style={{ display: can("/tai-len-du-lieu::truy-thu") ? undefined : "none" }}>
+        <div className="card-head">
+          <h3>Dữ liệu Truy thu thực tế</h3>
+          <span className="note">{truyThuMonths.length > 0 ? `${truyThuMonths.length} tháng đã có data` : "Chưa có dữ liệu"}</span>
+        </div>
+        <div className="card-body" style={{ padding: "16px 20px" }}>
+          <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 12 }}>
+            File gồm các cột: <strong>Mã nhân viên | Tên nhân viên | Mã shop | Tên Shop | Tổng Truy thu shop | Ngày kiểm kê |
+            Thời gian làm việc xác định truy thu | Hệ số | Truy thu | Điều chỉnh | Số tiền truy thu (Sau điều chỉnh)</strong>.
+            Mỗi tháng có 1 bộ data riêng — up cho tháng nào sẽ <strong>XÓA SẠCH data cũ của ĐÚNG tháng đó</strong> rồi ghi lại,
+            các tháng khác giữ nguyên. Chọn tháng theo <strong>tháng của file</strong> (không phụ thuộc Ngày kiểm kê trong file).
+          </p>
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+            <div>
+              <label style={labelStyle}>Dữ liệu cho — Tháng</label>
+              <select
+                value={truyThuPeriod.month}
+                onChange={(e) => setTruyThuPeriod({ ...truyThuPeriod, month: e.target.value })}
+                style={selectStyle}
+              >
+                {MONTH_OPTIONS.map((m) => <option key={m} value={m}>Tháng {m}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Năm</label>
+              <select
+                value={truyThuPeriod.year}
+                onChange={(e) => setTruyThuPeriod({ ...truyThuPeriod, year: Number(e.target.value) })}
+                style={selectStyle}
+              >
+                {YEAR_OPTIONS.map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Chọn file Excel</label>
+              <input
+                ref={truyThuFileInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                disabled={uploadingType === "truy_thu"}
+                onChange={handleTruyThuFileChange}
+                style={{ display: "none" }}
+              />
+              <button
+                type="button"
+                className="upload-btn"
+                onClick={() => truyThuFileInputRef.current?.click()}
+                disabled={uploadingType === "truy_thu"}
+              >
+                📤 {uploadingType === "truy_thu" ? "Đang xử lý..." : "Tải lên file Truy thu"}
+              </button>
+            </div>
+            <div>
+              <label style={labelStyle}>&nbsp;</label>
+              <button type="button" className="upload-btn" onClick={handleDownloadTruyThuTemplate} disabled={truyThuTemplateBusy}>
+                📥 {truyThuTemplateBusy ? "Đang tải..." : "Tải file mẫu"}
+              </button>
+            </div>
+            {uploadingType === "truy_thu" && <span style={{ fontSize: 12.5, color: "var(--text-400)" }}>Đang xử lý...</span>}
+          </div>
+          {truyThuError && (
+            <div className="placeholder-box" style={{ marginTop: 14, borderColor: "var(--danger)", color: "var(--danger)" }}>
+              {truyThuError}
+            </div>
+          )}
+          {truyThuResult && (
+            <div style={successBoxStyle}>
+              ✅ Đã thay dữ liệu Truy thu của tháng <strong>{truyThuResult.thang}</strong>: <strong>{truyThuResult.count}</strong> dòng,{" "}
+              <strong>{truyThuResult.shops}</strong> shop, <strong>{truyThuResult.employees}</strong> nhân viên.
+              {(truyThuResult.warnings || []).length > 0 && (
+                <div style={{ marginTop: 6, color: "var(--danger)" }}>
+                  ⚠️ {(truyThuResult.warnings || []).join(" · ")}
+                </div>
+              )}
+            </div>
+          )}
+          {truyThuMonths.length > 0 && (
+            <table style={{ marginTop: 16 }}>
+              <thead>
+                <tr><th>Tháng</th><th>Số dòng</th><th>Số shop</th><th>Up lần gần nhất</th><th>Người up</th></tr>
+              </thead>
+              <tbody>
+                {truyThuMonths.map((m) => (
+                  <tr key={m.thang}>
+                    <td>{m.thang}</td>
+                    <td>{m.count}</td>
+                    <td>{m.shops}</td>
+                    <td>{m.uploaded_at ? new Date(m.uploaded_at).toLocaleString("vi-VN") : "-"}</td>
+                    <td>{m.uploaded_by || "-"}</td>
                   </tr>
                 ))}
               </tbody>
