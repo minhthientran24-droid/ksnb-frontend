@@ -91,6 +91,9 @@ function AdminSignaturesPanel() {
   const [openId, setOpenId] = useState(null);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  // Chốt 22/10 — cả khối thu gọn mặc định, bấm vào tiêu đề mới hiện danh sách từng người (chỉ tải dữ liệu lần mở đầu).
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   function load() {
     setLoading(true);
@@ -99,7 +102,9 @@ function AdminSignaturesPanel() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }
-  useEffect(load, []);
+  useEffect(() => {
+    if (panelOpen && !loaded) { setLoaded(true); load(); }
+  }, [panelOpen]);
 
   function openEdit(item) {
     setOpenId(item.personnel_id);
@@ -121,11 +126,11 @@ function AdminSignaturesPanel() {
 
   return (
     <div className="card">
-      <div className="card-head">
-        <h3>🔐 Quản lý chữ ký toàn bộ nhân sự (Admin)</h3>
-        <span className="note">Chỉ admin xem/sửa được chữ ký của người khác</span>
+      <div className="card-head" onClick={() => setPanelOpen((v) => !v)} style={{ cursor: "pointer", userSelect: "none" }}>
+        <h3>{panelOpen ? "▼" : "▶"} 🔐 Quản lý chữ ký toàn bộ nhân sự (Admin)</h3>
+        <span className="note">{panelOpen ? "Chỉ admin xem/sửa được chữ ký của người khác" : "Bấm để mở danh sách"}</span>
       </div>
-      <div className="card-body">
+      {panelOpen && <div className="card-body">
         {loading && <div style={{ fontSize: 12.5, color: "var(--text-600)" }}>Đang tải...</div>}
         {error && <div style={{ fontSize: 12.5, color: "var(--danger)" }}>{error}</div>}
         {!loading && !error && (
@@ -165,7 +170,7 @@ function AdminSignaturesPanel() {
             })}
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 }
