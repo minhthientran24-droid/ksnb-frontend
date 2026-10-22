@@ -31,6 +31,8 @@ function moneyStyle(n) {
   return n !== null && n !== undefined && n < DANGER_THRESHOLD ? { color: "var(--danger)", fontWeight: 700 } : undefined;
 }
 
+// Các số truy thu tổng (theo tháng / theo kỳ kiểm kê) luôn tô đỏ (chốt 22/10).
+const REDMONEY = { color: "var(--danger)", fontWeight: 700 };
 const thLeft = { textAlign: "left" };
 const tdNum = { textAlign: "right", whiteSpace: "nowrap" };
 
@@ -84,10 +86,10 @@ function TruyThuShopCard({ data }) {
                   <span style={{ fontSize: 11, color: "var(--text-400)", width: 12 }}>{open ? "▼" : "▶"}</span>
                   <span style={{ fontWeight: 700, color: "var(--navy-900)", minWidth: 90 }}>Tháng {fmtThang(m.thang)}</span>
                   <span style={{ fontSize: 13 }}>
-                    Tổng truy thu shop: <strong style={moneyStyle(m.tong_truy_thu_shop)}>{fmtMoney(m.tong_truy_thu_shop)}</strong>
+                    Tổng truy thu shop: <strong style={REDMONEY}>{fmtMoney(m.tong_truy_thu_shop)}</strong>
                   </span>
                   <span style={{ fontSize: 13, color: "var(--text-600)" }}>
-                    Tổng sau điều chỉnh (các NV): <strong>{fmtMoney(m.tong_sau_dieu_chinh)}</strong>
+                    Tổng sau điều chỉnh (các NV): <strong style={REDMONEY}>{fmtMoney(m.tong_sau_dieu_chinh)}</strong>
                   </span>
                 </div>
                 {open && (
@@ -97,7 +99,7 @@ function TruyThuShopCard({ data }) {
                         <div style={{ fontSize: 13, marginBottom: 6 }}>
                           Ngày kiểm kê <strong>{fmtDate(k.ngay_kiem_ke)}</strong>
                           {k.ten_shop ? <span style={{ color: "var(--text-600)" }}> — {k.ten_shop}</span> : null}
-                          {" · "}Tổng truy thu shop: <strong style={moneyStyle(k.tong_truy_thu_shop)}>{fmtMoney(k.tong_truy_thu_shop)}</strong>
+                          {" · "}Tổng truy thu shop: <strong style={REDMONEY}>{fmtMoney(k.tong_truy_thu_shop)}</strong>
                         </div>
                         <table>
                           <thead>
