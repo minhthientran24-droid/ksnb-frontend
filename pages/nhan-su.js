@@ -130,36 +130,39 @@ function AdminSignaturesPanel() {
         {error && <div style={{ fontSize: 12.5, color: "var(--danger)" }}>{error}</div>}
         {!loading && !error && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {items.map((item) => (
-              <div key={item.personnel_id} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                  <div>
-                    <span style={{ fontWeight: 700, fontSize: 12.5, color: "var(--navy-900)" }}>{item.full_name}</span>
-                    {item.email && <span style={{ fontSize: 11.5, color: "var(--text-400)", marginLeft: 8 }}>{item.email}</span>}
-                    <span style={{ fontSize: 11, color: item.signature ? "#4C9A2A" : "var(--text-400)", marginLeft: 10 }}>
+            {items.map((item) => {
+              const open = openId === item.personnel_id;
+              return (
+                <div key={item.personnel_id} style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+                  {/* Gọn: mỗi người 1 dòng (tên + trạng thái) — bấm vào mới xổ ra email + chữ ký đầy đủ (chốt 22/10). */}
+                  <div
+                    onClick={() => (open ? setOpenId(null) : openEdit(item))}
+                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", cursor: "pointer", background: open ? "var(--bg)" : "transparent" }}
+                  >
+                    <span style={{ fontSize: 11, color: "var(--text-400)", width: 12 }}>{open ? "▼" : "▶"}</span>
+                    <span style={{ fontWeight: 700, fontSize: 12.5, color: "var(--navy-900)", flex: 1 }}>{item.full_name}</span>
+                    <span style={{ fontSize: 11, color: item.signature ? "#4C9A2A" : "var(--text-400)" }}>
                       {item.signature ? "✅ Đã thiết lập" : "Chưa thiết lập"}
                     </span>
                   </div>
-                  <button className="fbtn" onClick={() => openEdit(item)}>
-                    {openId === item.personnel_id ? "Đang sửa..." : "Xem / Sửa"}
-                  </button>
-                </div>
-                {openId === item.personnel_id && (
-                  <div style={{ marginTop: 10 }}>
-                    <SignatureEditor value={draft} onChange={setDraft} />
-                    <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-                      <button
-                        className="login-btn" style={{ width: "auto", padding: "8px 18px" }}
-                        onClick={() => handleSave(item.personnel_id)} disabled={saving}
-                      >
-                        {saving ? "Đang lưu..." : "Lưu"}
-                      </button>
-                      <button className="fbtn" onClick={() => setOpenId(null)}>Đóng</button>
+                  {open && (
+                    <div style={{ padding: "10px 14px 14px", borderTop: "1px solid var(--border)" }}>
+                      {item.email && <div style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 8 }}>✉️ {item.email}</div>}
+                      <SignatureEditor value={draft} onChange={setDraft} />
+                      <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+                        <button
+                          className="login-btn" style={{ width: "auto", padding: "8px 18px" }}
+                          onClick={() => handleSave(item.personnel_id)} disabled={saving}
+                        >
+                          {saving ? "Đang lưu..." : "Lưu"}
+                        </button>
+                        <button className="fbtn" onClick={() => setOpenId(null)}>Đóng</button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
