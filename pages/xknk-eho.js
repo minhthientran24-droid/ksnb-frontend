@@ -4,9 +4,10 @@ import { getUser, xknkEhoMonths, xknkEhoFilters, xknkEhoRows, xknkEhoIngest, xkn
 
 // Loại yêu cầu EHO (mã -> tên). Tên chưa biết sẽ tự cập nhật theo dữ liệu đã kéo (/source-types).
 const SOURCE_BASE = {
-  3: "Xuất thanh lý", 4: "Xử lý kiểm kê tự động", 6: "", 7: "Xuất sử dụng", 9: "Xử lý kiểm kê allshop", 11: "Xử lý được confirm từ marketing",
-  12: "Xử lý bồi thường Nhà vận chuyển", 13: "Xử lý không truy thu", 14: "Xử lý khác", 15: "Kiểm kê cận date", 16: "Hủy đa liều",
-  17: "Xuất khác dung môi", 21: "Xuất hàng tặng", 22: "Hàng khuyến mãi Vacxin",
+  3: "Xuất thanh lý", 4: "Xử lý kiểm kê tự động", 6: "Xuất khác từ kho hành chính", 7: "Xuất sử dụng", 9: "Xử lý kiểm kê allshop",
+  10: "Điều chỉnh quy cách ngành hàng", 11: "Xử lý được confirm từ marketing", 12: "Xử lý bồi thường Nhà vận chuyển", 13: "Xử lý không truy thu",
+  14: "Xử lý khác", 15: "Kiểm kê cận date", 16: "Hủy đa liều", 17: "Xuất khác dung môi", 18: "Điều chỉnh chênh lệch từ trả hàng NCC",
+  21: "Xuất hàng tặng", 22: "Hàng khuyến mãi Vacxin",
 };
 const SOURCE_IDS = Object.keys(SOURCE_BASE).map(Number);
 
@@ -104,7 +105,16 @@ export default function XknkEhoPage() {
   }, []);
 
   const srcIds = Object.keys(srcNames).map(Number).sort((a, b) => a - b);
-  const srcLabel = (id) => (srcNames[id] ? `${srcNames[id]} (${id})` : `Loại yêu cầu ${id}`);
+  const srcLabel = (id) => srcNames[id] || `Loại yêu cầu ${id}`;
+  const [srcOpen, setSrcOpen] = useState(false);
+  const srcBox = useRef(null);
+  useEffect(() => {
+    const close = (e) => { if (srcBox.current && !srcBox.current.contains(e.target)) setSrcOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
+  const nSel = srcIds.filter((id) => srcSel.has(id)).length;
+  const srcText = nSel === srcIds.length ? "Tất cả loại yêu cầu" : nSel === 0 ? "Chưa chọn loại yêu cầu" : nSel === 1 ? srcLabel(srcIds.find((id) => srcSel.has(id))) : `Đã chọn ${nSel}/${srcIds.length} loại yêu cầu`;
   function toggleSrc(id) {
     setSrcSel((o) => { const n = new Set(o); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   }
@@ -268,7 +278,7 @@ export default function XknkEhoPage() {
       </div>
 
       {/* ------- Đồng bộ ------- */}
-      <div className="card">
+      <div className="card" style={{ overflow: "visible" }}>
         <div className="card-head">
           <h3>🔄 Đồng bộ dữ liệu từ EHO</h3>
           <span className="note">
@@ -301,25 +311,33 @@ export default function XknkEhoPage() {
               <label style={lbl}>Đến ngày</label>
               <input type="date" className="finput" value={to} onChange={(e) => setTo(e.target.value)} disabled={syncing} />
             </div>
+            <div ref={srcBox} style={{ position: "relative" }}>
+              <label style={lbl}>Loại yêu cầu</label>
+              <button type="button" className="finput" disabled={syncing} onClick={() => setSrcOpen((o) => !o)}
+                style={{ width: 270, textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: syncing ? "default" : "pointer", background: "var(--card)" }}>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{srcText}</span>
+                <span style={{ fontSize: 10, marginLeft: 8, color: "var(--text-400)" }}>▼</span>
+              </button>
+              {srcOpen && !syncing && (
+                <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, zIndex: 30, width: 330, maxHeight: 340, overflowY: "auto", background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 6px 20px rgba(0,0,0,.15)", padding: "4px 0" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", cursor: "pointer", fontSize: 13, fontWeight: 600, borderBottom: "1px solid var(--border)" }}>
+                    <input type="checkbox" checked={nSel === srcIds.length} ref={(el) => { if (el) el.indeterminate = nSel > 0 && nSel < srcIds.length; }}
+                      onChange={() => setSrcSel(nSel === srcIds.length ? new Set() : new Set(srcIds))} />
+                    Tất cả loại yêu cầu
+                  </label>
+                  {srcIds.map((id) => (
+                    <label key={id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", cursor: "pointer", fontSize: 13, background: srcSel.has(id) ? "#EEF4FF" : "transparent" }}>
+                      <input type="checkbox" checked={srcSel.has(id)} onChange={() => toggleSrc(id)} />
+                      {srcLabel(id)}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
             <button className="login-btn" style={{ width: "auto", padding: "9px 24px", opacity: login.logged_in && !syncing ? 1 : 0.5 }} disabled={!login.logged_in || syncing} onClick={runSync}>
               {syncing ? "Đang đồng bộ..." : "Đồng bộ"}
             </button>
             {syncing && <button className="fbtn" style={{ color: "var(--danger)" }} onClick={() => { cancelRef.current = true; }}>Dừng</button>}
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <label style={lbl}>
-              Loại yêu cầu cần kéo ({srcIds.filter((id) => srcSel.has(id)).length}/{srcIds.length})
-              <button type="button" className="fbtn" disabled={syncing} style={{ marginLeft: 10, padding: "1px 10px", fontSize: 12 }} onClick={() => setSrcSel(new Set(srcIds))}>Chọn tất cả</button>
-              <button type="button" className="fbtn" disabled={syncing} style={{ marginLeft: 6, padding: "1px 10px", fontSize: 12 }} onClick={() => setSrcSel(new Set())}>Bỏ chọn hết</button>
-            </label>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 18px", fontSize: 13 }}>
-              {srcIds.map((id) => (
-                <label key={id} style={{ display: "flex", alignItems: "center", gap: 6, cursor: syncing ? "default" : "pointer", opacity: srcSel.has(id) ? 1 : 0.6 }}>
-                  <input type="checkbox" checked={srcSel.has(id)} disabled={syncing} onChange={() => toggleSrc(id)} />
-                  {srcLabel(id)}
-                </label>
-              ))}
-            </div>
           </div>
           <div style={{ fontSize: 12, color: "var(--text-400)", marginTop: 8 }}>
             Chọn tháng sẽ tự điền Từ ngày/Đến ngày của cả tháng (VD 01/10–31/10); có thể sửa tay để kéo khoảng khác. Mỗi lần đồng bộ chỉ ghi đè lại đúng khoảng ngày và đúng các Loại yêu cầu đã tick (loại không tick thì giữ nguyên dữ liệu cũ).
