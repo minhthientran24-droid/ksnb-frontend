@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import { getHomepageContent, updateHomepageContent, getUser, getDangKiem, getChuDeV2StaffOverview } from "../lib/api";
 import StaffAlertModal, { hasStaffAlertContent } from "../components/StaffAlertModal";
+import EhoSyncModal from "../components/EhoSyncModal";
 import { useAllowedKeys } from "../lib/permissions";
 
 // Số ngày kiểm = Hôm nay - Ngày kiểm, trừ các ngày Chủ nhật rơi vào khoảng
@@ -121,6 +122,7 @@ function HomePageInner() {
   // Chuỗi popup sau đăng nhập (chốt 15/10): (1) Cảnh báo phân việc Ver2 trước — admin xem FULL, user
   // khác chỉ thấy của chính mình (nếu có) — (2) sau khi đóng/không có thì mới tới cảnh báo thời hạn
   // kiểm kê (trễ hạn) bên dưới. phanViecDone = đã xong bước (1) (đóng, hoặc không có gì để hiện).
+  const [ehoOpen, setEhoOpen] = useState(false); // popup "Đồng bộ dữ liệu EHO" (admin)
   const [phanViec, setPhanViec] = useState(null);
   const [phanViecDone, setPhanViecDone] = useState(false);
   const [treHanShops, setTreHanShops] = useState(null); // null = chưa xong/không hiện; [] hoặc mảng = đã kiểm tra xong
@@ -233,8 +235,16 @@ function HomePageInner() {
               </div>
             </Link>
           ))}
+          {/* Chốt 26/10 — nút "Đồng bộ dữ liệu EHO" (chỉ admin/super_admin): lấy Ngày duyệt phiếu Kho hàng thường làm Ngày chốt kiểm kê */}
+          {isAdmin && (
+            <div className="org-card" style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }} onClick={() => setEhoOpen(true)}>
+              <span style={{ fontSize: 18 }}>🔄</span>
+              <span>Đồng bộ dữ liệu EHO</span>
+            </div>
+          )}
         </div>
       </div>
+      {ehoOpen && isAdmin && <EhoSyncModal onClose={() => setEhoOpen(false)} />}
 
       <div className="org-grid">
         {[1, 2, 3].map((i) => (
