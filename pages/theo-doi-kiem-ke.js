@@ -134,7 +134,7 @@ function llvStatusText(r, soNgayKiem) {
       : (soNgayKiem === 4 || soNgayKiem === 5) ? "sap_tre_han"
         : null;
   return urgency === "da_tre_han" ? "Đã trễ hạn"
-    : urgency === "sap_tre_han" ? "Sắp trễ hạn"
+    : urgency === "sap_tre_han" ? (r.ngay_chot_kiem_ke ? "Sắp trễ hạn - Shop đã chốt kiểm kê" : "Sắp trễ hạn")
       : statusLabel(r.display_status);
 }
 
