@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
-import { getUser, thongKeKiemKePeriods, thongKeKiemKeDaKiem, thongKeKiemKeExport } from "../lib/api";
+import { getUser, thongKeKiemKeInfo, thongKeKiemKePeriods, thongKeKiemKeDaKiem, thongKeKiemKeExport } from "../lib/api";
 import { fmtMoney, moneyStyle, tinhUocTinhTruyThu, sortDaKiemRows } from "../lib/daKiem";
 
 // Menu RIÊNG của Guest Account (chốt 26/10) — "Thống kê Kiểm Kê": CHỈ shop ĐÃ KIỂM theo từng tháng, cả Long Châu lẫn
@@ -23,6 +23,7 @@ export default function ThongKeKiemKePage() {
   const [sortKey, setSortKey] = useState("uoc_tinh_truy_thu");
   const [sortDir, setSortDir] = useState("asc");
   const [exportBusy, setExportBusy] = useState(false);
+  const [info, setInfo] = useState(null); // {vung, gioi_han} — vùng được phép xem
 
   useEffect(() => {
     if (!getUser()) {
@@ -30,6 +31,7 @@ export default function ThongKeKiemKePage() {
       return;
     }
     setChecked(true);
+    thongKeKiemKeInfo().then(setInfo).catch(() => {});
     thongKeKiemKePeriods()
       .then((p) => { setPeriods(p); if (p.length) setPeriod(p[0]); })
       .catch((err) => setError(err.message));
@@ -116,6 +118,12 @@ export default function ThongKeKiemKePage() {
         <h1>📊 Thống kê Kiểm Kê</h1>
         <p>Các shop đã kiểm theo từng tháng (Long Châu và Vaccine). Bấm tiêu đề cột để sắp xếp, có thể xuất Excel.</p>
       </div>
+      {info && (
+        <div style={{ fontSize: 13.5, margin: "0 2px 12px" }}>
+          Vùng của bạn: <strong>{info.vung || "chưa được gán"}</strong>
+          {info.gioi_han && <span style={{ color: "var(--text-600)" }}> — chỉ xem và tải được shop thuộc vùng này.</span>}
+        </div>
+      )}
 
       {error && <div className="placeholder-box" style={{ borderColor: "var(--danger)", color: "var(--danger)" }}>{error}</div>}
       {!error && periods.length === 0 && <div className="placeholder-box">Chưa có dữ liệu kiểm kê nào.</div>}

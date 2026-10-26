@@ -13,6 +13,8 @@ const emptyForm = { email: "", full_name: "", position: "", password: "", role: 
 const ADMIN_ROLES = ["admin", "super_admin"];
 const ROLE_LABELS = { super_admin: "Super Admin", admin: "Admin", editor: "Editor", editor_base: "Editor Base", viewer: "Viewer", guest: "Guest Account" };
 const KHU_VUC_OPTIONS = ["VP HCM", "VP HNI"];
+// 8 vùng làm việc + All — Vùng của tài khoản Guest (quyết định shop Guest được xem/tải ở Thống kê Kiểm Kê).
+const GUEST_VUNG_OPTIONS = ["Miền Tây", "Miền Đông", "Miền Trung", "Hồ Chí Minh 1", "Hồ Chí Minh 2", "Miền Bắc 1", "Miền Bắc 2", "Hà Nội", "All"];
 
 // Thứ tự hiển thị bảng: Admin (gồm cả Super Admin) - Editor - Editor Base -
 // Viewer, cùng quyền thì sắp tiếp theo Khu vực làm việc (VP HCM trước VP
@@ -38,7 +40,7 @@ function GuestAccountsPanel({ me }) {
   const [list, setList] = useState([]);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ email: "", full_name: "", position: "", password: "" });
+  const [form, setForm] = useState({ email: "", full_name: "", position: "", password: "", guest_vung: "" });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [editingId, setEditingId] = useState(null);
@@ -52,15 +54,15 @@ function GuestAccountsPanel({ me }) {
 
   async function handleCreate(e) {
     e.preventDefault();
-    if (!form.email.trim() || !form.full_name.trim() || !form.password.trim()) {
-      setSaveError("Cần nhập đủ Email, Họ tên, Mật khẩu");
+    if (!form.email.trim() || !form.full_name.trim() || !form.password.trim() || !form.guest_vung) {
+      setSaveError("Cần nhập đủ Email, Họ tên, Vùng, Mật khẩu");
       return;
     }
     setSaving(true);
     setSaveError("");
     try {
       await createGuestAccount(form);
-      setForm({ email: "", full_name: "", position: "", password: "" });
+      setForm({ email: "", full_name: "", position: "", password: "", guest_vung: "" });
       setShowForm(false);
       load();
     } catch (err) {
@@ -73,6 +75,15 @@ function GuestAccountsPanel({ me }) {
   async function handleToggleActive(u) {
     try {
       await updateUserAccount(u.id, { is_active: !u.is_active });
+      load();
+    } catch (err) {
+      alert(err.message || "Cập nhật thất bại");
+    }
+  }
+
+  async function handleVungChange(u, guest_vung) {
+    try {
+      await updateUserAccount(u.id, { guest_vung });
       load();
     } catch (err) {
       alert(err.message || "Cập nhật thất bại");
@@ -129,6 +140,11 @@ function GuestAccountsPanel({ me }) {
               <input style={inputStyle} value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} /></div>
             <div><label style={labelStyle}>Chức danh / Đơn vị</label>
               <input style={inputStyle} value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} /></div>
+            <div><label style={labelStyle}>Vùng *</label>
+              <select style={inputStyle} value={form.guest_vung} onChange={(e) => setForm({ ...form, guest_vung: e.target.value })}>
+                <option value="">— chọn vùng —</option>
+                {GUEST_VUNG_OPTIONS.map((v) => <option key={v} value={v}>{v === "All" ? "All — xem tất cả các vùng" : v}</option>)}
+              </select></div>
             <div><label style={labelStyle}>Mật khẩu tạm thời *</label>
               <input style={inputStyle} type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Guest sẽ phải đổi ở lần đăng nhập đầu" /></div>
             {saveError && <div style={{ gridColumn: "1 / -1", fontSize: 12.5, color: "var(--danger)" }}>{saveError}</div>}
@@ -150,14 +166,14 @@ function GuestAccountsPanel({ me }) {
           <table>
             <thead>
               <tr>
-                {["STT", "Email", "Họ tên", "Chức danh / Đơn vị", "Trạng thái", ""].map((h) => (
+                {["STT", "Email", "Họ tên", "Chức danh / Đơn vị", "Vùng", "Trạng thái", ""].map((h) => (
                   <th key={h} style={{ background: "#eaf1fc" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {list.length === 0 && !error && (
-                <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--text-400)" }}>Chưa có tài khoản Guest nào.</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: "center", color: "var(--text-400)" }}>Chưa có tài khoản Guest nào.</td></tr>
               )}
               {list.map((u, idx) => (
                 <Fragment key={u.id}>
@@ -166,6 +182,17 @@ function GuestAccountsPanel({ me }) {
                     <td>{u.email}</td>
                     <td>{u.full_name}</td>
                     <td>{u.position || "—"}</td>
+                    <td>
+                      <select
+                        value={u.guest_vung || ""}
+                        onChange={(e) => handleVungChange(u, e.target.value)}
+                        style={{ padding: "5px 8px", borderRadius: 6, border: `1px solid ${u.guest_vung ? "var(--border)" : "var(--danger)"}`, fontSize: 12.5 }}
+                        title={u.guest_vung ? "Vùng được phép xem ở Thống kê Kiểm Kê" : "Chưa gán vùng — Guest chưa xem được dữ liệu nào"}
+                      >
+                        <option value="" disabled>— chưa gán —</option>
+                        {GUEST_VUNG_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
+                      </select>
+                    </td>
                     <td>
                       <span className={`pill ${u.is_active ? "ok" : "warn"}`}>{u.is_active ? "Đang hoạt động" : "Đã khóa"}</span>
                     </td>
@@ -177,7 +204,7 @@ function GuestAccountsPanel({ me }) {
                   </tr>
                   {editingId === u.id && (
                     <tr>
-                      <td colSpan={6} style={{ background: "var(--bg)", padding: "14px 16px" }}>
+                      <td colSpan={7} style={{ background: "var(--bg)", padding: "14px 16px" }}>
                         <div style={{ display: "flex", gap: 14, alignItems: "flex-end", flexWrap: "wrap" }}>
                           <div>
                             <label style={labelStyle}>Họ tên</label>
