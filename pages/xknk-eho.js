@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
-import { getUser, xknkEhoMonths, xknkEhoFilters, xknkEhoRows, xknkEhoIngest, xknkEhoFinalize, xknkEhoSourceTypes } from "../lib/api";
+import { getUser, xknkEhoMonths, xknkEhoFilters, xknkEhoRows, xknkEhoIngest, xknkEhoFinalize, xknkEhoSourceTypes, xknkEhoExportStart, xknkEhoExportStatus, xknkEhoExportDownload } from "../lib/api";
 
 // Loại yêu cầu EHO (mã -> tên). Tên chưa biết sẽ tự cập nhật theo dữ liệu đã kéo (/source-types).
 const SOURCE_BASE = {
@@ -84,6 +84,8 @@ export default function XknkEhoPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [gotoInput, setGotoInput] = useState("");
+  const [exp, setExp] = useState(null); // {phase, done, total} khi đang tạo file Excel
+  const [expMsg, setExpMsg] = useState(null);
 
   useEffect(() => {
     const u = getUser();
@@ -170,6 +172,30 @@ export default function XknkEhoPage() {
     const t = setTimeout(() => { setF((o) => (o.q === qInput.trim() && o.shop === shopInput.trim() ? o : { ...o, q: qInput.trim(), shop: shopInput.trim() })); setPage(1); }, 400);
     return () => clearTimeout(t);
   }, [qInput, shopInput]);
+
+  // Xuất Excel đúng tháng đang xem (kèm bộ lọc đang áp dụng)
+  async function exportExcel() {
+    if (!month || exp) return;
+    setExpMsg(null);
+    setExp({ phase: "building", done: 0, total: data.total || 0 });
+    try {
+      const { job_id } = await xknkEhoExportStart({ month, ...f });
+      while (true) {
+        await sleep(2000);
+        const st = await xknkEhoExportStatus(job_id);
+        if (st.status === "error") throw new Error(st.error || "Tạo file Excel thất bại");
+        setExp({ phase: st.phase, done: st.done, total: st.total });
+        if (st.status === "done") break;
+      }
+      setExp((o) => ({ ...o, phase: "downloading" }));
+      await xknkEhoExportDownload(job_id);
+      setExpMsg({ type: "ok", text: `✅ Đã xuất Excel tháng ${month.split("-").reverse().join("/")}.` });
+    } catch (e) {
+      setExpMsg({ type: "err", text: e.message || "Xuất Excel thất bại" });
+    } finally {
+      setExp(null);
+    }
+  }
 
   function pickMonth(v) {
     setYm(v);
@@ -392,8 +418,15 @@ export default function XknkEhoPage() {
               {opts.trang_thai.map((o) => <option key={o.ten} value={o.ten}>{o.ten} ({o.so_dong.toLocaleString("vi-VN")})</option>)}
             </select>
             <span style={{ alignSelf: "center", fontSize: 12.5, color: "var(--text-600)" }}>{loading ? "Đang tải..." : `${(data.total || 0).toLocaleString("vi-VN")} dòng`}</span>
+            <button className="fbtn" style={{ marginLeft: "auto" }} disabled={!!exp || !month || !(data.total > 0)} onClick={exportExcel}
+              title="Xuất toàn bộ dữ liệu của tháng đang xem (theo bộ lọc hiện tại) ra file Excel">
+              {exp ? (exp.phase === "saving" ? "Đang đóng gói file..." : exp.phase === "downloading" ? "Đang tải về..." : `Đang tạo file... ${(exp.done || 0).toLocaleString("vi-VN")}/${(exp.total || 0).toLocaleString("vi-VN")}`) : "📥 Xuất Excel"}
+            </button>
           </div>
 
+          {expMsg && (
+            <div style={{ marginBottom: 10, border: "1px solid", borderColor: expMsg.type === "ok" ? "#4C9A2A" : "var(--danger)", color: expMsg.type === "ok" ? "#2f6b1a" : "var(--danger)", borderRadius: 8, padding: "8px 12px", fontSize: 13 }}>{expMsg.text}</div>
+          )}
           {error && <div className="placeholder-box" style={{ color: "var(--danger)" }}>{error}</div>}
 
           <div style={{ overflowX: "auto" }}>
