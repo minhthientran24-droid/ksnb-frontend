@@ -4,7 +4,8 @@ import Sidebar from "./Sidebar";
 import BirthdayPopup from "./BirthdayPopup";
 import { getToken, getUser, clearSession, getMyAllowedMenusCached } from "../lib/api";
 
-const GUEST_HOME = "/tra-cuu-truy-thu"; // trang riêng của Guest Account
+const GUEST_HOME = "/tra-cuu-truy-thu"; // trang đầu của Guest Account
+const GUEST_PAGES = ["/tra-cuu-truy-thu", "/thong-ke-kiem-ke", "/doi-mat-khau"]; // các trang Guest được vào
 
 // Rút gọn pathname về đúng menu_key gốc (VD "/bao-cao/2026-08" ->
 // "/bao-cao") — khớp danh mục menu bên backend (menu_permissions.py).
@@ -60,7 +61,7 @@ export default function Layout({ crumb, children }) {
 
     // Guest Account (chốt 26/10): chỉ được vào menu riêng của Guest, mọi đường dẫn khác chuyển về đó.
     if (u?.role === "guest") {
-      if (router.pathname !== GUEST_HOME && router.pathname !== "/doi-mat-khau") {
+      if (!GUEST_PAGES.includes(router.pathname)) {
         router.replace(GUEST_HOME);
         return;
       }
