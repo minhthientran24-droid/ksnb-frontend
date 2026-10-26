@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import { TruyThuShopCard, TruyThuNhanVienCard } from "../components/TruyThuCards";
-import { getUser, truyThuGuestShop, truyThuGuestTimShop, truyThuGuestNhanVien } from "../lib/api";
+import { getUser, thongKeKiemKeInfo, truyThuGuestShop, truyThuGuestTimShop, truyThuGuestNhanVien } from "../lib/api";
 
 // Menu RIÊNG của Guest Account (chốt 26/10) — giống "Tra cứu thông tin" nhưng CHỈ hiện Truy thu thực tế:
 // không có thông tin shop (ASM/Quản lý/Ngày mở bán...) và không có 3 kỳ kiểm kê gần nhất.
@@ -22,6 +22,7 @@ export default function TraCuuTruyThuPage() {
   const [nvError, setNvError] = useState("");
   const [nvResult, setNvResult] = useState(null);
   const [nvSearched, setNvSearched] = useState("");
+  const [info, setInfo] = useState(null); // {vung, gioi_han}
 
   useEffect(() => {
     if (!getUser()) {
@@ -29,6 +30,7 @@ export default function TraCuuTruyThuPage() {
       return;
     }
     setChecked(true);
+    thongKeKiemKeInfo().then(setInfo).catch(() => {});
   }, []);
 
   async function loadShopByCode(code) {
@@ -123,6 +125,12 @@ export default function TraCuuTruyThuPage() {
         </p>
       </div>
 
+      {info && (
+        <div style={{ fontSize: 13.5, margin: "0 2px 12px" }}>
+          Vùng của bạn: <strong>{info.vung || "chưa được gán"}</strong>
+          {info.gioi_han && <span style={{ color: "var(--text-600)" }}> — chỉ tra cứu được shop và nhân viên thuộc vùng này.</span>}
+        </div>
+      )}
       <div className="card">
         <div className="card-body" style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
           <div style={{ flex: "1 1 280px", maxWidth: 380 }}>
