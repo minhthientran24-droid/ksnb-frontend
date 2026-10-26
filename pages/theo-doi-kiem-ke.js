@@ -139,7 +139,7 @@ function llvStatusText(r, soNgayKiem) {
 // "Shop được chia - Chuẩn bị kiểm kê" (có nút Dời lịch) và "Đang kiểm" (chỉ
 // xem, có thêm cột Số ngày kiểm + cảnh báo trễ hạn, mặc định sắp theo số
 // ngày giảm dần — vẫn bấm đổi cột/chiều sắp được như mọi cột khác).
-function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canReschedule, onOpenReschedule, showHuy, onOpenHuy, emptyText, showSoNgayKiem, showTicket }) {
+function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canReschedule, onOpenReschedule, showHuy, onOpenHuy, emptyText, showSoNgayKiem, showTicket, showNgayChot }) {
   const sort = useLlvSort(showSoNgayKiem ? "so_ngay_kiem" : null, "desc");
 
   let rows = (data?.rows || []).filter((r) => {
@@ -159,12 +159,13 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
     ten_shop: (r) => r.ten_shop || "",
     ksnb: (r) => r.ksnb || "",
     ngay_kiem: (r) => r.ngay_kiem || "",
+    ngay_chot_kiem_ke: (r) => r.ngay_chot_kiem_ke || "",
     so_ngay_kiem: (r) => r._soNgayKiem ?? -Infinity,
     hinh_thuc: (r) => r.hinh_thuc || "",
     trang_thai: (r) => llvStatusText(r, showSoNgayKiem ? r._soNgayKiem : null),
   });
 
-  const colCount = 7 + (showSoNgayKiem ? 1 : 0) + (showTicket ? 1 : 0) + (showDoiLich ? 1 : 0) + (showHuy ? 1 : 0);
+  const colCount = 7 + (showNgayChot ? 1 : 0) + (showSoNgayKiem ? 1 : 0) + (showTicket ? 1 : 0) + (showDoiLich ? 1 : 0) + (showHuy ? 1 : 0);
 
   return (
     <div className="card">
@@ -184,6 +185,7 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
               <LlvSortTh label="Tên shop" sortKey="ten_shop" sortState={sort.state} onSort={sort.onSort} align="left" />
               <LlvSortTh label="KSNB phụ trách" sortKey="ksnb" sortState={sort.state} onSort={sort.onSort} />
               <LlvSortTh label="Ngày kiểm" sortKey="ngay_kiem" sortState={sort.state} onSort={sort.onSort} />
+              {showNgayChot && <LlvSortTh label="Ngày chốt kiểm kê" sortKey="ngay_chot_kiem_ke" sortState={sort.state} onSort={sort.onSort} />}
               {showSoNgayKiem && <LlvSortTh label="Số ngày kiểm" sortKey="so_ngay_kiem" sortState={sort.state} onSort={sort.onSort} />}
               <LlvSortTh label="Hình thức" sortKey="hinh_thuc" sortState={sort.state} onSort={sort.onSort} />
               <LlvSortTh label="Trạng thái" sortKey="trang_thai" sortState={sort.state} onSort={sort.onSort} />
@@ -218,6 +220,7 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
                   <td style={{ textAlign: "left", color: urgency ? undefined : tenColor }}>{r.ten_shop || "-"}</td>
                   <td>{r.ksnb || "-"}</td>
                   <td>{r.ngay_kiem || "-"}</td>
+                  {showNgayChot && <td title={r.ngay_chot_kiem_ke || ""}>{fmtNgayThang(r.ngay_chot_kiem_ke)}</td>}
                   {showSoNgayKiem && <td>{soNgayKiem ?? "-"}</td>}
                   <td>{r.hinh_thuc || "-"}</td>
                   <td style={{ fontSize: 12 }}>{statusText}</td>
@@ -596,8 +599,8 @@ export default function TheoDoiKiemKePage() {
       ["Tên shop", (r) => r.ten_shop, "text"],
       ["Số ngày gửi trễ", (r) => r.so_ngay_gui_tre || "", "text"],
       ["Ngày kiểm kê", (r) => r.ngay_kiem_ke, "text"],
-      ["Ngày gửi", (r) => r.ngay_gui, "text"],
       ...(isAdmin ? [["Ngày chốt kiểm kê", (r) => r.ngay_chot_kiem_ke, "text"]] : []),
+      ["Ngày gửi báo cáo", (r) => r.ngay_gui, "text"],
       ...numCols.map(([label, get]) => [label, get, "number"]),
       ["Lũy Kế", (r) => r.luy_ke, "number"],
       ["Ước tính truy thu", (r) => tinhUocTinhTruyThu(r), "number"],
@@ -823,6 +826,7 @@ export default function TheoDoiKiemKePage() {
           showHuy={isAdmin}
           onOpenHuy={openHuy}
           showSoNgayKiem
+          showNgayChot={isAdmin}
           emptyText="Không có shop nào đang trong kỳ kiểm."
         />
       )}
@@ -960,8 +964,8 @@ export default function TheoDoiKiemKePage() {
                   <SortTh label="Vùng" sortCol="vung" />
                   <SortTh label="Tên shop" sortCol="ten_shop" />
                   <SortTh label="Ngày kiểm kê" sortCol="ngay_kiem_ke" />
-                  <SortTh label="Ngày gửi" sortCol="ngay_gui" />
                   {isAdmin && <SortTh label={["Ngày chốt", "kiểm kê"]} sortCol="ngay_chot_kiem_ke" />}
+                  <SortTh label={["Ngày gửi", "báo cáo"]} sortCol="ngay_gui" />
                   {nhom === "long_chau" ? (
                     <>
                       <SortTh label={["Kiểm kê", "Non CL"]} sortCol="gia_tri_non_cl" />
@@ -992,8 +996,8 @@ export default function TheoDoiKiemKePage() {
                       {r.so_ngay_gui_tre ? ` - gửi trễ ${r.so_ngay_gui_tre} ngày` : ""}
                     </td>
                     <td title={r.ngay_kiem_ke || ""}>{fmtNgayThang(r.ngay_kiem_ke)}</td>
-                    <td title={r.ngay_gui || ""}>{fmtNgayThang(r.ngay_gui)}</td>
                     {isAdmin && <td title={r.ngay_chot_kiem_ke || ""}>{fmtNgayThang(r.ngay_chot_kiem_ke)}</td>}
+                    <td title={r.ngay_gui || ""}>{fmtNgayThang(r.ngay_gui)}</td>
                     {nhom === "long_chau" ? (
                       <>
                         <td className="num" style={moneyStyle(r.gia_tri_non_cl)}>{fmtMoney(r.gia_tri_non_cl)}</td>
