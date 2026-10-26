@@ -196,7 +196,7 @@ export default function TaiLenDuLieuPage() {
     setXknkResult(null);
     try {
       const res = await uploadXknkCanTon(thang, file);
-      setXknkResult({ thang: res.thang, matched_rows: res.matched_rows, total_rows: res.total_rows });
+      setXknkResult({ thang: res.thang, matched_rows: res.matched_rows, total_rows: res.total_rows, chot_shops: res.chot_shops });
       e.target.value = "";
       reloadXknkStatus();
     } catch (err) {
@@ -713,6 +713,7 @@ export default function TaiLenDuLieuPage() {
               ✅ Đã xóa data cũ của tháng <strong>{xknkResult.thang}</strong> và ghi lại{" "}
               <strong>{xknkResult.matched_rows?.toLocaleString("vi-VN")}</strong>/
               {xknkResult.total_rows?.toLocaleString("vi-VN")} dòng khớp "Xử lý kiểm kê tự động".
+              {" "}Ngày chốt kiểm kê (Xử lý kiểm kê allshop - Kho hàng thường): <strong>{(xknkResult.chot_shops ?? 0).toLocaleString("vi-VN")}</strong> shop.
             </div>
           )}
           {xknkMonths.length > 0 && (

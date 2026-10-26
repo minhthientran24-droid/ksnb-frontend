@@ -596,6 +596,7 @@ export default function TheoDoiKiemKePage() {
       ["Tên shop", (r) => r.ten_shop, "text"],
       ["Số ngày gửi trễ", (r) => r.so_ngay_gui_tre || "", "text"],
       ["Ngày kiểm kê", (r) => r.ngay_kiem_ke, "text"],
+      ...(isAdmin ? [["Ngày chốt kiểm kê", (r) => r.ngay_chot_kiem_ke, "text"]] : []),
       ...numCols.map(([label, get]) => [label, get, "number"]),
       ["Lũy Kế", (r) => r.luy_ke, "number"],
       ["Ước tính truy thu", (r) => tinhUocTinhTruyThu(r), "number"],
@@ -958,6 +959,7 @@ export default function TheoDoiKiemKePage() {
                   <SortTh label="Vùng" sortCol="vung" />
                   <SortTh label="Tên shop" sortCol="ten_shop" />
                   <SortTh label="Ngày kiểm kê" sortCol="ngay_kiem_ke" />
+                  {isAdmin && <SortTh label={["Ngày chốt", "kiểm kê"]} sortCol="ngay_chot_kiem_ke" />}
                   {nhom === "long_chau" ? (
                     <>
                       <SortTh label={["Kiểm kê", "Non CL"]} sortCol="gia_tri_non_cl" />
@@ -988,6 +990,7 @@ export default function TheoDoiKiemKePage() {
                       {r.so_ngay_gui_tre ? ` - gửi trễ ${r.so_ngay_gui_tre} ngày` : ""}
                     </td>
                     <td>{r.ngay_kiem_ke || "-"}</td>
+                    {isAdmin && <td>{r.ngay_chot_kiem_ke || "-"}</td>}
                     {nhom === "long_chau" ? (
                       <>
                         <td className="num" style={moneyStyle(r.gia_tri_non_cl)}>{fmtMoney(r.gia_tri_non_cl)}</td>
@@ -1021,7 +1024,7 @@ export default function TheoDoiKiemKePage() {
                   </tr>
                 ))}
                 {displayRows.length === 0 && (
-                  <tr><td colSpan={(nhom === "long_chau" ? 11 : 10) + (isAdmin ? 1 : 0)} style={{ textAlign: "center", color: "var(--text-400)" }}>
+                  <tr><td colSpan={(nhom === "long_chau" ? 11 : 10) + (isAdmin ? 2 : 0)} style={{ textAlign: "center", color: "var(--text-400)" }}>
                     {searchQuery ? "Không tìm thấy shop nào khớp" : "Không có shop nào trong tháng này"}
                   </td></tr>
                 )}
