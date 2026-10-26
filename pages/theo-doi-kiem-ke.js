@@ -97,6 +97,9 @@ function applyLlvSort(rows, sortState, getters) {
   const sorted = [...rows].sort((a, b) => {
     const av = getter(a);
     const bv = getter(b);
+    // Ô trống (chưa có dữ liệu) luôn xếp CUỐI, dù sắp tăng hay giảm
+    const blank = (v) => v == null || v === "" || v === -Infinity;
+    if (blank(av) || blank(bv)) return blank(av) && blank(bv) ? 0 : blank(av) ? 1 : -1;
     const bothNum = typeof av === "number" && typeof bv === "number";
     const cmp = bothNum ? av - bv : String(av ?? "").localeCompare(String(bv ?? ""), "vi");
     return sortState.dir === "asc" ? cmp : -cmp;
@@ -139,7 +142,7 @@ function llvStatusText(r, soNgayKiem) {
 // "Shop được chia - Chuẩn bị kiểm kê" (có nút Dời lịch) và "Đang kiểm" (chỉ
 // xem, có thêm cột Số ngày kiểm + cảnh báo trễ hạn, mặc định sắp theo số
 // ngày giảm dần — vẫn bấm đổi cột/chiều sắp được như mọi cột khác).
-function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canReschedule, onOpenReschedule, showHuy, onOpenHuy, emptyText, showSoNgayKiem, showTicket, showNgayChot }) {
+function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canReschedule, onOpenReschedule, showHuy, onOpenHuy, emptyText, showSoNgayKiem, showTicket, showNgayChot, compactDate }) {
   const sort = useLlvSort(showSoNgayKiem ? "so_ngay_kiem" : null, "desc");
 
   let rows = (data?.rows || []).filter((r) => {
@@ -153,6 +156,14 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
   if (showSoNgayKiem) {
     rows = rows.map((r) => ({ ...r, _soNgayKiem: daysBetween(data.date, r.ngay_kiem) }));
   }
+  if (showNgayChot) {
+    // "Số ngày đã chốt" = Hôm nay - Ngày chốt kiểm kê (số ngày dương lịch thuần; chưa có ngày chốt -> trống) — chốt 26/10
+    const toMs = (iso) => (iso ? Date.parse(`${String(iso).slice(0, 10)}T00:00:00Z`) : NaN);
+    rows = rows.map((r) => {
+      const d = Math.round((toMs(data.date) - toMs(r.ngay_chot_kiem_ke)) / 86400000);
+      return { ...r, _soNgayChot: Number.isFinite(d) ? d : null };
+    });
+  }
   rows = applyLlvSort(rows, sort.state, {
     vung: (r) => r.vung || "",
     ma_shop: (r) => r.ma_shop || "",
@@ -160,12 +171,13 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
     ksnb: (r) => r.ksnb || "",
     ngay_kiem: (r) => r.ngay_kiem || "",
     ngay_chot_kiem_ke: (r) => r.ngay_chot_kiem_ke || "",
+    so_ngay_da_chot: (r) => r._soNgayChot ?? -Infinity,
     so_ngay_kiem: (r) => r._soNgayKiem ?? -Infinity,
     hinh_thuc: (r) => r.hinh_thuc || "",
     trang_thai: (r) => llvStatusText(r, showSoNgayKiem ? r._soNgayKiem : null),
   });
 
-  const colCount = 7 + (showNgayChot ? 1 : 0) + (showSoNgayKiem ? 1 : 0) + (showTicket ? 1 : 0) + (showDoiLich ? 1 : 0) + (showHuy ? 1 : 0);
+  const colCount = 7 + (showNgayChot ? 2 : 0) + (showSoNgayKiem ? 1 : 0) + (showTicket ? 1 : 0) + (showDoiLich ? 1 : 0) + (showHuy ? 1 : 0);
 
   return (
     <div className="card">
@@ -186,6 +198,7 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
               <LlvSortTh label="KSNB phụ trách" sortKey="ksnb" sortState={sort.state} onSort={sort.onSort} />
               <LlvSortTh label="Ngày kiểm" sortKey="ngay_kiem" sortState={sort.state} onSort={sort.onSort} />
               {showNgayChot && <LlvSortTh label="Ngày chốt kiểm kê" sortKey="ngay_chot_kiem_ke" sortState={sort.state} onSort={sort.onSort} />}
+              {showNgayChot && <LlvSortTh label="Số ngày đã chốt" sortKey="so_ngay_da_chot" sortState={sort.state} onSort={sort.onSort} />}
               {showSoNgayKiem && <LlvSortTh label="Số ngày kiểm" sortKey="so_ngay_kiem" sortState={sort.state} onSort={sort.onSort} />}
               <LlvSortTh label="Hình thức" sortKey="hinh_thuc" sortState={sort.state} onSort={sort.onSort} />
               <LlvSortTh label="Trạng thái" sortKey="trang_thai" sortState={sort.state} onSort={sort.onSort} />
@@ -219,8 +232,9 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
                   <td>{r.ma_shop}</td>
                   <td style={{ textAlign: "left", color: urgency ? undefined : tenColor }}>{r.ten_shop || "-"}</td>
                   <td>{r.ksnb || "-"}</td>
-                  <td>{r.ngay_kiem || "-"}</td>
+                  <td title={compactDate ? (r.ngay_kiem || "") : undefined}>{compactDate ? fmtNgayThang(r.ngay_kiem) : (r.ngay_kiem || "-")}</td>
                   {showNgayChot && <td title={r.ngay_chot_kiem_ke || ""}>{fmtNgayThang(r.ngay_chot_kiem_ke)}</td>}
+                  {showNgayChot && <td>{r._soNgayChot ?? "-"}</td>}
                   {showSoNgayKiem && <td>{soNgayKiem ?? "-"}</td>}
                   <td>{r.hinh_thuc || "-"}</td>
                   <td style={{ fontSize: 12 }}>{statusText}</td>
@@ -827,6 +841,7 @@ export default function TheoDoiKiemKePage() {
           onOpenHuy={openHuy}
           showSoNgayKiem
           showNgayChot={isAdmin}
+          compactDate
           emptyText="Không có shop nào đang trong kỳ kiểm."
         />
       )}
