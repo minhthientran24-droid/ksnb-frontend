@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Sidebar from "./Sidebar";
 import BirthdayPopup from "./BirthdayPopup";
-import { getToken, getUser, clearSession, getMyAllowedMenusCached } from "../lib/api";
+import { getToken, getUser, clearSession, getMyAllowedMenusCached, avatarSrc } from "../lib/api";
 
 const GUEST_HOME = "/tra-cuu-truy-thu"; // trang đầu của Guest Account
-const GUEST_PAGES = ["/tra-cuu-truy-thu", "/thong-ke-kiem-ke", "/doi-mat-khau"]; // các trang Guest được vào
+const GUEST_PAGES = ["/tra-cuu-truy-thu", "/thong-ke-kiem-ke", "/quan-ly-tk", "/doi-mat-khau"]; // các trang Guest được vào
 
 // Rút gọn pathname về đúng menu_key gốc (VD "/bao-cao/2026-08" ->
 // "/bao-cao") — khớp danh mục menu bên backend (menu_permissions.py).
@@ -91,6 +91,13 @@ export default function Layout({ crumb, children }) {
     setChecked(true);
   }, [router]);
 
+  // Ảnh đại diện vừa đổi (trang Quản lý TK) -> cập nhật thanh trên cùng ngay, không cần tải lại trang.
+  useEffect(() => {
+    const onUpdated = () => setUser(getUser());
+    window.addEventListener("ksnb-user-updated", onUpdated);
+    return () => window.removeEventListener("ksnb-user-updated", onUpdated);
+  }, []);
+
   function handleLogout() {
     clearSession();
     router.replace("/login");
@@ -116,7 +123,7 @@ export default function Layout({ crumb, children }) {
             <span className="crumb-current">{crumb}</span>
           </div>
           <div className="tb-user">
-            <div className="avatar">{initials}</div>
+            <div className="avatar" style={user?.avatar_url ? { background: `url(${avatarSrc(user.avatar_url)}) center/cover`, color: "transparent" } : undefined}>{initials}</div>
             <span className="tb-user-name">{user?.full_name}</span>
             <AppVersionTag />
             <button className="logout-btn" onClick={handleLogout}>

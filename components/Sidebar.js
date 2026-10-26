@@ -52,6 +52,7 @@ const LEGACY_ITEMS = [
 const GUEST_ITEMS = [
   { href: "/tra-cuu-truy-thu", icon: "💰", label: "Tra cứu thông tin Truy thu", guestMenu: true, hideForRoles: ["admin", "editor", "editor_base", "viewer"] },
   { href: "/thong-ke-kiem-ke", icon: "📊", label: "Thống kê Kiểm Kê", guestMenu: true, hideForRoles: ["admin", "editor", "editor_base", "viewer"] },
+  { href: "/quan-ly-tk", icon: "⚙️", label: "Quản lý TK", guestMenu: true, hideForRoles: ["admin", "editor", "editor_base", "viewer"] },
 ];
 const STORAGE_KEY = "ksnb_sidebar_collapsed";
 
