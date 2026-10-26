@@ -4,6 +4,7 @@ import Layout from "../components/Layout";
 import BirthdayInput from "../components/BirthdayInput";
 import {
   listUsers, createUserAccount, updateUserAccount, deleteUserAccount, exportUsersExcel, getUser,
+  listGuestAccounts, createGuestAccount,
   getMenuPermissionCatalog, saveMenuPermissions,
 } from "../lib/api";
 import { useAllowedKeys } from "../lib/permissions";
@@ -28,6 +29,179 @@ function sortAccounts(list) {
     const kb = KHU_VUC_SORT_ORDER[b.khu_vuc] ?? 99;
     return ka - kb;
   });
+}
+
+
+// Tab "Danh sách tài khoản Guest" (chốt 26/10) — CHỈ super_admin. Toàn bộ tài khoản Guest Account được tạo/quản lý ở đây;
+// tab "Danh sách tài khoản" không hiển thị và không tạo được Guest.
+function GuestAccountsPanel({ me }) {
+  const [list, setList] = useState([]);
+  const [error, setError] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ email: "", full_name: "", position: "", password: "" });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({ full_name: "", password: "" });
+  const [editError, setEditError] = useState("");
+
+  function load() {
+    listGuestAccounts().then(setList).catch((err) => setError(err.message));
+  }
+  useEffect(load, []);
+
+  async function handleCreate(e) {
+    e.preventDefault();
+    if (!form.email.trim() || !form.full_name.trim() || !form.password.trim()) {
+      setSaveError("Cần nhập đủ Email, Họ tên, Mật khẩu");
+      return;
+    }
+    setSaving(true);
+    setSaveError("");
+    try {
+      await createGuestAccount(form);
+      setForm({ email: "", full_name: "", position: "", password: "" });
+      setShowForm(false);
+      load();
+    } catch (err) {
+      setSaveError(err.message || "Tạo tài khoản thất bại");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleToggleActive(u) {
+    try {
+      await updateUserAccount(u.id, { is_active: !u.is_active });
+      load();
+    } catch (err) {
+      alert(err.message || "Cập nhật thất bại");
+    }
+  }
+
+  async function handleSaveEdit(id) {
+    if (!editForm.full_name.trim()) {
+      setEditError("Họ tên không được để trống");
+      return;
+    }
+    setEditError("");
+    try {
+      const payload = { full_name: editForm.full_name.trim() };
+      if (editForm.password.trim()) payload.password = editForm.password.trim();
+      await updateUserAccount(id, payload);
+      setEditingId(null);
+      load();
+    } catch (err) {
+      setEditError(err.message || "Cập nhật thất bại");
+    }
+  }
+
+  async function handleDelete(id) {
+    if (!confirm("Xóa tài khoản Guest này? Người dùng sẽ không đăng nhập được nữa.")) return;
+    try {
+      await deleteUserAccount(id);
+      load();
+    } catch (err) {
+      alert(err.message || "Xóa thất bại");
+    }
+  }
+
+  return (
+    <>
+      <div className="card">
+        <div className="card-body" style={{ padding: "16px 20px", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <button className="login-btn" style={{ width: "auto", padding: "10px 24px" }} onClick={() => setShowForm(!showForm)}>
+            + Tạo tài khoản Guest
+          </button>
+          <span style={{ fontSize: 12.5, color: "var(--text-600)" }}>
+            Guest chỉ thấy các menu riêng dành cho Guest (Tra cứu thông tin Truy thu, Thống kê Kiểm Kê). Chỉ Super Admin quản lý được tab này.
+          </span>
+        </div>
+      </div>
+
+      {showForm && (
+        <div className="card">
+          <div className="card-head"><h3>Tạo tài khoản Guest</h3></div>
+          <form onSubmit={handleCreate} className="form-grid-2" style={{ padding: "16px 20px" }}>
+            <div><label style={labelStyle}>Email đăng nhập *</label>
+              <input style={inputStyle} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="ten@congty.com" /></div>
+            <div><label style={labelStyle}>Họ tên *</label>
+              <input style={inputStyle} value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} /></div>
+            <div><label style={labelStyle}>Chức danh / Đơn vị</label>
+              <input style={inputStyle} value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} /></div>
+            <div><label style={labelStyle}>Mật khẩu tạm thời *</label>
+              <input style={inputStyle} type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Guest sẽ phải đổi ở lần đăng nhập đầu" /></div>
+            {saveError && <div style={{ gridColumn: "1 / -1", fontSize: 12.5, color: "var(--danger)" }}>{saveError}</div>}
+            <div style={{ gridColumn: "1 / -1", display: "flex", gap: 10 }}>
+              <button type="submit" disabled={saving} className="login-btn" style={{ width: "auto", padding: "10px 24px" }}>
+                {saving ? "Đang tạo..." : "Tạo tài khoản Guest"}
+              </button>
+              <button type="button" onClick={() => setShowForm(false)} style={btnStyle}>Hủy</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {error && <div className="placeholder-box">Không tải được dữ liệu: {error}</div>}
+
+      <div className="card">
+        <div className="card-head"><h3>Danh sách tài khoản Guest</h3><span className="note">{list.length} tài khoản</span></div>
+        <div className="card-body" style={{ padding: 0, overflowX: "auto" }}>
+          <table>
+            <thead>
+              <tr>
+                {["STT", "Email", "Họ tên", "Chức danh / Đơn vị", "Trạng thái", ""].map((h) => (
+                  <th key={h} style={{ background: "#eaf1fc" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {list.length === 0 && !error && (
+                <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--text-400)" }}>Chưa có tài khoản Guest nào.</td></tr>
+              )}
+              {list.map((u, idx) => (
+                <Fragment key={u.id}>
+                  <tr>
+                    <td>{idx + 1}</td>
+                    <td>{u.email}</td>
+                    <td>{u.full_name}</td>
+                    <td>{u.position || "—"}</td>
+                    <td>
+                      <span className={`pill ${u.is_active ? "ok" : "warn"}`}>{u.is_active ? "Đang hoạt động" : "Đã khóa"}</span>
+                    </td>
+                    <td style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => { setEditingId(u.id); setEditForm({ full_name: u.full_name || "", password: "" }); setEditError(""); }} style={btnStyle}>Sửa</button>
+                      <button onClick={() => handleToggleActive(u)} style={btnStyle}>{u.is_active ? "Khóa" : "Mở khóa"}</button>
+                      <button onClick={() => handleDelete(u.id)} style={{ ...btnStyle, color: "var(--danger)" }} disabled={u.id === me?.id}>Xóa</button>
+                    </td>
+                  </tr>
+                  {editingId === u.id && (
+                    <tr>
+                      <td colSpan={6} style={{ background: "var(--bg)", padding: "14px 16px" }}>
+                        <div style={{ display: "flex", gap: 14, alignItems: "flex-end", flexWrap: "wrap" }}>
+                          <div>
+                            <label style={labelStyle}>Họ tên</label>
+                            <input style={{ ...inputStyle, width: 220 }} value={editForm.full_name} onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })} />
+                          </div>
+                          <div>
+                            <label style={labelStyle}>Đặt lại mật khẩu (để trống nếu không đổi)</label>
+                            <input style={{ ...inputStyle, width: 220 }} type="text" value={editForm.password} onChange={(e) => setEditForm({ ...editForm, password: e.target.value })} placeholder="Mật khẩu mới" />
+                          </div>
+                          <button className="login-btn" style={{ width: "auto", padding: "9px 20px" }} onClick={() => handleSaveEdit(u.id)}>Lưu</button>
+                          <button style={btnStyle} onClick={() => setEditingId(null)}>Hủy</button>
+                          {editError && <span style={{ fontSize: 12.5, color: "var(--danger)" }}>{editError}</span>}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
 }
 
 export default function QuanLyTaiKhoanPage() {
@@ -211,6 +385,9 @@ export default function QuanLyTaiKhoanPage() {
           <div className={`month-tab ${tab === "danh-sach" ? "active" : ""}`} onClick={() => setTab("danh-sach")}>
             Danh sách tài khoản
           </div>
+          <div className={`month-tab ${tab === "guest" ? "active" : ""}`} onClick={() => setTab("guest")}>
+            👤 Danh sách tài khoản Guest
+          </div>
           <div className={`month-tab ${tab === "phan-quyen" ? "active" : ""}`} onClick={() => setTab("phan-quyen")}>
             🔐 Quản lý phân quyền
           </div>
@@ -219,6 +396,8 @@ export default function QuanLyTaiKhoanPage() {
 
       {tab === "phan-quyen" && me?.role === "super_admin" ? (
         <PhanQuyenPanel />
+      ) : tab === "guest" && me?.role === "super_admin" ? (
+        <GuestAccountsPanel me={me} />
       ) : (
         <>
 
@@ -252,7 +431,6 @@ export default function QuanLyTaiKhoanPage() {
                 <option value="viewer">Viewer — chỉ xem</option>
                 <option value="editor">Editor — sửa nội dung được giao</option>
                 <option value="editor_base">Editor Base — như Editor, không xem Báo cáo tháng</option>
-                <option value="guest">Guest Account — không xem được màn hình/tính năng nào (chức năng riêng sẽ mở sau)</option>
                 <option value="admin">Admin — sửa mọi nội dung</option>
                 {me?.role === "super_admin" && <option value="super_admin">Super Admin — toàn quyền</option>}
               </select></div>
@@ -337,7 +515,6 @@ export default function QuanLyTaiKhoanPage() {
                         <option value="viewer">Viewer</option>
                         <option value="editor">Editor</option>
                         <option value="editor_base">Editor Base</option>
-                        <option value="guest">Guest Account</option>
                         <option value="admin">Admin</option>
                         {me?.role === "super_admin" && <option value="super_admin">Super Admin</option>}
                       </select>
