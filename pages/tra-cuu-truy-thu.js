@@ -186,7 +186,7 @@ export default function TraCuuTruyThuPage() {
         </div>
       )}
 
-      {error && <div className="placeholder-box">{error}</div>}
+      {error && <div className="placeholder-box" style={{ color: "var(--danger)", fontWeight: 700, fontSize: 17 }}>{error}</div>}
       {!error && result && result.found === false && (
         <div className="placeholder-box">Không tìm thấy shop có Mã shop "{searched}".</div>
       )}
