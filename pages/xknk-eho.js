@@ -376,7 +376,7 @@ export default function XknkEhoPage() {
         </div>
         <div className="card-body" style={{ padding: "12px 16px" }}>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
-            <input className="finput" placeholder="Mã phiếu / Mã giao dịch / SKU / Tên SP" value={qInput} onChange={(e) => setQInput(e.target.value)} style={{ width: 260 }} />
+            <input className="finput" placeholder="Mã phiếu / SKU / Tên SP" value={qInput} onChange={(e) => setQInput(e.target.value)} style={{ width: 260 }} />
             <input className="finput" placeholder="Mã shop / Tên shop" value={shopInput} onChange={(e) => setShopInput(e.target.value)} style={{ width: 200 }} />
             <select className="finput" value={f.gri_type} onChange={(e) => { setF({ ...f, gri_type: Number(e.target.value) }); setPage(1); }} style={{ width: 140 }}>
               <option value={0}>Tất cả loại phiếu</option>
@@ -400,7 +400,7 @@ export default function XknkEhoPage() {
             <table style={{ minWidth: 1700, fontSize: 12.5 }}>
               <thead>
                 <tr>
-                  {["STT", "Trạng thái", "Mã phiếu", "Mã giao dịch", "Loại phiếu", "Loại yêu cầu", "Shop", "Kho", "Sản phẩm", "Giá trị", "Số lô - HSD", "Số lượng", "Đơn vị tính", "Ngày tạo phiếu", "Người tạo phiếu", "Ghi chú"].map((h) => (
+                  {["STT", "Trạng thái", "Mã phiếu", "Loại phiếu", "Loại yêu cầu", "Shop", "Kho", "Sản phẩm", "Giá trị", "Số lô - HSD", "Số lượng", "Đơn vị tính", "Ngày tạo phiếu", "Người tạo phiếu", "Ghi chú"].map((h) => (
                     <th key={h} style={{ fontSize: 10.5, padding: "8px 8px", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -416,7 +416,6 @@ export default function XknkEhoPage() {
                       <td>{(page - 1) * pageSize + i + 1}</td>
                       <td><span style={{ background: sc[0], color: sc[1], borderRadius: 10, padding: "2px 9px", fontWeight: 600, whiteSpace: "nowrap" }}>{r.status_name || "-"}</span></td>
                       <td style={{ whiteSpace: "nowrap", color: "var(--blue-accent, #2F6FED)", fontWeight: 600 }}>{r.code}</td>
-                      <td style={{ whiteSpace: "nowrap" }}>{r.ref_request || "-"}</td>
                       <td><span style={{ background: r.gri_type === 2 ? "#FDE8E8" : "#E3F0FF", color: r.gri_type === 2 ? "#B42318" : "#1B5FB5", borderRadius: 10, padding: "2px 9px", fontWeight: 600, whiteSpace: "nowrap" }}>{r.gri_type_name || "-"}</span></td>
                       <td style={{ textAlign: "left" }}>{r.source_type_name || "-"}</td>
                       <td style={{ textAlign: "left" }}>{r.shop_code}{r.shop_name ? ` - ${r.shop_name}` : ""}</td>
