@@ -79,7 +79,7 @@ function TreHanModal({ shops, onTat, onDongY }) {
                   <td style={tdStyle}>{r.vung || "-"}</td>
                   <td style={tdStyle}>{r.ngay_kiem || "-"}</td>
                   <td style={tdStyle}>{r._soNgayKiem}</td>
-                  <td style={tdStyle}>{r._urgency === "da_tre_han" ? "Đã trễ hạn" : "Sắp trễ hạn"}</td>
+                  <td style={tdStyle}>{r._urgency === "da_tre_han" ? "Đã trễ hạn" : (r.ngay_chot_kiem_ke ? "Sắp trễ hạn - Shop đã chốt kiểm kê" : "Sắp trễ hạn")}</td>
                 </tr>
               ))}
             </tbody>
