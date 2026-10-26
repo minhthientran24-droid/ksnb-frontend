@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
-import { getUser, xknkEhoMonths, xknkEhoFilters, xknkEhoRows, xknkEhoIngest, xknkEhoFinalize } from "../lib/api";
+import { getUser, xknkEhoMonths, xknkEhoFilters, xknkEhoRows, xknkEhoIngest, xknkEhoFinalize, xknkEhoSourceTypes } from "../lib/api";
+
+// Loại yêu cầu EHO (mã -> tên). Tên chưa biết sẽ tự cập nhật theo dữ liệu đã kéo (/source-types).
+const SOURCE_BASE = {
+  3: "Xuất thanh lý", 4: "Xử lý kiểm kê tự động", 6: "", 7: "Xuất sử dụng", 9: "Xử lý kiểm kê allshop", 11: "Xử lý được confirm từ marketing",
+  12: "Xử lý bồi thường Nhà vận chuyển", 13: "Xử lý không truy thu", 14: "Xử lý khác", 15: "Kiểm kê cận date", 16: "Hủy đa liều",
+  17: "Xuất khác dung môi", 21: "Xuất hàng tặng", 22: "Hàng khuyến mãi Vacxin",
+};
+const SOURCE_IDS = Object.keys(SOURCE_BASE).map(Number);
 
 // Menu "Xuất Khác - Nhập Khác EHO" (chốt 26/10) — CHỈ super_admin, để test. Toàn bộ giao dịch Nhập khác / Xuất khác kéo từ EHO
 // về theo tháng. Nút đồng bộ nằm ngay trong menu: chọn khoảng thời gian kéo (mặc định cả 1 tháng), đăng nhập EHO qua EHO Agent
@@ -56,6 +64,9 @@ export default function XknkEhoPage() {
   const [prog, setProg] = useState(null);
   const [syncMsg, setSyncMsg] = useState(null);
   const [opening, setOpening] = useState(false);
+  const [srcNames, setSrcNames] = useState(SOURCE_BASE);
+  const [srcSel, setSrcSel] = useState(() => new Set(SOURCE_IDS)); // mặc định tick tất cả
+  const [agentVer, setAgentVer] = useState("");
   const cancelRef = useRef(false);
   const alive = useRef(true);
 
@@ -81,7 +92,22 @@ export default function XknkEhoPage() {
     }
     setChecked(true);
     loadMonths(true);
+    xknkEhoSourceTypes()
+      .then((r) => {
+        const names = { ...SOURCE_BASE };
+        const sel = new Set(SOURCE_IDS);
+        (r.loai_yeu_cau || []).forEach((x) => { if (x.ten) names[x.ma] = x.ten; else if (!(x.ma in names)) names[x.ma] = ""; sel.add(x.ma); });
+        setSrcNames(names);
+        setSrcSel(sel);
+      })
+      .catch(() => {});
   }, []);
+
+  const srcIds = Object.keys(srcNames).map(Number).sort((a, b) => a - b);
+  const srcLabel = (id) => (srcNames[id] ? `${srcNames[id]} (${id})` : `Loại yêu cầu ${id}`);
+  function toggleSrc(id) {
+    setSrcSel((o) => { const n = new Set(o); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  }
 
   function loadMonths(selectFirst) {
     xknkEhoMonths()
@@ -102,6 +128,7 @@ export default function XknkEhoPage() {
         if (!alive.current) return;
         if (p && p.ok) {
           setAgent("ok");
+          setAgentVer(String(p.version || ""));
           if (!syncing) setLogin(await agentCall("/status", { timeoutMs: 8000 }));
         } else setAgent("missing");
       } catch (e) {
@@ -161,6 +188,16 @@ export default function XknkEhoPage() {
       setSyncMsg({ type: "err", text: "Khoảng thời gian không hợp lệ (Từ ngày phải trước hoặc bằng Đến ngày)." });
       return;
     }
+    const picked = srcIds.filter((id) => srcSel.has(id));
+    if (!picked.length) {
+      setSyncMsg({ type: "err", text: "Hãy tick chọn ít nhất 1 Loại yêu cầu để đồng bộ." });
+      return;
+    }
+    const allPicked = picked.length === srcIds.length;
+    if (!allPicked && parseFloat(agentVer) < 1.2) {
+      setSyncMsg({ type: "err", text: "EHO Agent trên máy là bản cũ (chưa hỗ trợ chọn Loại yêu cầu). Hãy tắt cửa sổ EHO Agent rồi mở lại Chay-EHO-Agent.bat để dùng bản mới." });
+      return;
+    }
     const days = Math.round((new Date(to) - new Date(from)) / 86400000) + 1;
     if (days > 93 && !confirm(`Khoảng kéo ${days} ngày, rất nhiều dữ liệu và sẽ chạy lâu. Vẫn tiếp tục?`)) return;
     setSyncing(true);
@@ -170,7 +207,7 @@ export default function XknkEhoPage() {
     const batch = `xk-${Date.now()}`;
     let saved = 0, last = null;
     try {
-      const st = await agentCall("/xknk/start", { method: "POST", body: { from_date: from, to_date: to }, timeoutMs: 30000 });
+      const st = await agentCall("/xknk/start", { method: "POST", body: { from_date: from, to_date: to, source_types: allPicked ? [] : picked }, timeoutMs: 30000 });
       if (!st || st.error) {
         throw new Error(st && st.error === "not_logged_in" ? "Chưa đăng nhập EHO — bấm \"Mở EHO & đăng nhập\" trước."
           : st && st.error === "no_browser" ? "Chưa mở cửa sổ EHO — bấm \"Mở EHO & đăng nhập\" trước."
@@ -198,10 +235,10 @@ export default function XknkEhoPage() {
       if (last.cancelled || cancelRef.current) {
         setSyncMsg({ type: "err", text: `Đã dừng. Đã lưu ${saved.toLocaleString("vi-VN")} dòng (chưa dọn dòng cũ).` });
       } else {
-        const fin = await xknkEhoFinalize({ batch, from_time: `${from}T00:00:00`, to_time: `${to}T23:59:59.999999`, so_dong_da_luu: saved });
+        const fin = await xknkEhoFinalize({ batch, from_time: `${from}T00:00:00`, to_time: `${to}T23:59:59.999999`, so_dong_da_luu: saved, source_types: allPicked ? null : picked });
         setSyncMsg({
           type: last.capped > 0 ? "warn" : "ok",
-          text: `✅ Đồng bộ xong ${from.split("-").reverse().join("/")} → ${to.split("-").reverse().join("/")}: lưu ${saved.toLocaleString("vi-VN")} dòng giao dịch (${last.queries.toLocaleString("vi-VN")} lượt gọi EHO, ${fmtMs(last.elapsedSec)})`
+          text: `✅ Đồng bộ xong ${from.split("-").reverse().join("/")} → ${to.split("-").reverse().join("/")}: ${allPicked ? "" : `(${picked.length}/${srcIds.length} loại yêu cầu) `}lưu ${saved.toLocaleString("vi-VN")} dòng giao dịch (${last.queries.toLocaleString("vi-VN")} lượt gọi EHO, ${fmtMs(last.elapsedSec)})`
             + (fin.da_xoa ? `, dọn ${fin.da_xoa.toLocaleString("vi-VN")} dòng cũ không còn trên EHO` : "")
             + (last.capped > 0 ? `. ⚠️ ${last.capped} cửa sổ giây vẫn chạm trần 500 phiếu nên có thể thiếu một ít dòng.` : "."),
         });
@@ -269,8 +306,23 @@ export default function XknkEhoPage() {
             </button>
             {syncing && <button className="fbtn" style={{ color: "var(--danger)" }} onClick={() => { cancelRef.current = true; }}>Dừng</button>}
           </div>
+          <div style={{ marginTop: 12 }}>
+            <label style={lbl}>
+              Loại yêu cầu cần kéo ({srcIds.filter((id) => srcSel.has(id)).length}/{srcIds.length})
+              <button type="button" className="fbtn" disabled={syncing} style={{ marginLeft: 10, padding: "1px 10px", fontSize: 12 }} onClick={() => setSrcSel(new Set(srcIds))}>Chọn tất cả</button>
+              <button type="button" className="fbtn" disabled={syncing} style={{ marginLeft: 6, padding: "1px 10px", fontSize: 12 }} onClick={() => setSrcSel(new Set())}>Bỏ chọn hết</button>
+            </label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 18px", fontSize: 13 }}>
+              {srcIds.map((id) => (
+                <label key={id} style={{ display: "flex", alignItems: "center", gap: 6, cursor: syncing ? "default" : "pointer", opacity: srcSel.has(id) ? 1 : 0.6 }}>
+                  <input type="checkbox" checked={srcSel.has(id)} disabled={syncing} onChange={() => toggleSrc(id)} />
+                  {srcLabel(id)}
+                </label>
+              ))}
+            </div>
+          </div>
           <div style={{ fontSize: 12, color: "var(--text-400)", marginTop: 8 }}>
-            Chọn tháng sẽ tự điền Từ ngày/Đến ngày của cả tháng (VD 01/10–31/10); có thể sửa tay để kéo khoảng khác. Mỗi lần đồng bộ ghi đè lại đúng khoảng đã chọn.
+            Chọn tháng sẽ tự điền Từ ngày/Đến ngày của cả tháng (VD 01/10–31/10); có thể sửa tay để kéo khoảng khác. Mỗi lần đồng bộ chỉ ghi đè lại đúng khoảng ngày và đúng các Loại yêu cầu đã tick (loại không tick thì giữ nguyên dữ liệu cũ).
             Một tháng có thể hơn 500.000 dòng nên chạy vài phút — giữ nguyên trang này và cửa sổ EHO trong lúc kéo.
           </div>
 
