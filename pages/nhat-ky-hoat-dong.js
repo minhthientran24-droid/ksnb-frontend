@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
-import { getActivityLogSummary, getInactiveUsers, getGuestActivityStats, getGuestActivityEvents, getUser } from "../lib/api";
+import { getActivityLogSummary, getInactiveUsers, getGuestActivityStats, getUser } from "../lib/api";
 import { useAllowedKeys } from "../lib/permissions";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
@@ -78,7 +78,7 @@ export default function NhatKyHoatDongPage() {
 
 // ---------------------------------------------------------------------
 // Tab "Nhật ký hoạt động user Guest" (chốt 26/10) — CHỈ super_admin: thống kê lượt truy cập (đăng nhập) + sử dụng tính
-// năng của các tài khoản Guest, kèm nhật ký chi tiết từng lần.
+// năng của các tài khoản Guest, 
 // ---------------------------------------------------------------------
 const DAY_OPTIONS = [7, 14, 30, 90];
 
@@ -87,10 +87,6 @@ function GuestLogTab() {
   const [stats, setStats] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [userId, setUserId] = useState(null); // lọc nhật ký chi tiết theo 1 Guest
-  const [events, setEvents] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [evLoading, setEvLoading] = useState(false);
 
   function loadStats() {
     setLoading(true);
@@ -101,16 +97,7 @@ function GuestLogTab() {
       .finally(() => setLoading(false));
   }
 
-  function loadEvents(append = false) {
-    setEvLoading(true);
-    getGuestActivityEvents({ days, userId, offset: append ? events.length : 0 })
-      .then((r) => { setEvents(append ? [...events, ...r.events] : r.events); setTotal(r.total); })
-      .catch((err) => setError(err.message))
-      .finally(() => setEvLoading(false));
-  }
-
   useEffect(() => { loadStats(); }, [days]);
-  useEffect(() => { loadEvents(false); }, [days, userId]);
 
   const maxDay = Math.max(1, ...(stats?.theo_ngay || []).map((d) => d.login + d.usage));
   const featureLabels = (stats?.theo_tinh_nang || []);
@@ -123,7 +110,7 @@ function GuestLogTab() {
           <select className="finput" value={days} onChange={(e) => setDays(Number(e.target.value))} style={{ width: 160 }}>
             {DAY_OPTIONS.map((d) => <option key={d} value={d}>{d} ngày gần nhất</option>)}
           </select>
-          <button className="fbtn" disabled={loading} onClick={() => { loadStats(); loadEvents(false); }}>{loading ? "Đang tải..." : "🔄 Làm mới"}</button>
+          <button className="fbtn" disabled={loading} onClick={loadStats}>{loading ? "Đang tải..." : "🔄 Làm mới"}</button>
           {stats && <span style={{ fontSize: 12, color: "var(--text-600)" }}>Từ <b>{formatDateVn(stats.tu_ngay)}</b> đến <b>{formatDateVn(stats.den_ngay)}</b></span>}
         </div>
       </div>
@@ -163,7 +150,7 @@ function GuestLogTab() {
           </div>
 
           <div className="card" style={{ marginBottom: 16 }}>
-            <div className="card-head"><h3>Theo từng tài khoản Guest</h3><span className="note">Bấm vào tên để lọc nhật ký chi tiết bên dưới</span></div>
+            <div className="card-head"><h3>Theo từng tài khoản Guest</h3></div>
             <div className="card-body" style={{ padding: 0, overflowX: "auto" }}>
               <table style={{ fontSize: 12.5 }}>
                 <thead>
@@ -179,8 +166,8 @@ function GuestLogTab() {
                 <tbody>
                   {stats.theo_user.length === 0 && <tr><td colSpan={5 + featureLabels.length} style={{ textAlign: "center", color: "var(--text-400)" }}>Chưa có tài khoản Guest nào.</td></tr>}
                   {stats.theo_user.map((u) => (
-                    <tr key={u.user_id} style={{ background: userId === u.user_id ? "var(--bg)" : undefined }}>
-                      <td style={{ textAlign: "left", cursor: "pointer" }} onClick={() => setUserId(userId === u.user_id ? null : u.user_id)} title="Bấm để lọc nhật ký chi tiết">
+                    <tr key={u.user_id}>
+                      <td style={{ textAlign: "left" }}>
                         <b>{u.full_name}</b>{!u.is_active && <span style={{ color: "var(--danger)" }}> (đã khóa)</span>}
                         <div style={{ fontSize: 11, color: "var(--text-400)" }}>{u.email}</div>
                       </td>
@@ -215,45 +202,6 @@ function GuestLogTab() {
           </div>
         </>
       )}
-
-      <div className="card">
-        <div className="card-head">
-          <h3>Nhật ký chi tiết{userId && stats ? ` — ${stats.theo_user.find((u) => u.user_id === userId)?.full_name || ""}` : ""}</h3>
-          <span className="note">
-            {total} dòng{userId && <> · <span style={{ cursor: "pointer", color: "var(--blue-accent, #2F6FED)" }} onClick={() => setUserId(null)}>bỏ lọc</span></>}
-          </span>
-        </div>
-        <div className="card-body" style={{ padding: 0, overflowX: "auto" }}>
-          <table style={{ fontSize: 12.5 }}>
-            <thead>
-              <tr>
-                <th style={{ ...thStyle, textAlign: "left" }}>Thời gian</th>
-                <th style={{ ...thStyle, textAlign: "left" }}>Guest</th>
-                <th style={thStyle}>Vùng</th>
-                <th style={{ ...thStyle, textAlign: "left" }}>Hành động</th>
-                <th style={{ ...thStyle, textAlign: "left" }}>Chi tiết</th>
-              </tr>
-            </thead>
-            <tbody>
-              {events.length === 0 && !evLoading && <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--text-400)" }}>Chưa có hoạt động nào trong khoảng thời gian này.</td></tr>}
-              {events.map((e) => (
-                <tr key={e.id}>
-                  <td style={{ textAlign: "left", whiteSpace: "nowrap" }}>{formatDateTimeVn(e.at)}</td>
-                  <td style={{ textAlign: "left" }}>{e.full_name}</td>
-                  <td>{e.vung || "—"}</td>
-                  <td style={{ textAlign: "left", color: e.action === "tra_cuu_truy_thu_khac_vung" ? "var(--danger)" : undefined, fontWeight: e.action === "tra_cuu_truy_thu_khac_vung" ? 700 : undefined }}>{e.label}</td>
-                  <td style={{ textAlign: "left" }}>{e.detail || ""}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {events.length < total && (
-            <div style={{ padding: 12, textAlign: "center" }}>
-              <button className="fbtn" disabled={evLoading} onClick={() => loadEvents(true)}>{evLoading ? "Đang tải..." : `Xem thêm (${total - events.length} dòng nữa)`}</button>
-            </div>
-          )}
-        </div>
-      </div>
     </>
   );
 }
