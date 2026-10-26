@@ -10,7 +10,7 @@ import {
   exportDaKiemExcel,
 } from "../lib/api";
 import { useAllowedKeys } from "../lib/permissions";
-import { fmtNgayThang, fmtMoney, tinhUocTinhTruyThu, moneyStyle, sortDaKiemRows } from "../lib/daKiem";
+import { fmtNgayThang, fmtNgayGio, fmtMoney, tinhUocTinhTruyThu, moneyStyle, sortDaKiemRows } from "../lib/daKiem";
 
 function normName(s) {
   return String(s == null ? "" : s).toLowerCase().trim()
@@ -158,7 +158,7 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
   }
   if (showNgayChot) {
     // "Số ngày đã chốt" = Hôm nay - Ngày chốt kiểm kê, TRỪ các ngày Chủ nhật (cùng hàm daysBetween với "Số ngày kiểm") — chốt 26/10
-    rows = rows.map((r) => ({ ...r, _soNgayChot: daysBetween(data.date, r.ngay_chot_kiem_ke) }));
+    rows = rows.map((r) => ({ ...r, _soNgayChot: daysBetween(data.date, (r.ngay_chot_kiem_ke || "").slice(0, 10)) }));
   }
   rows = applyLlvSort(rows, sort.state, {
     vung: (r) => r.vung || "",
@@ -229,7 +229,7 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
                   <td style={{ textAlign: "left", color: urgency ? undefined : tenColor }}>{r.ten_shop || "-"}</td>
                   <td>{r.ksnb || "-"}</td>
                   <td title={compactDate ? (r.ngay_kiem || "") : undefined}>{compactDate ? fmtNgayThang(r.ngay_kiem) : (r.ngay_kiem || "-")}</td>
-                  {showNgayChot && <td title={r.ngay_chot_kiem_ke || ""}>{fmtNgayThang(r.ngay_chot_kiem_ke)}</td>}
+                  {showNgayChot && <td title={r.ngay_chot_kiem_ke || ""} style={{ whiteSpace: "nowrap" }}>{fmtNgayGio(r.ngay_chot_kiem_ke)}</td>}
                   {showNgayChot && <td>{r._soNgayChot ?? "-"}</td>}
                   {showSoNgayKiem && <td>{soNgayKiem ?? "-"}</td>}
                   <td>{r.hinh_thuc || "-"}</td>
