@@ -10,13 +10,13 @@ import { useAllowedKeys } from "../lib/permissions";
 
 const emptyForm = { email: "", full_name: "", position: "", password: "", role: "viewer", kiem_ke_permission: false, khu_vuc: "", ngay_sinh: "" };
 const ADMIN_ROLES = ["admin", "super_admin"];
-const ROLE_LABELS = { super_admin: "Super Admin", admin: "Admin", editor: "Editor", viewer: "Viewer" };
+const ROLE_LABELS = { super_admin: "Super Admin", admin: "Admin", editor: "Editor", editor_base: "Editor Base", viewer: "Viewer", guest: "Guest Account" };
 const KHU_VUC_OPTIONS = ["VP HCM", "VP HNI"];
 
 // Thứ tự hiển thị bảng: Admin (gồm cả Super Admin) - Editor - Editor Base -
 // Viewer, cùng quyền thì sắp tiếp theo Khu vực làm việc (VP HCM trước VP
 // HNI, chưa chọn xuống cuối).
-const ROLE_SORT_ORDER = { super_admin: 0, admin: 1, editor: 2, editor_base: 3, viewer: 4 };
+const ROLE_SORT_ORDER = { super_admin: 0, admin: 1, editor: 2, editor_base: 3, viewer: 4, guest: 5 };
 const KHU_VUC_SORT_ORDER = KHU_VUC_OPTIONS.reduce((acc, k, i) => ({ ...acc, [k]: i }), {});
 
 function sortAccounts(list) {
@@ -252,6 +252,7 @@ export default function QuanLyTaiKhoanPage() {
                 <option value="viewer">Viewer — chỉ xem</option>
                 <option value="editor">Editor — sửa nội dung được giao</option>
                 <option value="editor_base">Editor Base — như Editor, không xem Báo cáo tháng</option>
+                <option value="guest">Guest Account — không xem được màn hình/tính năng nào (chức năng riêng sẽ mở sau)</option>
                 <option value="admin">Admin — sửa mọi nội dung</option>
                 {me?.role === "super_admin" && <option value="super_admin">Super Admin — toàn quyền</option>}
               </select></div>
@@ -336,6 +337,7 @@ export default function QuanLyTaiKhoanPage() {
                         <option value="viewer">Viewer</option>
                         <option value="editor">Editor</option>
                         <option value="editor_base">Editor Base</option>
+                        <option value="guest">Guest Account</option>
                         <option value="admin">Admin</option>
                         {me?.role === "super_admin" && <option value="super_admin">Super Admin</option>}
                       </select>

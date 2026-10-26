@@ -97,6 +97,7 @@ export default function Sidebar() {
   // sách đó. Chưa tải xong: tạm theo hideForRoles hardcode (không chớp menu).
   function isVisible(item) {
     if (myRole === "super_admin") return true;
+    if (myRole === "guest") return false; // Guest Account: không thấy menu nào (chốt 26/10)
     if (allowedMenus) return allowedMenus.includes(item.href);
     return !item.hideForRoles?.includes(myRole);
   }

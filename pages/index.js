@@ -110,7 +110,7 @@ const QUICK_LINKS = [
   { href: "/lich-nghi", icon: "🏖️", label: "Lịch làm việc & nghỉ phép" },
 ];
 
-export default function HomePage() {
+function HomePageInner() {
   const router = useRouter();
   const [content, setContent] = useState(null);
   const [editing, setEditing] = useState(false);
@@ -324,3 +324,12 @@ const cancelBtnStyle = {
   padding: "9px 20px", borderRadius: 8, border: "1px solid var(--border)", background: "#fff",
   color: "var(--text-600)", fontSize: 13.5, fontWeight: 700, cursor: "pointer",
 };
+
+// Guest Account (chốt 26/10): không gọi bất kỳ API nào ở trang chủ — Layout tự hiện khung thông báo tối giản.
+export default function HomePage() {
+  const [isGuest, setIsGuest] = useState(null);
+  useEffect(() => { setIsGuest(getUser()?.role === "guest"); }, []);
+  if (isGuest === null) return null;
+  if (isGuest) return <Layout crumb="Trang chủ" />;
+  return <HomePageInner />;
+}
