@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Sidebar from "./Sidebar";
 import BirthdayPopup from "./BirthdayPopup";
-import { getToken, getUser, clearSession, getMyAllowedMenusCached, avatarSrc } from "../lib/api";
+import { getToken, getUser, clearSession, getMyAllowedMenusCached, avatarSrc, getMyProfile, updateStoredUser } from "../lib/api";
+
+// Chức danh + ảnh đại diện lấy từ hồ sơ tài khoản (chốt 26/10) — nạp 1 lần mỗi lần mở web, phiên cũ chưa lưu chức danh cũng tự có.
+let _profileSynced = false;
 
 const GUEST_HOME = "/tra-cuu-truy-thu"; // trang đầu của Guest Account
 const GUEST_PAGES = ["/tra-cuu-truy-thu", "/thong-ke-kiem-ke", "/quan-ly-tk", "/doi-mat-khau"]; // các trang Guest được vào
@@ -91,6 +94,14 @@ export default function Layout({ crumb, children }) {
     setChecked(true);
   }, [router]);
 
+  useEffect(() => {
+    if (_profileSynced || !getToken()) return;
+    _profileSynced = true;
+    getMyProfile()
+      .then((p) => updateStoredUser({ position: p.position || "", avatar_url: p.avatar_url || null }))
+      .catch(() => { _profileSynced = false; });
+  }, []);
+
   // Ảnh đại diện vừa đổi (trang Quản lý TK) -> cập nhật thanh trên cùng ngay, không cần tải lại trang.
   useEffect(() => {
     const onUpdated = () => setUser(getUser());
@@ -124,7 +135,10 @@ export default function Layout({ crumb, children }) {
           </div>
           <div className="tb-user">
             <div className="avatar" style={user?.avatar_url ? { background: `url(${avatarSrc(user.avatar_url)}) center/cover`, color: "transparent" } : undefined}>{initials}</div>
-            <span className="tb-user-name">{user?.full_name}</span>
+            <div className="tb-user-name">
+              <span>{user?.full_name}</span>
+              {user?.position && <span className="tb-user-pos">{user.position}</span>}
+            </div>
             <AppVersionTag />
             <button className="logout-btn" onClick={handleLogout}>
               Đăng xuất
