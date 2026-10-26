@@ -157,12 +157,8 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
     rows = rows.map((r) => ({ ...r, _soNgayKiem: daysBetween(data.date, r.ngay_kiem) }));
   }
   if (showNgayChot) {
-    // "Số ngày đã chốt" = Hôm nay - Ngày chốt kiểm kê (số ngày dương lịch thuần; chưa có ngày chốt -> trống) — chốt 26/10
-    const toMs = (iso) => (iso ? Date.parse(`${String(iso).slice(0, 10)}T00:00:00Z`) : NaN);
-    rows = rows.map((r) => {
-      const d = Math.round((toMs(data.date) - toMs(r.ngay_chot_kiem_ke)) / 86400000);
-      return { ...r, _soNgayChot: Number.isFinite(d) ? d : null };
-    });
+    // "Số ngày đã chốt" = Hôm nay - Ngày chốt kiểm kê, TRỪ các ngày Chủ nhật (cùng hàm daysBetween với "Số ngày kiểm") — chốt 26/10
+    rows = rows.map((r) => ({ ...r, _soNgayChot: daysBetween(data.date, r.ngay_chot_kiem_ke) }));
   }
   rows = applyLlvSort(rows, sort.state, {
     vung: (r) => r.vung || "",
