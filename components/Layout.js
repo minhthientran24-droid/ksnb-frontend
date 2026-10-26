@@ -4,6 +4,8 @@ import Sidebar from "./Sidebar";
 import BirthdayPopup from "./BirthdayPopup";
 import { getToken, getUser, clearSession, getMyAllowedMenusCached } from "../lib/api";
 
+const GUEST_HOME = "/tra-cuu-truy-thu"; // trang riêng của Guest Account
+
 // Rút gọn pathname về đúng menu_key gốc (VD "/bao-cao/2026-08" ->
 // "/bao-cao") — khớp danh mục menu bên backend (menu_permissions.py).
 function menuKeyFromPathname(pathname) {
@@ -56,10 +58,10 @@ export default function Layout({ crumb, children }) {
     }
     setUser(u);
 
-    // Guest Account (chốt 26/10): chỉ ở lại trang chủ (hiện thông báo), không vào được trang nào khác.
+    // Guest Account (chốt 26/10): chỉ được vào menu riêng của Guest, mọi đường dẫn khác chuyển về đó.
     if (u?.role === "guest") {
-      if (router.pathname !== "/" && router.pathname !== "/doi-mat-khau") {
-        router.replace("/");
+      if (router.pathname !== GUEST_HOME && router.pathname !== "/doi-mat-khau") {
+        router.replace(GUEST_HOME);
         return;
       }
       setChecked(true);
@@ -95,33 +97,6 @@ export default function Layout({ crumb, children }) {
 
   // Tránh chớp nội dung trước khi biết đã đăng nhập hay chưa
   if (!checked) return null;
-
-  // Guest Account: khung tối giản — không menu, không popup, không nội dung trang (chức năng riêng sẽ làm sau).
-  if (user?.role === "guest") {
-    return (
-      <div className="shell">
-        <div className="main" style={{ marginLeft: 0 }}>
-          <div className="topbar">
-            <div>KSNB Long Châu</div>
-            <div className="tb-user">
-              <span className="tb-user-name">{user?.full_name}</span>
-              <button className="logout-btn" onClick={handleLogout}>Đăng xuất</button>
-            </div>
-          </div>
-          <div className="content">
-            <div className="placeholder-box" style={{ maxWidth: 560, margin: "60px auto", textAlign: "center" }}>
-              <div style={{ fontSize: 40, marginBottom: 10 }}>👤</div>
-              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>Tài khoản Guest</div>
-              <div style={{ fontSize: 13.5, color: "var(--text-600)", lineHeight: 1.6 }}>
-                Tài khoản này hiện chưa được mở chức năng nào trên hệ thống.
-                Khi có chức năng dành riêng cho Guest, mục đó sẽ hiện ở đây.
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   const initials = (user?.full_name || "?")
     .split(" ")

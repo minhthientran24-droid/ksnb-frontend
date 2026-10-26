@@ -47,6 +47,11 @@ const LEGACY_ITEMS = [
   { href: "/theo-doi-chu-de", icon: "☰", label: "Theo dõi chủ đề Ver1", hideForRoles: ["admin", "editor", "editor_base", "viewer"] },
   { href: "/ghi-nhan-case", icon: "📝", label: "Ghi nhận case vi phạm Ver1", hideForRoles: ["admin", "editor", "editor_base", "viewer"] },
 ];
+// Chốt 26/10 — menu RIÊNG của Guest Account, đứng DƯỚI CÙNG. Guest chỉ thấy đúng mục này; super_admin thấy mọi mục;
+// role khác chỉ thấy khi super_admin tick quyền "/tra-cuu-truy-thu" (mặc định ẩn).
+const GUEST_ITEMS = [
+  { href: "/tra-cuu-truy-thu", icon: "💰", label: "Tra cứu thông tin Truy thu", guestMenu: true, hideForRoles: ["admin", "editor", "editor_base", "viewer"] },
+];
 const STORAGE_KEY = "ksnb_sidebar_collapsed";
 
 export default function Sidebar() {
@@ -97,7 +102,7 @@ export default function Sidebar() {
   // sách đó. Chưa tải xong: tạm theo hideForRoles hardcode (không chớp menu).
   function isVisible(item) {
     if (myRole === "super_admin") return true;
-    if (myRole === "guest") return false; // Guest Account: không thấy menu nào (chốt 26/10)
+    if (myRole === "guest") return item.guestMenu === true; // Guest Account: chỉ thấy menu riêng của Guest (chốt 26/10)
     if (allowedMenus) return allowedMenus.includes(item.href);
     return !item.hideForRoles?.includes(myRole);
   }
@@ -129,6 +134,7 @@ export default function Sidebar() {
   const visibleNavItems = NAV_ITEMS.filter(isVisible);
   const visibleAdminItems = ADMIN_ITEMS.filter(isVisible);
   const visibleLegacyItems = LEGACY_ITEMS.filter(isVisible);
+  const visibleGuestItems = GUEST_ITEMS.filter(isVisible);
 
   return (
     <>
@@ -160,6 +166,13 @@ export default function Sidebar() {
             <>
               <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "10px 14px" }} />
               {visibleLegacyItems.map(renderItem)}
+            </>
+          )}
+
+          {visibleGuestItems.length > 0 && (
+            <>
+              <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "10px 14px" }} />
+              {visibleGuestItems.map(renderItem)}
             </>
           )}
         </nav>
