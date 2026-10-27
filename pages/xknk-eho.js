@@ -11,8 +11,11 @@ const SOURCE_BASE = {
   21: "Xuất hàng tặng", 22: "Hàng khuyến mãi Vacxin",
 };
 const SOURCE_IDS = Object.keys(SOURCE_BASE).map(Number);
+// Loại yêu cầu KHÔNG tự tick khi mở màn hình đồng bộ (chốt 27/10): Kiểm kê cận date — muốn kéo thì tự tick thêm.
+const DEFAULT_OFF = new Set([15]);
+const defaultSel = (ids) => new Set(ids.filter((id) => !DEFAULT_OFF.has(id)));
 
-// Menu "Xuất Khác - Nhập Khác EHO" (chốt 26/10) — CHỈ super_admin, để test. Toàn bộ giao dịch Nhập khác / Xuất khác kéo từ EHO
+// Menu "Xuất Khác - Nhập Khác EHO" (chốt 26/10; mở cho admin 27/10) — admin + super_admin. Toàn bộ giao dịch Nhập khác / Xuất khác kéo từ EHO
 // về theo tháng. Nút đồng bộ nằm ngay trong menu: chọn khoảng thời gian kéo (mặc định cả 1 tháng), đăng nhập EHO qua EHO Agent
 // chạy trên chính PC này (xem ksnb-backend/tools/eho_agent), web đẩy từng đợt dữ liệu lên hệ thống.
 const AGENT = "http://127.0.0.1:8765";
@@ -67,7 +70,7 @@ export default function XknkEhoPage() {
   const [syncMsg, setSyncMsg] = useState(null);
   const [opening, setOpening] = useState(false);
   const [srcNames, setSrcNames] = useState(SOURCE_BASE);
-  const [srcSel, setSrcSel] = useState(() => new Set(SOURCE_IDS)); // mặc định tick tất cả
+  const [srcSel, setSrcSel] = useState(() => defaultSel(SOURCE_IDS)); // mặc định tick tất cả trừ DEFAULT_OFF
   const [agentVer, setAgentVer] = useState("");
   const [launching, setLaunching] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
@@ -97,7 +100,7 @@ export default function XknkEhoPage() {
 
   useEffect(() => {
     const u = getUser();
-    if (!u || u.role !== "super_admin") {
+    if (!u || !["admin", "super_admin"].includes(u.role)) {
       window.location.replace("/");
       return;
     }
@@ -106,10 +109,9 @@ export default function XknkEhoPage() {
     xknkEhoSourceTypes()
       .then((r) => {
         const names = { ...SOURCE_BASE };
-        const sel = new Set(SOURCE_IDS);
-        (r.loai_yeu_cau || []).forEach((x) => { if (x.ten) names[x.ma] = x.ten; else if (!(x.ma in names)) names[x.ma] = ""; sel.add(x.ma); });
+        (r.loai_yeu_cau || []).forEach((x) => { if (x.ten) names[x.ma] = x.ten; else if (!(x.ma in names)) names[x.ma] = ""; });
         setSrcNames(names);
-        setSrcSel(sel);
+        setSrcSel(defaultSel(Object.keys(names).map(Number)));
       })
       .catch(() => {});
   }, []);
@@ -316,7 +318,7 @@ export default function XknkEhoPage() {
       <div className="page-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
         <div>
           <h1>🧾 Xuất Khác - Nhập Khác EHO</h1>
-          <p>Toàn bộ giao dịch Nhập khác / Xuất khác kéo từ EHO về theo tháng (menu thử nghiệm — chỉ Super Admin).</p>
+          <p>Toàn bộ giao dịch Nhập khác / Xuất khác kéo từ EHO về theo tháng (menu thử nghiệm — Admin và Super Admin).</p>
         </div>
         <button className="login-btn" style={{ width: "auto", padding: "9px 20px", whiteSpace: "nowrap" }} onClick={() => setSyncOpen(true)}>
           {syncing ? `⏳ Đang đồng bộ... ${(prog?.lines || 0).toLocaleString("vi-VN")} dòng` : "🔄 Đồng bộ dữ liệu từ EHO"}

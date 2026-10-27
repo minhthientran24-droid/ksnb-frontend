@@ -25,7 +25,7 @@ const NAV_ITEMS = [
   { href: "/theo-doi-chu-de-v2", icon: "🎯", label: "Theo dõi chủ đề" },
   { href: "/theo-doi-xknk", icon: "📦", label: "Theo dõi XK-NK" },
   // Chốt 26/10 — menu thử nghiệm CHỈ super_admin: giao dịch Nhập khác / Xuất khác kéo từ EHO
-  { href: "/xknk-eho", icon: "🧾", label: "Xuất Khác - Nhập Khác EHO", hideForRoles: ["admin", "editor", "editor_base", "viewer"] },
+  { href: "/xknk-eho", icon: "🧾", label: "Xuất Khác - Nhập Khác EHO", hideForRoles: ["editor", "editor_base", "viewer"] },
   { href: "/de-xuat-kiem-ke", icon: "📮", label: "Đề xuất kiểm kê", hideForRoles: ["editor_base", "viewer"] },
   // Chốt 23/09 — cùng lý do dời lên như "Theo dõi chủ đề" ở trên.
   { href: "/ghi-nhan-case-v2", icon: "🚨", label: "Ghi nhận case vi phạm" },
