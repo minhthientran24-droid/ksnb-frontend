@@ -132,14 +132,16 @@ function SortTh({ label, sortKey, sortState, onSort, align, filter }) {
       style={{
         cursor: "pointer", userSelect: "none", textAlign: align || "center", whiteSpace: "nowrap",
         background: active ? (sortState.dir === "asc" ? "#EAF6E5" : "#FFF1E1") : undefined,
+        // Có nút lọc: chữ tiêu đề vẫn canh giữa cột, nút lọc nằm sát mép phải (không chen vào chữ)
+        ...(filter ? { position: "relative", paddingLeft: align === "left" ? undefined : 24, paddingRight: 24 } : null),
       }}
       title="Bấm để sắp xếp"
     >
       {label}
       <span style={{ marginLeft: 4, fontSize: 10, opacity: active ? 1 : 0.5 }}>
-        {active ? (sortState.dir === "asc" ? "▲" : "▼") : "⇅"}
+        {active ? (sortState.dir === "asc" ? "▲" : "▼") : ""}
       </span>
-      {filter && <span style={{ marginLeft: 4 }}>{filter}</span>}
+      {filter && <span style={{ position: "absolute", right: 3, top: "50%", transform: "translateY(-50%)", display: "inline-flex" }}>{filter}</span>}
     </th>
   );
 }

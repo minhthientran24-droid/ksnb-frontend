@@ -125,7 +125,7 @@ function FilterTh({ label, value, onChange, align, minWidth, sortCol, sortState,
         {label}
         {sortCol && (
           <span style={{ marginLeft: 4, fontSize: 10, opacity: active ? 1 : 0.5 }}>
-            {active ? (sortState.dir === "asc" ? "▲" : "▼") : "⇅"}
+            {active ? (sortState.dir === "asc" ? "▲" : "▼") : ""}
           </span>
         )}
       </div>
@@ -156,7 +156,7 @@ function SortTh({ label, sortCol, sortState, onSort, align }) {
     >
       {label}
       <span style={{ marginLeft: 4, fontSize: 10, opacity: active ? 1 : 0.5 }}>
-        {active ? (sortState.dir === "asc" ? "▲" : "▼") : "⇅"}
+        {active ? (sortState.dir === "asc" ? "▲" : "▼") : ""}
       </span>
     </th>
   );

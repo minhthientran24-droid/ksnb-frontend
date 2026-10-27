@@ -117,14 +117,16 @@ function LlvSortTh({ label, sortKey, sortState, onSort, align, filter }) {
       style={{
         cursor: "pointer", userSelect: "none", textAlign: align || "center", whiteSpace: "nowrap",
         background: active ? (sortState.dir === "asc" ? "#EAF6E5" : "#FFF1E1") : undefined,
+        // Có nút lọc: chữ tiêu đề vẫn canh giữa cột, nút lọc nằm sát mép phải (không chen vào chữ)
+        ...(filter ? { position: "relative", paddingLeft: align === "left" ? undefined : 24, paddingRight: 24 } : null),
       }}
       title="Bấm để sắp xếp"
     >
       {label}
       <span style={{ marginLeft: 4, fontSize: 10, opacity: active ? 1 : 0.5 }}>
-        {active ? (sortState.dir === "asc" ? "▲" : "▼") : "⇅"}
+        {active ? (sortState.dir === "asc" ? "▲" : "▼") : ""}
       </span>
-      {filter && <span style={{ marginLeft: 4 }}>{filter}</span>}
+      {filter && <span style={{ position: "absolute", right: 3, top: "50%", transform: "translateY(-50%)", display: "inline-flex" }}>{filter}</span>}
     </th>
   );
 }
@@ -217,7 +219,7 @@ function LlvRowsTable({ title, data, isAdmin, showDoiLich, canReschedule, onOpen
               {showSoNgayKiem && <LlvSortTh label="Số ngày kiểm" sortKey="so_ngay_kiem" sortState={sort.state} onSort={sort.onSort} filter={fb("so_ngay_kiem")} />}
               <LlvSortTh label="Hình thức" sortKey="hinh_thuc" sortState={sort.state} onSort={sort.onSort} filter={fb("hinh_thuc")} />
               <LlvSortTh label="Trạng thái" sortKey="trang_thai" sortState={sort.state} onSort={sort.onSort} filter={fb("trang_thai")} />
-              {showTicket && <th style={{ whiteSpace: "nowrap" }}>Ticket thông báo <span style={{ marginLeft: 4 }}>{fb("ticket")}</span></th>}{showDoiLich && <th></th>}{showHuy && <th></th>}
+              {showTicket && <th style={{ whiteSpace: "nowrap", position: "relative", paddingLeft: 24, paddingRight: 24 }}>Ticket thông báo<span style={{ position: "absolute", right: 3, top: "50%", transform: "translateY(-50%)", display: "inline-flex" }}>{fb("ticket")}</span></th>}{showDoiLich && <th></th>}{showHuy && <th></th>}
             </tr>
           </thead>
           <tbody>
@@ -582,18 +584,18 @@ export default function TheoDoiKiemKePage() {
     const lines = Array.isArray(label) ? label : [label];
     const activeBg = active ? (sortDir === "asc" ? "#EAF6E5" : "#FFF1E1") : undefined;
     return (
-      <th key={sortCol} onClick={() => handleSort(sortCol)} style={{ cursor: "pointer", userSelect: "none", lineHeight: 1.3, background: activeBg }} title="Bấm để sắp xếp">
+      <th key={sortCol} onClick={() => handleSort(sortCol)} style={{ cursor: "pointer", userSelect: "none", lineHeight: 1.3, background: activeBg, position: "relative", paddingLeft: 24, paddingRight: 24 }} title="Bấm để sắp xếp">
         {lines.map((line, i) => (
           <div key={i} style={{ whiteSpace: "nowrap" }}>
             {line}
             {i === lines.length - 1 && (
               <span style={{ marginLeft: 4, fontSize: 10, color: active ? "inherit" : "var(--text-400)", opacity: active ? 1 : 0.5 }}>
-                {active ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}
+                {active ? (sortDir === "asc" ? "▲" : "▼") : ""}
               </span>
             )}
-            {i === lines.length - 1 && <span style={{ marginLeft: 4 }}>{dkFilterBtn(sortCol)}</span>}
           </div>
         ))}
+        <span style={{ position: "absolute", right: 3, top: "50%", transform: "translateY(-50%)", display: "inline-flex" }}>{dkFilterBtn(sortCol)}</span>
       </th>
     );
   }

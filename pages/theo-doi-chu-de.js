@@ -82,7 +82,7 @@ function SortTh({ label, sortKey, sortState, onSort, align }) {
     >
       {label}
       <span style={{ marginLeft: 4, fontSize: 10, opacity: active ? 1 : 0.5 }}>
-        {active ? (sortState.dir === "asc" ? "▲" : "▼") : "⇅"}
+        {active ? (sortState.dir === "asc" ? "▲" : "▼") : ""}
       </span>
     </th>
   );
