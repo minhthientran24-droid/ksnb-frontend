@@ -107,22 +107,13 @@ function FilterTh({ label, filter, align, minWidth, sortCol, sortState, onSort }
 // Bấm-tiêu-đề-để-sắp-xếp cho bảng KHÔNG có ô lọc (2 bảng ở tab "Thống
 // kê") — cùng quy ước màu với FilterTh ở trên (xanh lá = A→Z/tăng dần,
 // cam = Z→A/giảm dần).
-function SortTh({ label, sortCol, sortState, onSort, align }) {
-  const active = sortState.key === sortCol;
+function SortTh({ label, sortCol, sortState, onSort, align, filter }) {
   return (
-    <th
+    <FilterHeaderTh
+      label={label} filter={filter} align={align}
       onClick={() => onSort(sortCol)}
-      style={{
-        textAlign: align || "center", cursor: "pointer", userSelect: "none",
-        background: active ? (sortState.dir === "asc" ? "#EAF6E5" : "#FFF1E1") : undefined,
-      }}
-      title="Bấm để sắp xếp"
-    >
-      {label}
-      <span style={{ marginLeft: 4, fontSize: 10, opacity: active ? 1 : 0.5 }}>
-        {active ? (sortState.dir === "asc" ? "▲" : "▼") : ""}
-      </span>
-    </th>
+      sortActive={sortState.key === sortCol} sortDir={sortState.dir}
+    />
   );
 }
 
@@ -362,11 +353,27 @@ function ThongKeThangView({ data, month, onMonthChange, group }) {
   // sang dữ liệu tháng khác.
   useEffect(() => {
     setActiveFilter(null);
-  }, [data]);
+    mcf.clear();
+  }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const filteredDetailRows = activeFilter
+  const kpiRows = activeFilter
     ? allDetailRows.filter((r) => r[KPI_FILTER_FLAG[activeFilter]])
     : allDetailRows;
+
+  // Nút lọc tick nhiều giá trị ở đầu mỗi cột của "Thống kê chi tiết shop" (chốt 27/10) — lọc tiếp trên kết quả của 4 ô KPI
+  const mcf = useMultiColFilters();
+  const detailDefs = [
+    { key: "vung", get: (r) => r.vung || "-" },
+    { key: "ma_shop", get: (r) => r.ma_shop || "-" },
+    { key: "ten_shop", get: (r) => r.ten_shop || "-", menu: 360 },
+    { key: "ngay_can_kiem", get: (r) => r.ngay_can_kiem || "-", desc: true },
+    { key: "ngay_thuc_te_kiem", get: (r) => r.ngay_thuc_te_kiem || "-", desc: true },
+    { key: "ngay_gui_mail", get: (r) => r.ngay_gui_mail || "-", desc: true },
+    { key: "hinh_thuc", get: (r) => r.hinh_thuc || "-" },
+    { key: "ksnb_phu_trach", get: (r) => r.ksnb_phu_trach || "-" },
+  ];
+  const filteredDetailRows = mcf.filterRows(detailDefs, kpiRows);
+  const fb = (key) => mcf.button(detailDefs, kpiRows, key);
 
   // Bấm-tiêu-đề-để-sắp-xếp (chốt 28/08) — riêng state cho từng bảng.
   const vungSort = useSort();
@@ -484,22 +491,25 @@ function ThongKeThangView({ data, month, onMonthChange, group }) {
               — đang lọc: {KPI_FILTER_LABEL[activeFilter]}
             </span>}
           </h3>
-          {activeFilter && (
-            <button className="fbtn" onClick={() => setActiveFilter(null)}>Xem tất cả shop</button>
-          )}
+          <div style={{ display: "flex", gap: 8 }}>
+            {mcf.active && <button className="fbtn" onClick={mcf.clear}>✕ Bỏ lọc cột</button>}
+            {activeFilter && (
+              <button className="fbtn" onClick={() => setActiveFilter(null)}>Xem tất cả shop</button>
+            )}
+          </div>
         </div>
         <div className="card-body llv-scroll" style={{ padding: 0 }}>
           <table>
             <thead>
               <tr>
-                <SortTh label="Vùng" align="left" sortCol="vung" sortState={detailSort.state} onSort={detailSort.onSort} />
-                <SortTh label="Mã Shop" sortCol="ma_shop" sortState={detailSort.state} onSort={detailSort.onSort} />
-                <SortTh label="Tên Shop" align="left" sortCol="ten_shop" sortState={detailSort.state} onSort={detailSort.onSort} />
-                <SortTh label="Ngày cần kiểm" sortCol="ngay_can_kiem" sortState={detailSort.state} onSort={detailSort.onSort} />
-                <SortTh label="Ngày thực tế kiểm" sortCol="ngay_thuc_te_kiem" sortState={detailSort.state} onSort={detailSort.onSort} />
-                <SortTh label="Ngày gửi mail" sortCol="ngay_gui_mail" sortState={detailSort.state} onSort={detailSort.onSort} />
-                <SortTh label="Hình thức kiểm kê" sortCol="hinh_thuc" sortState={detailSort.state} onSort={detailSort.onSort} />
-                <SortTh label="KSNB phụ trách" sortCol="ksnb_phu_trach" sortState={detailSort.state} onSort={detailSort.onSort} />
+                <SortTh label="Vùng" align="left" sortCol="vung" sortState={detailSort.state} onSort={detailSort.onSort} filter={fb("vung")} />
+                <SortTh label="Mã Shop" sortCol="ma_shop" sortState={detailSort.state} onSort={detailSort.onSort} filter={fb("ma_shop")} />
+                <SortTh label="Tên Shop" align="left" sortCol="ten_shop" sortState={detailSort.state} onSort={detailSort.onSort} filter={fb("ten_shop")} />
+                <SortTh label="Ngày cần kiểm" sortCol="ngay_can_kiem" sortState={detailSort.state} onSort={detailSort.onSort} filter={fb("ngay_can_kiem")} />
+                <SortTh label="Ngày thực tế kiểm" sortCol="ngay_thuc_te_kiem" sortState={detailSort.state} onSort={detailSort.onSort} filter={fb("ngay_thuc_te_kiem")} />
+                <SortTh label="Ngày gửi mail" sortCol="ngay_gui_mail" sortState={detailSort.state} onSort={detailSort.onSort} filter={fb("ngay_gui_mail")} />
+                <SortTh label="Hình thức kiểm kê" sortCol="hinh_thuc" sortState={detailSort.state} onSort={detailSort.onSort} filter={fb("hinh_thuc")} />
+                <SortTh label="KSNB phụ trách" sortCol="ksnb_phu_trach" sortState={detailSort.state} onSort={detailSort.onSort} filter={fb("ksnb_phu_trach")} />
               </tr>
             </thead>
             <tbody>
@@ -516,7 +526,7 @@ function ThongKeThangView({ data, month, onMonthChange, group }) {
                 </tr>
               ))}
               {detailRows.length === 0 && (
-                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-400)" }}>Chưa có dữ liệu shop cho tháng này.</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-400)" }}>{mcf.active ? "Không có shop nào khớp bộ lọc." : "Chưa có dữ liệu shop cho tháng này."}</td></tr>
               )}
             </tbody>
           </table>
