@@ -836,7 +836,7 @@ export default function TheoDoiKiemKePage() {
           showHuy={isAdmin}
           onOpenHuy={openHuy}
           showSoNgayKiem
-          showNgayChot={isAdmin}
+          showNgayChot
           compactDate
           emptyText="Không có shop nào đang trong kỳ kiểm."
         />
