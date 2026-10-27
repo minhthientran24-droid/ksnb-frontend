@@ -6,6 +6,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 //   selected : null (= tất cả) hoặc Set các giá trị được tick
 //   onChange : (Set | null) => void   — chọn đủ hết thì trả null
 // Danh sách mở bằng position: fixed để không bị khung cuộn ngang của bảng cắt mất.
+const MAX_SHOWN = 300; // danh sách rất dài chỉ vẽ 300 dòng đầu cho nhẹ
+
 export default function ColumnMultiFilter({ options, selected, onChange, width = 150, menuWidth = 300, allLabel = "Tất cả", compact = false }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -97,13 +99,14 @@ export default function ColumnMultiFilter({ options, selected, onChange, width =
             {q ? "Chọn tất cả kết quả tìm" : allLabel}
           </label>
           <div style={{ maxHeight: 300, overflowY: "auto" }}>
-            {shown.map((o) => (
+            {shown.slice(0, MAX_SHOWN).map((o) => (
               <label key={String(o.value)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", cursor: "pointer", fontSize: 12.5, background: !allOn && picked.includes(o.value) ? "#EEF4FF" : "transparent" }}>
                 <input type="checkbox" checked={picked.includes(o.value)} onChange={() => toggle(o.value)} />
                 <span style={{ flex: 1, wordBreak: "break-word" }}>{String(o.value).length > 90 ? String(o.value).slice(0, 90) + "…" : String(o.value)}</span>
                 <span style={{ color: "var(--text-400)", fontSize: 11.5 }}>{o.count.toLocaleString("vi-VN")}</span>
               </label>
             ))}
+            {shown.length > MAX_SHOWN && <div style={{ padding: "8px 12px", fontSize: 12, color: "var(--text-400)" }}>Còn {(shown.length - MAX_SHOWN).toLocaleString("vi-VN")} giá trị nữa — gõ vào ô tìm để thu hẹp.</div>}
             {shown.length === 0 && <div style={{ padding: "8px 12px", fontSize: 12.5, color: "var(--text-400)" }}>Không có giá trị nào.</div>}
           </div>
         </div>

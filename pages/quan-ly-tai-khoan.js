@@ -1,4 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
+import FilterHeaderTh from "../components/FilterHeaderTh";
+import { useMultiColFilters } from "../lib/useMultiColFilters";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import BirthdayInput from "../components/BirthdayInput";
@@ -19,6 +21,25 @@ const GUEST_VUNG_OPTIONS = ["Miền Tây", "Miền Đông", "Miền Trung", "H�
 // Thứ tự hiển thị bảng: Admin (gồm cả Super Admin) - Editor - Editor Base -
 // Viewer, cùng quyền thì sắp tiếp theo Khu vực làm việc (VP HCM trước VP
 // HNI, chưa chọn xuống cuối).
+// Cột lọc (nút lọc tick nhiều giá trị ở đầu cột, chốt 27/10) — get = chữ đang hiển thị trên bảng
+const guestDefs = [
+  { key: "email", get: (u) => u.email || "—", menu: 340 },
+  { key: "full_name", get: (u) => u.full_name || "—" },
+  { key: "position", get: (u) => u.position || "—" },
+  { key: "vung", get: (u) => u.guest_vung || "— chưa gán —" },
+  { key: "active", get: (u) => (u.is_active ? "Đang hoạt động" : "Đã khóa") },
+];
+const accDefs = [
+  { key: "email", get: (u) => u.email || "—", menu: 340 },
+  { key: "full_name", get: (u) => u.full_name || "—" },
+  { key: "ngay_sinh", get: (u) => u.ngay_sinh || "—" },
+  { key: "position", get: (u) => u.position || "—" },
+  { key: "khu_vuc", get: (u) => u.khu_vuc || "— chưa chọn —" },
+  { key: "role", get: (u) => ROLE_LABELS[u.role] || u.role },
+  { key: "active", get: (u) => (u.is_active ? "Đang hoạt động" : "Đã khóa") },
+  { key: "kiem_ke", get: (u) => (u.kiem_ke_permission ? "Đã cấp quyền" : "Chưa cấp quyền") },
+];
+
 const ROLE_SORT_ORDER = { super_admin: 0, admin: 1, editor: 2, editor_base: 3, viewer: 4, guest: 5 };
 const KHU_VUC_SORT_ORDER = KHU_VUC_OPTIONS.reduce((acc, k, i) => ({ ...acc, [k]: i }), {});
 
@@ -37,6 +58,7 @@ function sortAccounts(list) {
 // Tab "Danh sách tài khoản Guest" (chốt 26/10) — CHỈ super_admin. Toàn bộ tài khoản Guest Account được tạo/quản lý ở đây;
 // tab "Danh sách tài khoản" không hiển thị và không tạo được Guest.
 function GuestAccountsPanel({ me }) {
+  const mcf = useMultiColFilters();
   const [list, setList] = useState([]);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -161,13 +183,19 @@ function GuestAccountsPanel({ me }) {
       {error && <div className="placeholder-box">Không tải được dữ liệu: {error}</div>}
 
       <div className="card">
-        <div className="card-head"><h3>Danh sách tài khoản Guest</h3><span className="note">{list.length} tài khoản</span></div>
+        <div className="card-head">
+          <h3>Danh sách tài khoản Guest</h3>
+          <span className="note">
+            {mcf.active ? `${mcf.filterRows(guestDefs, list).length}/${list.length} tài khoản (đang lọc)` : `${list.length} tài khoản`}
+            {mcf.active && <button className="fbtn" style={{ marginLeft: 8 }} onClick={mcf.clear}>✕ Bỏ lọc cột</button>}
+          </span>
+        </div>
         <div className="card-body" style={{ padding: 0, overflowX: "auto" }}>
           <table>
             <thead>
               <tr>
-                {["STT", "Email", "Họ tên", "Chức danh / Đơn vị", "Vùng", "Trạng thái", ""].map((h) => (
-                  <th key={h} style={{ background: "#eaf1fc" }}>{h}</th>
+                {[["STT"], ["Email", "email"], ["Họ tên", "full_name"], ["Chức danh / Đơn vị", "position"], ["Vùng", "vung"], ["Trạng thái", "active"], [""]].map(([h, key], i) => (
+                  <FilterHeaderTh key={i} label={h} filter={key ? mcf.button(guestDefs, list, key) : null} style={{ background: "#eaf1fc" }} />
                 ))}
               </tr>
             </thead>
@@ -175,7 +203,7 @@ function GuestAccountsPanel({ me }) {
               {list.length === 0 && !error && (
                 <tr><td colSpan={7} style={{ textAlign: "center", color: "var(--text-400)" }}>Chưa có tài khoản Guest nào.</td></tr>
               )}
-              {list.map((u, idx) => (
+              {mcf.filterRows(guestDefs, list).map((u, idx) => (
                 <Fragment key={u.id}>
                   <tr>
                     <td>{idx + 1}</td>
@@ -233,6 +261,7 @@ function GuestAccountsPanel({ me }) {
 
 export default function QuanLyTaiKhoanPage() {
   const router = useRouter();
+  const accMcf = useMultiColFilters();
   const [me, setMe] = useState(null);
   const [checked, setChecked] = useState(false);
   const [list, setList] = useState([]);
@@ -490,18 +519,24 @@ export default function QuanLyTaiKhoanPage() {
 
       {error && <div className="placeholder-box">Không tải được dữ liệu: {error}</div>}
 
+      {accMcf.active && (
+        <div style={{ marginBottom: 10, fontSize: 12.5, color: "var(--text-600)" }}>
+          Đang lọc: {accMcf.filterRows(accDefs, list).length}/{list.length} tài khoản
+          <button className="fbtn" style={{ marginLeft: 8 }} onClick={accMcf.clear}>✕ Bỏ lọc cột</button>
+        </div>
+      )}
       <div className="card">
         <div className="card-body" style={{ padding: 0, overflowX: "auto" }}>
           <table>
             <thead>
               <tr>
-                {["STT", "Email", "Họ tên", "Ngày sinh", "Chức danh", "Khu vực", "Quyền", "Trạng thái", "Quyền Kiểm Kê", ""].map((h) => (
-                  <th key={h} style={{ position: "sticky", top: 0, zIndex: 2, background: "#eaf1fc" }}>{h}</th>
+                {[["STT"], ["Email", "email"], ["Họ tên", "full_name"], ["Ngày sinh", "ngay_sinh"], ["Chức danh", "position"], ["Khu vực", "khu_vuc"], ["Quyền", "role"], ["Trạng thái", "active"], ["Quyền Kiểm Kê", "kiem_ke"], [""]].map(([h, key], i) => (
+                  <FilterHeaderTh key={i} label={h} filter={key ? accMcf.button(accDefs, sortAccounts(list), key) : null} style={{ position: "sticky", top: 0, zIndex: 2, background: "#eaf1fc" }} />
                 ))}
               </tr>
             </thead>
             <tbody>
-              {sortAccounts(list).map((u, idx) => (
+              {accMcf.filterRows(accDefs, sortAccounts(list)).map((u, idx) => (
                 <Fragment key={u.id}>
                   <tr>
                     <td>{idx + 1}</td>

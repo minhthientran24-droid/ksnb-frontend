@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
+import { useMultiColFilters } from "../lib/useMultiColFilters";
+import FilterHeaderTh from "../components/FilterHeaderTh";
 import SscTicketModal from "../components/SscTicketModal";
 import { getUser, listKiemKeStaff, getLlvThongKeThang, downloadLlvThongKeThang, leaveDaysByDate } from "../lib/api";
 import { useAllowedKeys } from "../lib/permissions";
@@ -86,57 +88,19 @@ function normSearch(s) {
     .replace(/đ/g, "d");
 }
 
-// Hook filter theo cột dùng chung cho mọi bảng — mỗi field 1 ô lọc nhỏ ngay
-// trong header row (chứa text), khớp kiểu "contains", không phân biệt hoa/thường/dấu.
-function useColumnFilters() {
-  const [filters, setFilters] = useState({});
-  const setFilter = (field, value) => setFilters((f) => ({ ...f, [field]: value }));
-  const clearFilters = () => setFilters({});
-  const applyFilters = (rows, getters) => {
-    const active = Object.entries(filters).filter(([, v]) => v && v.trim());
-    if (!active.length) return rows;
-    return rows.filter((r) => active.every(([field, val]) => {
-      const raw = getters[field] ? getters[field](r) : r[field];
-      return normSearch(raw).includes(normSearch(val));
-    }));
-  };
-  const hasActive = Object.values(filters).some((v) => v && v.trim());
-  return { filters, setFilter, clearFilters, applyFilters, hasActive };
-}
-
-// `sortCol` (chốt 28/08) — thêm bấm-tiêu-đề-để-sắp-xếp CHO cột này bên
-// cạnh ô lọc có sẵn, dùng chung state với `sortState`/`onSort` (xem
-// useSort() bên dưới). Cột nào KHÔNG truyền sortCol thì không đổi gì
-// (dùng lại cho 2 bảng "Cần chia lịch"/"Shop được chia hôm nay", chỉ tab
-// "Danh sách shop" mới truyền các prop này).
-function FilterTh({ label, value, onChange, align, minWidth, sortCol, sortState, onSort }) {
-  const active = sortCol && sortState && sortState.key === sortCol;
+// Lọc theo cột (chốt 27/10): thay các ô gõ chữ "Lọc..." cũ bằng nút lọc tick nhiều giá trị ở đầu mỗi cột
+// (xem lib/useMultiColFilters.js + components/ColumnMultiFilter.js).
+//
+// `sortCol` (chốt 28/08) — bấm tên cột để sắp xếp, dùng chung state `sortState`/`onSort` (xem useSort() bên dưới); cột nào KHÔNG
+// truyền sortCol thì chỉ có nút lọc. `filter` = nút lọc của cột (mcf.button(...)).
+function FilterTh({ label, filter, align, minWidth, sortCol, sortState, onSort }) {
+  const active = !!(sortCol && sortState && sortState.key === sortCol);
   return (
-    <th style={{ textAlign: align || "center", minWidth }}>
-      <div
-        style={{
-          marginBottom: 5, cursor: sortCol ? "pointer" : undefined, userSelect: "none",
-          display: "inline-block", padding: active ? "1px 6px" : undefined, borderRadius: active ? 4 : undefined,
-          background: active ? (sortState.dir === "asc" ? "#EAF6E5" : "#FFF1E1") : undefined,
-        }}
-        onClick={sortCol ? () => onSort(sortCol) : undefined}
-        title={sortCol ? "Bấm để sắp xếp" : undefined}
-      >
-        {label}
-        {sortCol && (
-          <span style={{ marginLeft: 4, fontSize: 10, opacity: active ? 1 : 0.5 }}>
-            {active ? (sortState.dir === "asc" ? "▲" : "▼") : ""}
-          </span>
-        )}
-      </div>
-      <input
-        className="finput"
-        style={{ width: "100%", padding: "4px 7px", fontSize: 11, fontWeight: 400, textTransform: "none", letterSpacing: 0 }}
-        placeholder="Lọc..."
-        value={value || ""}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    </th>
+    <FilterHeaderTh
+      label={label} filter={filter} align={align} minWidth={minWidth}
+      onClick={sortCol ? () => onSort(sortCol) : undefined}
+      sortActive={active} sortDir={sortState && sortState.dir}
+    />
   );
 }
 
@@ -567,17 +531,24 @@ function ThongKeThangView({ data, month, onMonthChange, group }) {
 // pages/tai-len-du-lieu.js::DanhSachShopUploadBar.
 
 function ShopListView({ data, onReload }) {
-  const { filters, setFilter, applyFilters, hasActive, clearFilters } = useColumnFilters();
+  const mcf = useMultiColFilters();
   const [editing, setEditing] = useState(null); // row (mã + tên shop) đang cập nhật
   const [classForm, setClassForm] = useState({ phan_loai: "Định kỳ", ngay_can_kiem: "", ly_do_xin_kiem_ke: "" });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
-  const filteredRows = applyFilters(data.rows || [], {
-    trang_thai: (r) => statusLabel(r.display_status),
-    ngay_can_kiem: (r) => r.next_due_date || r.ngay_can_kiem,
-    ksnb: (r) => r.last_ksnb || r.ksnb,
-  });
+  const colDefs = [
+    { key: "ma_shop", get: (r) => r.ma_shop || "—" },
+    { key: "ten_shop", get: (r) => r.ten_shop || "—", menu: 360 },
+    { key: "vung", get: (r) => r.vung || "—" },
+    { key: "phan_loai", get: (r) => r.phan_loai || "—" },
+    { key: "trang_thai", get: (r) => statusLabel(r.display_status) },
+    { key: "ngay_can_kiem", get: (r) => r.next_due_date || r.ngay_can_kiem || "—", desc: true },
+    { key: "ksnb", get: (r) => r.last_ksnb || r.ksnb || "—" },
+  ];
+  const baseRows = data.rows || [];
+  const filteredRows = mcf.filterRows(colDefs, baseRows);
+  const fb = (key) => mcf.button(colDefs, baseRows, key);
 
   // Bấm-tiêu-đề-để-sắp-xếp (chốt 28/08) — dùng chung getter với bộ lọc ở
   // trên để sort đúng giá trị đang hiển thị (vd "Trạng thái" sort theo
@@ -622,20 +593,20 @@ function ShopListView({ data, onReload }) {
       <div className="card">
         <div className="card-head">
           <h3>Danh sách shop ({rows.length}/{(data.rows || []).length})</h3>
-          {hasActive && <button className="fbtn" onClick={clearFilters}>Xóa bộ lọc</button>}
+          {mcf.active && <button className="fbtn" onClick={mcf.clear}>✕ Bỏ lọc cột</button>}
         </div>
         <div className="card-body llv-scroll" style={{ padding: 0 }}>
           {msg && <div style={{ padding: "8px 20px", fontSize: 12.5 }}>{msg}</div>}
           <table>
             <thead>
               <tr>
-                <FilterTh label="Mã shop" align="left" value={filters.ma_shop} onChange={(v) => setFilter("ma_shop", v)} sortCol="ma_shop" sortState={sort.state} onSort={sort.onSort} />
-                <FilterTh label="Tên shop" align="left" value={filters.ten_shop} onChange={(v) => setFilter("ten_shop", v)} minWidth={220} sortCol="ten_shop" sortState={sort.state} onSort={sort.onSort} />
-                <FilterTh label="Vùng" align="left" value={filters.vung} onChange={(v) => setFilter("vung", v)} sortCol="vung" sortState={sort.state} onSort={sort.onSort} />
-                <FilterTh label="Phân loại" value={filters.phan_loai} onChange={(v) => setFilter("phan_loai", v)} sortCol="phan_loai" sortState={sort.state} onSort={sort.onSort} />
-                <FilterTh label="Trạng thái" value={filters.trang_thai} onChange={(v) => setFilter("trang_thai", v)} sortCol="trang_thai" sortState={sort.state} onSort={sort.onSort} />
-                <FilterTh label="Ngày cần kiểm" value={filters.ngay_can_kiem} onChange={(v) => setFilter("ngay_can_kiem", v)} sortCol="ngay_can_kiem" sortState={sort.state} onSort={sort.onSort} />
-                <FilterTh label="KSNB gần nhất" value={filters.ksnb} onChange={(v) => setFilter("ksnb", v)} sortCol="ksnb" sortState={sort.state} onSort={sort.onSort} />
+                <FilterTh label="Mã shop" align="left" filter={fb("ma_shop")} sortCol="ma_shop" sortState={sort.state} onSort={sort.onSort} />
+                <FilterTh label="Tên shop" align="left" filter={fb("ten_shop")} minWidth={220} sortCol="ten_shop" sortState={sort.state} onSort={sort.onSort} />
+                <FilterTh label="Vùng" align="left" filter={fb("vung")} sortCol="vung" sortState={sort.state} onSort={sort.onSort} />
+                <FilterTh label="Phân loại" filter={fb("phan_loai")} sortCol="phan_loai" sortState={sort.state} onSort={sort.onSort} />
+                <FilterTh label="Trạng thái" filter={fb("trang_thai")} sortCol="trang_thai" sortState={sort.state} onSort={sort.onSort} />
+                <FilterTh label="Ngày cần kiểm" filter={fb("ngay_can_kiem")} sortCol="ngay_can_kiem" sortState={sort.state} onSort={sort.onSort} />
+                <FilterTh label="KSNB gần nhất" filter={fb("ksnb")} sortCol="ksnb" sortState={sort.state} onSort={sort.onSort} />
                 <th></th>
               </tr>
             </thead>
@@ -709,7 +680,7 @@ function ShopListView({ data, onReload }) {
 }
 
 function ScheduleView({ data, group, onDone }) {
-  const { filters, setFilter, applyFilters, hasActive, clearFilters } = useColumnFilters();
+  const mcf = useMultiColFilters();
   const [selected, setSelected] = useState(new Set());
   const [quotas, setQuotas] = useState([{ ksnb: "", so_luong: 1 }]);
   const [ngayKiem, setNgayKiem] = useState(todayIso());
@@ -734,9 +705,14 @@ function ScheduleView({ data, group, onDone }) {
   // thuật toán random-bổ-sung (xem llv_v2_allocate_rows), không cần frontend
   // tự tick sẵn nữa.
 
-  const rows = applyFilters(data.rows || [], {
-    qua_han: (r) => (r.is_overdue ? "Quá hạn" : ""),
-  });
+  const colDefs = [
+    { key: "ma_shop", get: (r) => r.ma_shop || "—" },
+    { key: "ten_shop", get: (r) => r.ten_shop || "—", menu: 360 },
+    { key: "phan_loai", get: (r) => r.phan_loai || "—" },
+    { key: "qua_han", get: (r) => (r.is_overdue ? "Quá hạn" : "Chưa quá hạn") },
+  ];
+  const rows = mcf.filterRows(colDefs, data.rows || []);
+  const fb = (key) => mcf.button(colDefs, data.rows || [], key);
 
   const quotaTotal = quotas.reduce((s, q) => s + (Number(q.so_luong) || 0), 0);
 
@@ -817,17 +793,17 @@ function ScheduleView({ data, group, onDone }) {
       <div className="card">
         <div className="card-head">
           <h3>Shop chờ chia ({rows.length}/{data.rows.length}) — ngày quét {data.scan_date}</h3>
-          {hasActive && <button className="fbtn" onClick={clearFilters}>Xóa bộ lọc</button>}
+          {mcf.active && <button className="fbtn" onClick={mcf.clear}>✕ Bỏ lọc cột</button>}
         </div>
         <div className="card-body llv-scroll" style={{ padding: 0 }}>
           <table>
             <thead>
               <tr>
                 <th></th>
-                <FilterTh label="Mã shop" align="left" value={filters.ma_shop} onChange={(v) => setFilter("ma_shop", v)} />
-                <FilterTh label="Tên shop" align="left" value={filters.ten_shop} onChange={(v) => setFilter("ten_shop", v)} minWidth={200} />
-                <FilterTh label="Phân loại" value={filters.phan_loai} onChange={(v) => setFilter("phan_loai", v)} />
-                <FilterTh label="Quá hạn" value={filters.qua_han} onChange={(v) => setFilter("qua_han", v)} />
+                <FilterTh label="Mã shop" align="left" filter={fb("ma_shop")} />
+                <FilterTh label="Tên shop" align="left" filter={fb("ten_shop")} minWidth={200} />
+                <FilterTh label="Phân loại" filter={fb("phan_loai")} />
+                <FilterTh label="Quá hạn" filter={fb("qua_han")} />
               </tr>
             </thead>
             <tbody>
@@ -918,7 +894,7 @@ function ScheduleView({ data, group, onDone }) {
 }
 
 function TodayScheduledView({ data, group, onDone }) {
-  const { filters, setFilter, applyFilters, hasActive, clearFilters } = useColumnFilters();
+  const mcf = useMultiColFilters();
   const [cancelling, setCancelling] = useState(null); // row đang hủy (view admin — thay cho Dời lịch)
   const [cancelReason, setCancelReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -935,9 +911,16 @@ function TodayScheduledView({ data, group, onDone }) {
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [confirmMsg, setConfirmMsg] = useState("");
 
-  const rows = applyFilters(data.rows || [], {
-    trang_thai: (r) => statusLabel(r.display_status),
-  });
+  // Lọc chỉ ảnh hưởng phần HIỂN THỊ; các nút Tạo phiếu / Tạo danh sách chia / Tạo Ticket SSC vẫn dùng toàn bộ data.rows như trước.
+  const colDefs = [
+    { key: "ma_shop", get: (r) => `${r.ma_shop || ""} — ${r.ten_shop || ""}`, menu: 400 },
+    { key: "ksnb", get: (r) => r.ksnb || "—" },
+    { key: "ngay_kiem", get: (r) => r.ngay_kiem || "—", desc: true },
+    { key: "hinh_thuc", get: (r) => r.hinh_thuc || "—" },
+    { key: "trang_thai", get: (r) => statusLabel(r.display_status) },
+  ];
+  const rows = mcf.filterRows(colDefs, data.rows || []);
+  const fb = (key) => mcf.button(colDefs, data.rows || [], key);
 
   // Mã phiếu chia — CHỈ sinh khi Admin chủ động bấm nút "Tạo danh sách chia",
   // không tự quét khi tải trang. Gộp mọi shop đang chờ tạo/lỗi (dù đến từ
@@ -1099,7 +1082,7 @@ function TodayScheduledView({ data, group, onDone }) {
       <div className="card-head">
         <h3>Shop được chia - Chuẩn bị kiểm kê ({rows.length}/{data.rows.length}) — {data.date}</h3>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {hasActive && <button className="fbtn" onClick={clearFilters}>Xóa bộ lọc</button>}
+          {mcf.active && <button className="fbtn" onClick={mcf.clear}>✕ Bỏ lọc cột</button>}
           {/* Nút "Tạo ticket thông báo" đã ẩn (chốt 25/08, anh Thiện thấy chưa
               cần dùng) — giữ nguyên hàm runBulkTicket/state bulkBusy phòng khi
               cần bật lại, chỉ bỏ nút khỏi UI. */}
@@ -1140,11 +1123,11 @@ function TodayScheduledView({ data, group, onDone }) {
         <table>
           <thead>
             <tr>
-              <FilterTh label="Mã shop" align="left" value={filters.ma_shop} onChange={(v) => setFilter("ma_shop", v)} minWidth={200} />
-              <FilterTh label="KSNB phụ trách" value={filters.ksnb} onChange={(v) => setFilter("ksnb", v)} />
-              <FilterTh label="Ngày kiểm" value={filters.ngay_kiem} onChange={(v) => setFilter("ngay_kiem", v)} />
-              <FilterTh label="Hình thức" value={filters.hinh_thuc} onChange={(v) => setFilter("hinh_thuc", v)} />
-              <FilterTh label="Trạng thái" value={filters.trang_thai} onChange={(v) => setFilter("trang_thai", v)} />
+              <FilterTh label="Mã shop" align="left" filter={fb("ma_shop")} minWidth={200} />
+              <FilterTh label="KSNB phụ trách" filter={fb("ksnb")} />
+              <FilterTh label="Ngày kiểm" filter={fb("ngay_kiem")} />
+              <FilterTh label="Hình thức" filter={fb("hinh_thuc")} />
+              <FilterTh label="Trạng thái" filter={fb("trang_thai")} />
               <th>Ticket thông báo</th>
               <th></th>
             </tr>
