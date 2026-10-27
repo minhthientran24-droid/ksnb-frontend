@@ -66,11 +66,11 @@ export default function ColumnMultiFilter({ options, selected, onChange, width =
   return (
     <div ref={box} onClick={(e) => e.stopPropagation()} style={{ display: "inline-block", fontWeight: 400, textAlign: "left", textTransform: "none", letterSpacing: "normal", fontSize: 12.5, whiteSpace: "normal", verticalAlign: "middle" }}>
       {compact ? (
-        // Kiểu gọn nằm CÙNG DÒNG với tên cột (chốt 27/10, kiểu 2): tất cả = ô vuông xanh đặc nhỏ + mũi tên xuống; đang lọc = dấu check xanh + mũi tên xuống
+        // Kiểu gọn nằm CÙNG DÒNG với tên cột (chốt 27/10, kiểu 2): tất cả = chỉ mũi tên xuống; đang lọc = dấu check xanh + mũi tên xuống
         <button ref={btn} type="button" onClick={openMenu} aria-label="Lọc cột" title={allOn ? "Lọc cột (đang chọn tất cả)" : `Đang lọc: ${text}`}
           style={{ display: "inline-flex", alignItems: "center", gap: 1, border: "none", background: "transparent", padding: "2px 3px", borderRadius: 4, cursor: "pointer", color: "#185FA5" }}>
           {allOn
-            ? <span style={{ width: 14, height: 14, borderRadius: 3, background: "#378ADD", display: "inline-block" }} />
+            ? null
             : <span style={{ width: 14, height: 14, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 800, lineHeight: 1, color: "#185FA5" }}>✓</span>}
           <span style={{ fontSize: 9, color: "#185FA5" }}>▼</span>
         </button>
