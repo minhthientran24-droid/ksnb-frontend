@@ -316,6 +316,10 @@ export default function XknkEhoPage() {
             <div style={{ border: "1px solid var(--danger)", borderRadius: 8, padding: "10px 12px", color: "var(--danger)", fontSize: 13, lineHeight: 1.6, marginBottom: 12 }}>
               <b>Chưa thấy EHO Agent trên máy này.</b> Mở file <code>Chay-EHO-Agent.bat</code> (thư mục <code>C:\Tool EHO</code>), giữ cửa sổ đen đó mở. Nếu
               trình duyệt hỏi quyền truy cập thiết bị trong mạng nội bộ, chọn <b>Cho phép</b>.
+              <div>
+                <a className="fbtn" href="/downloads/EHO-Agent-Setup.zip" download style={{ display: "inline-block", marginTop: 8, textDecoration: "none", color: "var(--navy-800)", fontWeight: 700 }}>⬇️ Tải file cài EHO Agent</a>
+                <span style={{ marginLeft: 8, fontSize: 12, color: "var(--text-600)" }}>Máy chưa cài: tải về, giải nén rồi bấm đúp <code>Cai-dat-EHO-Agent.bat</code>.</span>
+              </div>
             </div>
           )}
           <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>

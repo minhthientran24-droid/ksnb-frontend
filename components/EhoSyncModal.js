@@ -134,6 +134,10 @@ export default function EhoSyncModal({ onClose }) {
           <div style={{ ...note, borderColor: "var(--danger)", color: "var(--danger)" }}>
             <b>Chưa thấy EHO Agent trên máy này.</b> Mở file <code>Chay-EHO-Agent.bat</code> (thư mục <code>C:\Tool EHO</code>), giữ cửa sổ đen đó mở,
             rồi quay lại đây — popup tự nhận. Nếu trình duyệt hỏi quyền truy cập thiết bị trong mạng nội bộ (local network), chọn <b>Cho phép</b>.
+            <div>
+              <a className="fbtn" href="/downloads/EHO-Agent-Setup.zip" download style={{ display: "inline-block", marginTop: 8, textDecoration: "none", color: "var(--navy-800)", fontWeight: 700 }}>⬇️ Tải file cài EHO Agent</a>
+              <span style={{ marginLeft: 8, fontSize: 12, color: "var(--text-600)" }}>Máy chưa cài: tải về, giải nén rồi bấm đúp <code>Cai-dat-EHO-Agent.bat</code>.</span>
+            </div>
           </div>
         )}
 
