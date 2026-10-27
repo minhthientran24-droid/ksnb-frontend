@@ -26,6 +26,7 @@ const skipReason = (r) => (r.hinh_thuc === "Thanh lý" ? "Thanh lý — không t
 
 export default function SscTicketModal({ rows = [], group, onClose, onDone }) {
   const [agent, setAgent] = useState("checking"); // checking | ok | old | missing
+  const [agentVer, setAgentVer] = useState("");
   const [ssc, setSsc] = useState({ driver: false, logged_in: false, running: false });
   const [opening, setOpening] = useState(false);
   const [launching, setLaunching] = useState(false);
@@ -107,7 +108,7 @@ export default function SscTicketModal({ rows = [], group, onClose, onDone }) {
         const pg = await agentCall("/ping", { timeoutMs: 4000 });
         if (!alive.current) return;
         if (pg && pg.ok) {
-          if (verLt(pg.version, MIN_AGENT)) setAgent("old");
+          if (verLt(pg.version, MIN_AGENT)) { setAgentVer(String(pg.version || "")); setAgent("old"); }
           else {
             setAgent("ok");
             setLaunching(false);
@@ -211,13 +212,13 @@ export default function SscTicketModal({ rows = [], group, onClose, onDone }) {
             ) : (
               <>
                 <div style={{ fontWeight: 800, color: "var(--danger)", marginBottom: 4 }}>
-                  {agent === "old" ? "⚠️ Máy này đang dùng EHO Agent bản cũ — cần cài bản 2.2 để tạo ticket SSC." : "⚠️ Máy này chưa có EHO Agent 2.2 — cần cài để tạo ticket SSC."}
+                  {agent === "old" ? `⚠️ Máy này đang chạy EHO Agent bản ${agentVer || "cũ"} — cần bản 2.2 trở lên để tạo ticket SSC.` : "⚠️ Máy này chưa có EHO Agent 2.2 — cần cài để tạo ticket SSC."}
                 </div>
-                <div>Tải file cài bên dưới, giải nén, bấm đúp <code>Cai-dat-EHO-Agent.bat</code> (chỉ cài 1 lần{agent === "old" ? ", cài đè bản cũ" : ""}). Sau đó EHO Agent <b>tự chạy ngầm cùng Windows</b>, không hiện cửa sổ nào — popup này sẽ tự nhận ra khi cài xong.</div>
+                <div>Tải file cài bên dưới (luôn là bản mới nhất), giải nén, bấm đúp <code>Cai-dat-EHO-Agent.bat</code> (chỉ cài 1 lần{agent === "old" ? ", cài đè bản cũ" : ""}). Sau đó EHO Agent <b>tự chạy ngầm cùng Windows</b>, không hiện cửa sổ nào — popup này sẽ tự nhận ra khi cài xong.</div>
               </>
             )}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-              <a className="login-btn" href="/downloads/EHO-Agent-Setup.zip" download style={{ display: "inline-block", width: "auto", padding: "8px 18px", textDecoration: "none", textAlign: "center" }}>⬇️ Tải file cài EHO Agent 2.2</a>
+              <a className="login-btn" href="/downloads/EHO-Agent-Setup-2.2.zip" download style={{ display: "inline-block", width: "auto", padding: "8px 18px", textDecoration: "none", textAlign: "center" }}>⬇️ Tải file cài EHO Agent 2.2</a>
               {agent === "missing" && <button className="fbtn" onClick={startAgent} disabled={launching} style={{ fontWeight: 700 }}>▶️ Đã cài rồi — khởi động EHO Agent</button>}
             </div>
             <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-600)" }}>
