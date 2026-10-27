@@ -8,10 +8,12 @@ import { llv2CreateDanhSachChia, llv2TicketJobs, llv2TicketResult } from "../lib
 //   Bước 2: bấm Tạo -> gộp mọi shop đang hiện trong danh sách thành 1 mã phiếu chia, đưa cho agent điền form + bấm Gửi từng shop,
 //           web ghi link ticket / lỗi từng shop về hệ thống (ngay khi agent báo).
 // Mỗi shop chỉ bấm Gửi đúng một lần; shop đã có ticket bị bỏ qua. Mật khẩu SSC không đi qua web/agent.
-const MIN_AGENT = 2; // phiên bản agent có hỗ trợ /ssc/*
+const MIN_AGENT = "2.2"; // bản agent tối thiểu: có /ssc/* và tạo ticket bằng API (2.2 đã thêm x-xsrf-token)
 const SEEN_KEY = "ssc_posted_run";
 const DRY = typeof window !== "undefined" && window.localStorage?.getItem("sscDryRun") === "1"; // chạy thử: điền form, KHÔNG bấm Gửi
 
+// so sánh phiên bản dạng "2.10" > "2.2" (không phải số thập phân)
+const verLt = (a, b) => { const x = String(a || "0").split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d < 0; } return false; };
 const fmtSec = (s) => (s >= 60 ? `${Math.floor(s / 60)} phút ${s % 60} giây` : `${s} giây`);
 const STATUS_TXT = { da_tao: "Đã tạo", can_xac_minh: "Cần xác minh", loi: "Lỗi", bo_qua: "Bỏ qua", dry_run: "Điền thử OK" };
 
@@ -105,7 +107,7 @@ export default function SscTicketModal({ rows = [], group, onClose, onDone }) {
         const pg = await agentCall("/ping", { timeoutMs: 4000 });
         if (!alive.current) return;
         if (pg && pg.ok) {
-          if (parseInt(String(pg.version || "0"), 10) < MIN_AGENT) setAgent("old");
+          if (verLt(pg.version, MIN_AGENT)) setAgent("old");
           else {
             setAgent("ok");
             setLaunching(false);
@@ -209,13 +211,13 @@ export default function SscTicketModal({ rows = [], group, onClose, onDone }) {
             ) : (
               <>
                 <div style={{ fontWeight: 800, color: "var(--danger)", marginBottom: 4 }}>
-                  {agent === "old" ? "⚠️ Máy này đang dùng EHO Agent bản cũ — chưa tạo được ticket SSC." : "⚠️ Máy này chưa có EHO Agent 2.0 — cần cài để tạo ticket SSC."}
+                  {agent === "old" ? "⚠️ Máy này đang dùng EHO Agent bản cũ — cần cài bản 2.2 để tạo ticket SSC." : "⚠️ Máy này chưa có EHO Agent 2.2 — cần cài để tạo ticket SSC."}
                 </div>
                 <div>Tải file cài bên dưới, giải nén, bấm đúp <code>Cai-dat-EHO-Agent.bat</code> (chỉ cài 1 lần{agent === "old" ? ", cài đè bản cũ" : ""}). Sau đó EHO Agent <b>tự chạy ngầm cùng Windows</b>, không hiện cửa sổ nào — popup này sẽ tự nhận ra khi cài xong.</div>
               </>
             )}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-              <a className="login-btn" href="/downloads/EHO-Agent-Setup.zip" download style={{ display: "inline-block", width: "auto", padding: "8px 18px", textDecoration: "none", textAlign: "center" }}>⬇️ Tải file cài EHO Agent 2.0</a>
+              <a className="login-btn" href="/downloads/EHO-Agent-Setup.zip" download style={{ display: "inline-block", width: "auto", padding: "8px 18px", textDecoration: "none", textAlign: "center" }}>⬇️ Tải file cài EHO Agent 2.2</a>
               {agent === "missing" && <button className="fbtn" onClick={startAgent} disabled={launching} style={{ fontWeight: 700 }}>▶️ Đã cài rồi — khởi động EHO Agent</button>}
             </div>
             <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-600)" }}>
