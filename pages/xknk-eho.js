@@ -93,7 +93,10 @@ export default function XknkEhoPage() {
   const [months, setMonths] = useState([]);
   const [month, setMonth] = useState("");
   const [opts, setOpts] = useState({ loai_yeu_cau: [], trang_thai: [] });
-  const [f, setF] = useState({ q: "", shop: "", gri_type: 0, source_type: 0, status: "" });
+  const [f, setF] = useState({ q: "", shop: "", gri_type: 0, source_type: 0, source_types: "", status: "" });
+  const [viewSrc, setViewSrc] = useState(null); // null = tất cả loại yêu cầu; Set = chỉ các loại được tick
+  const [viewSrcOpen, setViewSrcOpen] = useState(false);
+  const viewSrcBox = useRef(null);
   const [qInput, setQInput] = useState("");
   const [shopInput, setShopInput] = useState("");
   const [page, setPage] = useState(1);
@@ -132,10 +135,31 @@ export default function XknkEhoPage() {
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, []);
+  useEffect(() => {
+    const close = (e) => { if (viewSrcBox.current && !viewSrcBox.current.contains(e.target)) setViewSrcOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
   const nSel = srcIds.filter((id) => srcSel.has(id)).length;
   const srcText = nSel === srcIds.length ? "Tất cả loại yêu cầu" : nSel === 0 ? "Chưa chọn loại yêu cầu" : nSel === 1 ? srcLabel(srcIds.find((id) => srcSel.has(id))) : `Đã chọn ${nSel}/${srcIds.length} loại yêu cầu`;
   function toggleSrc(id) {
     setSrcSel((o) => { const n = new Set(o); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  }
+
+  // Bộ lọc "Loại yêu cầu" của bảng dữ liệu (tick nhiều loại). Mặc định null = tất cả.
+  const viewIds = opts.loai_yeu_cau.map((o) => o.ma);
+  const viewPicked = viewSrc ? viewIds.filter((id) => viewSrc.has(id)) : viewIds;
+  const viewText = !viewSrc ? "Tất cả loại yêu cầu" : viewPicked.length === 0 ? "Chưa chọn loại yêu cầu" : viewPicked.length === 1 ? (opts.loai_yeu_cau.find((o) => o.ma === viewPicked[0])?.ten || `Loại yêu cầu ${viewPicked[0]}`) : `Đã chọn ${viewPicked.length}/${viewIds.length} loại yêu cầu`;
+  function applyViewSrc(next) { // next: Set hoặc null; chọn đủ hết thì quay về "tất cả"
+    const all = next === null || viewIds.every((id) => next.has(id));
+    setViewSrc(all ? null : next);
+    setF((o) => ({ ...o, source_types: all ? "" : (next.size ? viewIds.filter((id) => next.has(id)).join(",") || "0" : "0") }));
+    setPage(1);
+  }
+  function toggleViewSrc(id) {
+    const n = new Set(viewPicked);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    applyViewSrc(n);
   }
 
   function loadMonths(selectFirst) {
@@ -172,6 +196,8 @@ export default function XknkEhoPage() {
 
   useEffect(() => {
     if (!month) return;
+    setViewSrc(null);
+    setF((o) => (o.source_types ? { ...o, source_types: "" } : o));
     xknkEhoFilters(month).then(setOpts).catch(() => {});
   }, [month]);
 
@@ -449,10 +475,29 @@ export default function XknkEhoPage() {
               <option value={1}>Nhập khác</option>
               <option value={2}>Xuất khác</option>
             </select>
-            <select className="finput" value={f.source_type} onChange={(e) => { setF({ ...f, source_type: Number(e.target.value) }); setPage(1); }} style={{ width: 230 }}>
-              <option value={0}>Tất cả loại yêu cầu</option>
-              {opts.loai_yeu_cau.map((o) => <option key={o.ma} value={o.ma}>{o.ten} ({o.so_dong.toLocaleString("vi-VN")})</option>)}
-            </select>
+            <div ref={viewSrcBox} style={{ position: "relative" }}>
+              <button type="button" className="finput" onClick={() => setViewSrcOpen((o) => !o)}
+                style={{ width: 250, textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", background: "var(--card)" }}>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{viewText}</span>
+                <span style={{ fontSize: 10, marginLeft: 8, color: "var(--text-400)" }}>▼</span>
+              </button>
+              {viewSrcOpen && (
+                <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, zIndex: 30, width: 340, maxHeight: 360, overflowY: "auto", background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 6px 20px rgba(0,0,0,.15)", padding: "4px 0" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", cursor: "pointer", fontSize: 13, fontWeight: 600, borderBottom: "1px solid var(--border)" }}>
+                    <input type="checkbox" checked={!viewSrc} ref={(el) => { if (el) el.indeterminate = !!viewSrc && viewPicked.length > 0; }}
+                      onChange={() => applyViewSrc(!viewSrc ? new Set() : null)} />
+                    Tất cả loại yêu cầu
+                  </label>
+                  {opts.loai_yeu_cau.map((o) => (
+                    <label key={o.ma} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", cursor: "pointer", fontSize: 13, background: viewPicked.includes(o.ma) && viewSrc ? "#EEF4FF" : "transparent" }}>
+                      <input type="checkbox" checked={viewPicked.includes(o.ma)} onChange={() => toggleViewSrc(o.ma)} />
+                      <span style={{ flex: 1 }}>{o.ten}</span>
+                      <span style={{ color: "var(--text-400)", fontSize: 12 }}>{o.so_dong.toLocaleString("vi-VN")}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
             <select className="finput" value={f.status} onChange={(e) => { setF({ ...f, status: e.target.value }); setPage(1); }} style={{ width: 150 }}>
               <option value="">Tất cả trạng thái</option>
               {opts.trang_thai.map((o) => <option key={o.ten} value={o.ten}>{o.ten} ({o.so_dong.toLocaleString("vi-VN")})</option>)}
