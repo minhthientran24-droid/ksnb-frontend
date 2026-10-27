@@ -16,6 +16,9 @@ const fmtSec = (s) => (s >= 60 ? `${Math.floor(s / 60)} phút ${s % 60} giây` :
 const STATUS_TXT = { da_tao: "Đã tạo", can_xac_minh: "Cần xác minh", loi: "Lỗi", bo_qua: "Bỏ qua", dry_run: "Điền thử OK" };
 
 const vi = (a, b) => String(a || "").localeCompare(String(b || ""), "vi");
+// Thứ tự hình thức kiểm: Trực tiếp lên trên, Online xuống dưới (hình thức khác nằm cuối)
+const HT_RANK = { "trực tiếp": 0, online: 1 };
+const htRank = (v) => { const r = HT_RANK[String(v || "").trim().toLowerCase()]; return r === undefined ? 2 : r; };
 // Shop không tạo được ticket: đã có ticket (da_tao) hoặc hình thức Thanh lý (backend cũng bỏ qua 2 loại này)
 const skipReason = (r) => (r.hinh_thuc === "Thanh lý" ? "Thanh lý — không tạo" : r.ticket_status === "da_tao" ? "Đã có ticket" : "");
 
@@ -36,7 +39,7 @@ export default function SscTicketModal({ rows = [], group, onClose, onDone }) {
   const setPh = (p) => { phaseRef.current = p; setPhase(p); };
 
   // Danh sách shop: sắp theo Hình thức kiểm -> Loại shop -> Thời gian kiểm (ngày kiểm) -> Mã shop
-  const sorted = useMemo(() => [...rows].sort((a, b) => vi(a.hinh_thuc, b.hinh_thuc) || vi(a.loai_shop, b.loai_shop) || vi(a.ngay_kiem, b.ngay_kiem) || vi(a.ma_shop, b.ma_shop)), [rows]);
+  const sorted = useMemo(() => [...rows].sort((a, b) => (htRank(a.hinh_thuc) - htRank(b.hinh_thuc)) || vi(a.hinh_thuc, b.hinh_thuc) || vi(a.loai_shop, b.loai_shop) || vi(a.ngay_kiem, b.ngay_kiem) || vi(a.ma_shop, b.ma_shop)), [rows]);
   const eligible = sorted.filter((r) => !skipReason(r));
   const picked = eligible.filter((r) => !off.has(r.id));
   const ids = picked.map((r) => r.id);
