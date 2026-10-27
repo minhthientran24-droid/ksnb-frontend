@@ -70,11 +70,11 @@ export default function ColumnMultiFilter({ options, selected, onChange, width =
         <button ref={btn} type="button" onClick={openMenu} aria-label="Lọc cột" title={allOn ? "Lọc cột (đang chọn tất cả)" : `Đang lọc: ${text}`}
           style={allOn
             // Tất cả: mũi tên nằm trong ô vuông trong suốt, viền xanh mảnh
-            ? { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 17, height: 17, boxSizing: "border-box", border: "1px solid #378ADD", background: "transparent", padding: 0, borderRadius: 3, cursor: "pointer", color: "#185FA5" }
+            ? { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 17, height: 17, boxSizing: "border-box", border: "1px solid #85B7EB", background: "transparent", padding: 0, borderRadius: 3, cursor: "pointer", color: "#378ADD" }
             // Đang lọc: dấu check xanh + mũi tên xuống
-            : { display: "inline-flex", alignItems: "center", gap: 1, border: "none", background: "transparent", padding: "2px 3px", borderRadius: 4, cursor: "pointer", color: "#185FA5" }}>
-          {!allOn && <span style={{ width: 14, height: 14, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 800, lineHeight: 1, color: "#185FA5" }}>✓</span>}
-          <span style={{ fontSize: 9, color: "#185FA5" }}>▼</span>
+            : { display: "inline-flex", alignItems: "center", gap: 1, border: "none", background: "transparent", padding: "2px 3px", borderRadius: 4, cursor: "pointer", color: "#378ADD" }}>
+          {!allOn && <span style={{ width: 14, height: 14, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 800, lineHeight: 1, color: "#378ADD" }}>✓</span>}
+          <span style={{ fontSize: 9, color: "#378ADD" }}>▼</span>
         </button>
       ) : (
       <button ref={btn} type="button" className="finput" onClick={openMenu} title={text}
