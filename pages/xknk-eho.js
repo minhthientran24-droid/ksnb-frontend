@@ -33,6 +33,13 @@ async function agentCall(path, { method = "GET", body, timeoutMs = 20000 } = {})
 }
 
 const pad = (n) => String(n).padStart(2, "0");
+const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+// Mặc định đồng bộ (chốt 27/10): Từ ngày = hôm nay - 5 ngày, Đến ngày = cuối tháng hiện tại
+function defaultRange() {
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 5);
+  return { from: ymd(from), to: monthRange(`${now.getFullYear()}-${pad(now.getMonth() + 1)}`).to };
+}
 function monthRange(ym) {
   const [y, m] = ym.split("-").map(Number);
   const last = new Date(y, m, 0).getDate();
@@ -63,8 +70,8 @@ export default function XknkEhoPage() {
   const [agent, setAgent] = useState("checking"); // checking | ok | missing
   const [login, setLogin] = useState({ driver: false, logged_in: false });
   const [ym, setYm] = useState(currentYm());
-  const [from, setFrom] = useState(monthRange(currentYm()).from);
-  const [to, setTo] = useState(monthRange(currentYm()).to);
+  const [from, setFrom] = useState(defaultRange().from);
+  const [to, setTo] = useState(defaultRange().to);
   const [syncing, setSyncing] = useState(false);
   const [prog, setProg] = useState(null);
   const [syncMsg, setSyncMsg] = useState(null);
@@ -252,7 +259,7 @@ export default function XknkEhoPage() {
     setProg({ lines: 0, saved: 0, queries: 0, queued: 0, elapsedSec: 0 });
     cancelRef.current = false;
     const batch = `xk-${Date.now()}`;
-    let saved = 0, last = null;
+    let saved = 0, moi = 0, last = null;
     try {
       const st = await agentCall("/xknk/start", { method: "POST", body: { from_date: from, to_date: to, source_types: allPicked ? [] : picked }, timeoutMs: 30000 });
       if (!st || st.error) {
@@ -269,6 +276,7 @@ export default function XknkEhoPage() {
           for (let i = 0; i < t.rows.length; i += 3000) {
             const r = await xknkEhoIngest(batch, t.rows.slice(i, i + 3000));
             saved += r.nhan;
+            moi += r.moi || 0;
           }
         }
         setProg({ ...t, rows: undefined, saved });
@@ -280,19 +288,18 @@ export default function XknkEhoPage() {
         throw new Error(last.error === "not_logged_in" ? "Phiên đăng nhập EHO đã hết hạn giữa chừng — đăng nhập lại rồi đồng bộ lại (dữ liệu đã lưu được giữ nguyên)." : `EHO báo lỗi (${last.error}).`);
       }
       if (last.cancelled || cancelRef.current) {
-        setSyncMsg({ type: "err", text: `Đã dừng. Đã lưu ${saved.toLocaleString("vi-VN")} dòng (chưa dọn dòng cũ).` });
+        setSyncMsg({ type: "err", text: `Đã dừng. Đã lưu ${saved.toLocaleString("vi-VN")} dòng (${moi.toLocaleString("vi-VN")} dòng thêm mới); dữ liệu cũ được giữ nguyên.` });
       } else {
-        const fin = await xknkEhoFinalize({ batch, from_time: `${from}T00:00:00`, to_time: `${to}T23:59:59.999999`, so_dong_da_luu: saved, source_types: allPicked ? null : picked });
+        await xknkEhoFinalize({ batch, from_time: `${from}T00:00:00`, to_time: `${to}T23:59:59.999999`, so_dong_da_luu: saved, source_types: allPicked ? null : picked });
         setSyncMsg({
           type: last.capped > 0 ? "warn" : "ok",
-          text: `✅ Đồng bộ xong ${from.split("-").reverse().join("/")} → ${to.split("-").reverse().join("/")}: ${allPicked ? "" : `(${picked.length}/${srcIds.length} loại yêu cầu) `}lưu ${saved.toLocaleString("vi-VN")} dòng giao dịch (${last.queries.toLocaleString("vi-VN")} lượt gọi EHO, ${fmtMs(last.elapsedSec)})`
-            + (fin.da_xoa ? `, dọn ${fin.da_xoa.toLocaleString("vi-VN")} dòng cũ không còn trên EHO` : "")
+          text: `✅ Đồng bộ xong ${from.split("-").reverse().join("/")} → ${to.split("-").reverse().join("/")}: ${allPicked ? "" : `(${picked.length}/${srcIds.length} loại yêu cầu) `}kéo được ${saved.toLocaleString("vi-VN")} dòng giao dịch: thêm mới ${moi.toLocaleString("vi-VN")} dòng, cập nhật ${(saved - moi).toLocaleString("vi-VN")} dòng đã có (${last.queries.toLocaleString("vi-VN")} lượt gọi EHO, ${fmtMs(last.elapsedSec)}). Dữ liệu cũ không bị xoá`
             + (last.capped > 0 ? `. ⚠️ ${last.capped} cửa sổ giây vẫn chạm trần 500 phiếu nên có thể thiếu một ít dòng.` : "."),
         });
         loadMonths(false);
-        setMonth(from.slice(0, 7));
+        setMonth(to.slice(0, 7));
         setPage(1);
-        xknkEhoFilters(from.slice(0, 7)).then(setOpts).catch(() => {});
+        xknkEhoFilters(to.slice(0, 7)).then(setOpts).catch(() => {});
         setF((o) => ({ ...o }));
       }
     } catch (e) {
@@ -401,7 +408,7 @@ export default function XknkEhoPage() {
             {syncing && <button className="fbtn" style={{ color: "var(--danger)" }} onClick={() => { cancelRef.current = true; }}>Dừng</button>}
           </div>
           <div style={{ fontSize: 12, color: "var(--text-400)", marginTop: 8 }}>
-            Chọn tháng sẽ tự điền Từ ngày/Đến ngày của cả tháng (VD 01/10–31/10); có thể sửa tay để kéo khoảng khác. Mỗi lần đồng bộ chỉ ghi đè lại đúng khoảng ngày và đúng các Loại yêu cầu đã tick (loại không tick thì giữ nguyên dữ liệu cũ).
+            Chọn tháng sẽ tự điền Từ ngày/Đến ngày của cả tháng (VD 01/10–31/10); có thể sửa tay để kéo khoảng khác. Mặc định kéo từ 5 ngày trước đến cuối tháng này. Đồng bộ chỉ GHI THÊM giao dịch chưa có (và cập nhật giao dịch đã có theo bản mới nhất trên EHO), KHÔNG xoá dữ liệu cũ — kể cả khi kéo khoảng ngày khác hay loại yêu cầu khác.
             Một tháng có thể hơn 500.000 dòng nên chạy vài phút — giữ nguyên trang này và cửa sổ EHO trong lúc kéo.
           </div>
 
