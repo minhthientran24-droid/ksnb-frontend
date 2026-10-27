@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
+import { launchEhoAgent } from "../lib/ehoAgentLaunch";
 import { getUser, xknkEhoMonths, xknkEhoFilters, xknkEhoRows, xknkEhoIngest, xknkEhoFinalize, xknkEhoSourceTypes, xknkEhoExportStart, xknkEhoExportStatus, xknkEhoExportDownload } from "../lib/api";
 
 // Loại yêu cầu EHO (mã -> tên). Tên chưa biết sẽ tự cập nhật theo dữ liệu đã kéo (/source-types).
@@ -68,6 +69,12 @@ export default function XknkEhoPage() {
   const [srcNames, setSrcNames] = useState(SOURCE_BASE);
   const [srcSel, setSrcSel] = useState(() => new Set(SOURCE_IDS)); // mặc định tick tất cả
   const [agentVer, setAgentVer] = useState("");
+  const [launching, setLaunching] = useState(false);
+  function startAgent() {
+    launchEhoAgent();
+    setLaunching(true);
+    setTimeout(() => alive.current && setLaunching(false), 15000);
+  }
   const cancelRef = useRef(false);
   const alive = useRef(true);
 
@@ -140,6 +147,7 @@ export default function XknkEhoPage() {
         if (!alive.current) return;
         if (p && p.ok) {
           setAgent("ok");
+          setLaunching(false);
           setAgentVer(String(p.version || ""));
           if (!syncing) setLogin(await agentCall("/status", { timeoutMs: 8000 }));
         } else setAgent("missing");
@@ -313,13 +321,17 @@ export default function XknkEhoPage() {
         </div>
         <div className="card-body" style={{ padding: "14px 20px" }}>
           {agent === "missing" && (
-            <div style={{ border: "1px solid var(--danger)", borderRadius: 8, padding: "10px 12px", color: "var(--danger)", fontSize: 13, lineHeight: 1.6, marginBottom: 12 }}>
-              <b>Chưa thấy EHO Agent trên máy này.</b> Mở file <code>Chay-EHO-Agent.bat</code> (thư mục <code>C:\Tool EHO</code>), giữ cửa sổ đen đó mở. Nếu
-              trình duyệt hỏi quyền truy cập thiết bị trong mạng nội bộ, chọn <b>Cho phép</b>.
-              <div>
-                <a className="fbtn" href="/downloads/EHO-Agent-Setup.zip" download style={{ display: "inline-block", marginTop: 8, textDecoration: "none", color: "var(--navy-800)", fontWeight: 700 }}>⬇️ Tải file cài EHO Agent</a>
-                <span style={{ marginLeft: 8, fontSize: 12, color: "var(--text-600)" }}>Máy chưa cài: tải về, giải nén rồi bấm đúp <code>Cai-dat-EHO-Agent.bat</code>.</span>
+            <div style={{ border: "1px solid", borderColor: launching ? "var(--border)" : "var(--danger)", borderRadius: 8, padding: "10px 12px", color: launching ? "var(--text-600)" : "var(--danger)", fontSize: 13, lineHeight: 1.6, marginBottom: 12 }}>
+              {launching ? (
+                <><b>Đang khởi động EHO Agent...</b> Nếu trình duyệt hỏi "Mở EHO Agent?" hãy bấm <b>Mở</b> (tick "Luôn cho phép" để lần sau tự mở); nếu hỏi quyền truy cập thiết bị trong mạng nội bộ, chọn <b>Cho phép</b>.</>
+              ) : (
+                <><b>Chưa thấy EHO Agent trên máy này.</b> Bấm <b>Khởi động EHO Agent</b>. Máy chưa cài lần nào thì tải file cài về (chỉ cài 1 lần — sau đó agent tự chạy ngầm cùng Windows).</>
+              )}
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                <button className="fbtn" onClick={startAgent} disabled={launching} style={{ fontWeight: 700 }}>▶️ Khởi động EHO Agent</button>
+                <a className="fbtn" href="/downloads/EHO-Agent-Setup.zip" download style={{ display: "inline-block", textDecoration: "none", color: "var(--navy-800)", fontWeight: 700 }}>⬇️ Tải file cài EHO Agent</a>
               </div>
+              <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-600)" }}>Máy chưa cài: tải về, giải nén rồi bấm đúp <code>Cai-dat-EHO-Agent.bat</code>.</div>
             </div>
           )}
           <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>

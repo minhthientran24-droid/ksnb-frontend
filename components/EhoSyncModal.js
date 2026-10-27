@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getEhoStatus, ehoIngest } from "../lib/api";
+import { launchEhoAgent } from "../lib/ehoAgentLaunch";
 
 // Popup "Đồng bộ dữ liệu EHO" (chốt 26/10) — chỉ admin/super_admin. Làm việc với EHO Agent chạy trên chính PC của admin
 // (xem ksnb-backend/tools/eho_agent): agent mở Chrome riêng để admin TỰ đăng nhập EHO, rồi lấy các phiếu "Kiểm kê All shop -
@@ -40,7 +41,16 @@ export default function EhoSyncModal({ onClose }) {
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState(null); // {type: "ok"|"err", text}
   const [info, setInfo] = useState(null);
+  const [launching, setLaunching] = useState(false);
   const alive = useRef(true);
+  const triedLaunch = useRef(false);
+
+  // Bấm "Khởi động EHO Agent" (hoặc tự thử 1 lần khi mở popup mà chưa thấy agent): web gọi ksnb-eho:// để bật agent, rồi chờ agent lên
+  function startAgent() {
+    launchEhoAgent();
+    setLaunching(true);
+    setTimeout(() => alive.current && setLaunching(false), 15000);
+  }
 
   function loadInfo() {
     getEhoStatus().then((r) => alive.current && setInfo(r)).catch(() => {});
@@ -56,11 +66,15 @@ export default function EhoSyncModal({ onClose }) {
         if (!alive.current) return;
         if (p && p.ok) {
           setAgent("ok");
+          setLaunching(false);
           const s = await agentCall("/status", { timeoutMs: 8000 });
           if (alive.current) setLogin(s);
         } else setAgent("missing");
       } catch (e) {
-        if (alive.current) setAgent("missing");
+        if (alive.current) {
+          setAgent("missing");
+          if (!triedLaunch.current) { triedLaunch.current = true; startAgent(); }
+        }
       }
       if (alive.current) timer = setTimeout(tick, 3000);
     }
@@ -131,13 +145,17 @@ export default function EhoSyncModal({ onClose }) {
 
         {agent === "checking" && <div style={note}>Đang kiểm tra EHO Agent trên máy này...</div>}
         {agent === "missing" && (
-          <div style={{ ...note, borderColor: "var(--danger)", color: "var(--danger)" }}>
-            <b>Chưa thấy EHO Agent trên máy này.</b> Mở file <code>Chay-EHO-Agent.bat</code> (thư mục <code>C:\Tool EHO</code>), giữ cửa sổ đen đó mở,
-            rồi quay lại đây — popup tự nhận. Nếu trình duyệt hỏi quyền truy cập thiết bị trong mạng nội bộ (local network), chọn <b>Cho phép</b>.
-            <div>
-              <a className="fbtn" href="/downloads/EHO-Agent-Setup.zip" download style={{ display: "inline-block", marginTop: 8, textDecoration: "none", color: "var(--navy-800)", fontWeight: 700 }}>⬇️ Tải file cài EHO Agent</a>
-              <span style={{ marginLeft: 8, fontSize: 12, color: "var(--text-600)" }}>Máy chưa cài: tải về, giải nén rồi bấm đúp <code>Cai-dat-EHO-Agent.bat</code>.</span>
+          <div style={{ ...note, borderColor: launching ? "var(--border)" : "var(--danger)", color: launching ? "var(--text-600)" : "var(--danger)" }}>
+            {launching ? (
+              <><b>Đang khởi động EHO Agent...</b> Nếu trình duyệt hỏi "Mở EHO Agent?" hãy bấm <b>Mở</b> (tick "Luôn cho phép" để lần sau tự mở). Nếu trình duyệt hỏi quyền truy cập thiết bị trong mạng nội bộ (local network), chọn <b>Cho phép</b>.</>
+            ) : (
+              <><b>Chưa thấy EHO Agent trên máy này.</b> Bấm <b>Khởi động EHO Agent</b>. Máy chưa cài lần nào thì tải file cài về (chỉ cần cài 1 lần — sau đó agent tự chạy ngầm cùng Windows).</>
+            )}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+              <button className="fbtn" onClick={startAgent} disabled={launching} style={{ fontWeight: 700 }}>▶️ Khởi động EHO Agent</button>
+              <a className="fbtn" href="/downloads/EHO-Agent-Setup.zip" download style={{ display: "inline-block", textDecoration: "none", color: "var(--navy-800)", fontWeight: 700 }}>⬇️ Tải file cài EHO Agent</a>
             </div>
+            <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-600)" }}>Máy chưa cài: tải về, giải nén rồi bấm đúp <code>Cai-dat-EHO-Agent.bat</code>.</div>
           </div>
         )}
 
