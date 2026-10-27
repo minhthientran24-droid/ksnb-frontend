@@ -11,6 +11,7 @@ import {
 } from "../lib/api";
 import XuatNhapKhacModal from "../components/XuatNhapKhacModal";
 import { useAllowedKeys } from "../lib/permissions";
+import { useMultiColFilters } from "../lib/useMultiColFilters";
 import { fmtNgayThang, fmtNgayGio, fmtMoney, tinhUocTinhTruyThu, moneyStyle, sortDaKiemRows } from "../lib/daKiem";
 
 function normName(s) {
@@ -108,7 +109,7 @@ function applyLlvSort(rows, sortState, getters) {
   return sorted;
 }
 
-function LlvSortTh({ label, sortKey, sortState, onSort, align }) {
+function LlvSortTh({ label, sortKey, sortState, onSort, align, filter }) {
   const active = sortState?.key === sortKey;
   return (
     <th
@@ -123,6 +124,7 @@ function LlvSortTh({ label, sortKey, sortState, onSort, align }) {
       <span style={{ marginLeft: 4, fontSize: 10, opacity: active ? 1 : 0.5 }}>
         {active ? (sortState.dir === "asc" ? "▲" : "▼") : "⇅"}
       </span>
+      {filter && <span style={{ marginLeft: 4 }}>{filter}</span>}
     </th>
   );
 }
@@ -162,6 +164,25 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
     // "Số ngày đã chốt" = Hôm nay - Ngày chốt kiểm kê, TRỪ các ngày Chủ nhật (cùng hàm daysBetween với "Số ngày kiểm") — chốt 26/10
     rows = rows.map((r) => ({ ...r, _soNgayChot: daysBetween(data.date, (r.ngay_chot_kiem_ke || "").slice(0, 10)) }));
   }
+  // Lọc theo cột (chốt 27/10): nút lọc tick nhiều giá trị ở đầu mỗi cột (xem lib/useMultiColFilters.js)
+  const mcf = useMultiColFilters();
+  const numRank = (v) => (v == null ? -1 : v);
+  const colDefs = [
+    { key: "vung", get: (r) => r.vung || "-" },
+    { key: "ma_shop", get: (r) => r.ma_shop || "-", desc: false },
+    { key: "ten_shop", get: (r) => r.ten_shop || "-", menu: 360 },
+    { key: "ksnb", get: (r) => r.ksnb || "-" },
+    { key: "ngay_kiem", get: (r) => (compactDate ? fmtNgayThang(r.ngay_kiem) : r.ngay_kiem) || "-", rank: (r) => r.ngay_kiem || "", desc: true },
+    { key: "ngay_chot_kiem_ke", get: (r) => (r.ngay_chot_kiem_ke ? fmtNgayThang(String(r.ngay_chot_kiem_ke).slice(0, 10)) : "-"), rank: (r) => r.ngay_chot_kiem_ke || "", desc: true },
+    { key: "so_ngay_da_chot", get: (r) => String(r._soNgayChot ?? "-"), rank: (r) => numRank(r._soNgayChot), desc: true },
+    { key: "so_ngay_kiem", get: (r) => String(r._soNgayKiem ?? "-"), rank: (r) => numRank(r._soNgayKiem), desc: true },
+    { key: "hinh_thuc", get: (r) => r.hinh_thuc || "-" },
+    { key: "trang_thai", get: (r) => llvStatusText(r, showSoNgayKiem ? r._soNgayKiem : null), menu: 340 },
+    { key: "ticket", get: (r) => JOB_STATUS_LABELS[r.ticket_status || ""] || r.ticket_status || "-" },
+  ];
+  const baseRows = rows; // đã qua ô tìm kiếm + cột tính sẵn
+  rows = mcf.filterRows(colDefs, rows);
+  const fb = (key) => mcf.button(colDefs, baseRows, key);
   rows = applyLlvSort(rows, sort.state, {
     vung: (r) => r.vung || "",
     ma_shop: (r) => r.ma_shop || "",
@@ -183,7 +204,8 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
       <div className="card-head">
         <h3>{title} — {data.date}</h3>
         <span className="note">
-          {searchQuery ? `${rows.length}/${data.rows.length} shop (đang lọc)` : `${data.rows.length} shop`}
+          {searchQuery || mcf.active ? `${rows.length}/${data.rows.length} shop (đang lọc)` : `${data.rows.length} shop`}
+          {mcf.active && <button className="fbtn" style={{ marginLeft: 8 }} onClick={mcf.clear}>✕ Bỏ lọc cột</button>}
           {!isAdmin && " · chỉ hiện shop do bạn phụ trách"}
         </span>
       </div>
@@ -191,17 +213,17 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
         <table>
           <thead>
             <tr>
-              <LlvSortTh label="Vùng" sortKey="vung" sortState={sort.state} onSort={sort.onSort} align="left" />
-              <LlvSortTh label="Mã shop" sortKey="ma_shop" sortState={sort.state} onSort={sort.onSort} />
-              <LlvSortTh label="Tên shop" sortKey="ten_shop" sortState={sort.state} onSort={sort.onSort} align="left" />
-              <LlvSortTh label="KSNB phụ trách" sortKey="ksnb" sortState={sort.state} onSort={sort.onSort} />
-              <LlvSortTh label="Ngày kiểm" sortKey="ngay_kiem" sortState={sort.state} onSort={sort.onSort} />
-              {showNgayChot && <LlvSortTh label="Ngày chốt kiểm kê" sortKey="ngay_chot_kiem_ke" sortState={sort.state} onSort={sort.onSort} />}
-              {showNgayChot && <LlvSortTh label="Số ngày đã chốt" sortKey="so_ngay_da_chot" sortState={sort.state} onSort={sort.onSort} />}
-              {showSoNgayKiem && <LlvSortTh label="Số ngày kiểm" sortKey="so_ngay_kiem" sortState={sort.state} onSort={sort.onSort} />}
-              <LlvSortTh label="Hình thức" sortKey="hinh_thuc" sortState={sort.state} onSort={sort.onSort} />
-              <LlvSortTh label="Trạng thái" sortKey="trang_thai" sortState={sort.state} onSort={sort.onSort} />
-              {showTicket && <th>Ticket thông báo</th>}{showDoiLich && <th></th>}{showHuy && <th></th>}
+              <LlvSortTh label="Vùng" sortKey="vung" sortState={sort.state} onSort={sort.onSort} filter={fb("vung")} align="left" />
+              <LlvSortTh label="Mã shop" sortKey="ma_shop" sortState={sort.state} onSort={sort.onSort} filter={fb("ma_shop")} />
+              <LlvSortTh label="Tên shop" sortKey="ten_shop" sortState={sort.state} onSort={sort.onSort} filter={fb("ten_shop")} align="left" />
+              <LlvSortTh label="KSNB phụ trách" sortKey="ksnb" sortState={sort.state} onSort={sort.onSort} filter={fb("ksnb")} />
+              <LlvSortTh label="Ngày kiểm" sortKey="ngay_kiem" sortState={sort.state} onSort={sort.onSort} filter={fb("ngay_kiem")} />
+              {showNgayChot && <LlvSortTh label="Ngày chốt kiểm kê" sortKey="ngay_chot_kiem_ke" sortState={sort.state} onSort={sort.onSort} filter={fb("ngay_chot_kiem_ke")} />}
+              {showNgayChot && <LlvSortTh label="Số ngày đã chốt" sortKey="so_ngay_da_chot" sortState={sort.state} onSort={sort.onSort} filter={fb("so_ngay_da_chot")} />}
+              {showSoNgayKiem && <LlvSortTh label="Số ngày kiểm" sortKey="so_ngay_kiem" sortState={sort.state} onSort={sort.onSort} filter={fb("so_ngay_kiem")} />}
+              <LlvSortTh label="Hình thức" sortKey="hinh_thuc" sortState={sort.state} onSort={sort.onSort} filter={fb("hinh_thuc")} />
+              <LlvSortTh label="Trạng thái" sortKey="trang_thai" sortState={sort.state} onSort={sort.onSort} filter={fb("trang_thai")} />
+              {showTicket && <th style={{ whiteSpace: "nowrap" }}>Ticket thông báo <span style={{ marginLeft: 4 }}>{fb("ticket")}</span></th>}{showDoiLich && <th></th>}{showHuy && <th></th>}
             </tr>
           </thead>
           <tbody>
@@ -264,7 +286,7 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
             })}
             {rows.length === 0 && (
               <tr><td colSpan={colCount} style={{ textAlign: "center", color: "var(--text-400)" }}>
-                {searchQuery ? "Không tìm thấy shop nào khớp" : emptyText}
+                {searchQuery || mcf.active ? "Không tìm thấy shop nào khớp" : emptyText}
               </td></tr>
             )}
           </tbody>
@@ -572,12 +594,12 @@ export default function TheoDoiKiemKePage() {
   // lần 11) — xuống dòng cho các tiêu đề dài để thu hẹp bề ngang cột.
   // Cột đang active tô nền: xanh lá nhạt = A→Z/tăng dần, cam nhạt =
   // Z→A/giảm dần (chốt 27/08 lần 12, đổi xanh dương -> xanh lá lần 13).
-  function SortTh({ label, sortCol }) {
+  function sortTh(label, sortCol) {
     const active = sortKey === sortCol;
     const lines = Array.isArray(label) ? label : [label];
     const activeBg = active ? (sortDir === "asc" ? "#EAF6E5" : "#FFF1E1") : undefined;
     return (
-      <th onClick={() => handleSort(sortCol)} style={{ cursor: "pointer", userSelect: "none", lineHeight: 1.3, background: activeBg }} title="Bấm để sắp xếp">
+      <th key={sortCol} onClick={() => handleSort(sortCol)} style={{ cursor: "pointer", userSelect: "none", lineHeight: 1.3, background: activeBg }} title="Bấm để sắp xếp">
         {lines.map((line, i) => (
           <div key={i} style={{ whiteSpace: "nowrap" }}>
             {line}
@@ -586,24 +608,40 @@ export default function TheoDoiKiemKePage() {
                 {active ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}
               </span>
             )}
+            {i === lines.length - 1 && <span style={{ marginLeft: 4 }}>{dkFilterBtn(sortCol)}</span>}
           </div>
         ))}
       </th>
     );
   }
 
-  // Lọc theo mã shop/tên shop, rồi sắp xếp theo cột đang chọn (mặc định
-  // Ước tính truy thu tăng dần).
-  const displayRows = sortDaKiemRows(
-    rows.filter((r) => {
-      if (!searchQuery) return true;
-      return (
-        (r.ma_shop || "").toLowerCase().includes(searchQuery) ||
-        (r.ten_shop || "").toLowerCase().includes(searchQuery)
-      );
-    }),
-    sortKey, sortDir,
-  );
+  // Lọc theo mã shop/tên shop, rồi lọc theo cột (nút lọc tick nhiều giá trị ở đầu cột, chốt 27/10), rồi sắp xếp theo cột đang chọn
+  // (mặc định Ước tính truy thu tăng dần). Xuất Excel dùng đúng displayRows nên cũng theo bộ lọc cột.
+  const searchedRows = rows.filter((r) => {
+    if (!searchQuery) return true;
+    return (
+      (r.ma_shop || "").toLowerCase().includes(searchQuery) ||
+      (r.ten_shop || "").toLowerCase().includes(searchQuery)
+    );
+  });
+  const dkMcf = useMultiColFilters();
+  const moneyDef = (key, get) => ({ key, get: (r) => fmtMoney(get(r)), rank: (r) => get(r) || 0, desc: true });
+  const dkDefs = [
+    { key: "vung", get: (r) => r.vung || "-" },
+    { key: "ten_shop", get: (r) => `${r.ma_shop || ""}${r.ten_shop ? ` - ${r.ten_shop}` : ""}${r.so_ngay_gui_tre ? ` - gửi trễ ${r.so_ngay_gui_tre} ngày` : ""}` || "-", menu: 380 },
+    { key: "ngay_kiem_ke", get: (r) => fmtNgayThang(r.ngay_kiem_ke) || "-", rank: (r) => r.ngay_kiem_ke || "", desc: true },
+    { key: "ngay_chot_kiem_ke", get: (r) => fmtNgayThang(r.ngay_chot_kiem_ke) || "-", rank: (r) => r.ngay_chot_kiem_ke || "", desc: true },
+    { key: "ngay_gui", get: (r) => fmtNgayThang(r.ngay_gui) || "-", rank: (r) => r.ngay_gui || "", desc: true },
+    moneyDef("gia_tri_non_cl", (r) => r.gia_tri_non_cl), moneyDef("can_ton_non_cl", (r) => r.can_ton_non_cl),
+    moneyDef("gia_tri_cat_lieu", (r) => r.gia_tri_cat_lieu), moneyDef("can_ton_cat_lieu", (r) => r.can_ton_cat_lieu),
+    moneyDef("kiem_ke_vx", (r) => r.kiem_ke_vx), moneyDef("kiem_ke_vtyt", (r) => r.kiem_ke_vtyt), moneyDef("kiem_ke_vpkm", (r) => r.kiem_ke_vpkm),
+    moneyDef("luy_ke", (r) => r.luy_ke), moneyDef("uoc_tinh_truy_thu", (r) => tinhUocTinhTruyThu(r)), moneyDef("truy_thu_thanh_ly", (r) => r.truy_thu_thanh_ly),
+    { key: "nv_kiem_ke", get: (r) => r.nv_kiem_ke || "-" },
+  ];
+  function dkFilterBtn(key) { return dkMcf.button(dkDefs, searchedRows, key); }
+  const displayRows = sortDaKiemRows(dkMcf.filterRows(dkDefs, searchedRows), sortKey, sortDir);
+  // Đổi kỳ / nhóm / tab thì bỏ lọc cột (giá trị và cột khác nhau)
+  useEffect(() => { dkMcf.clear(); }, [period, nhom, loai]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Xuất Excel tab "Đã kiểm" (chốt 25/09) — đúng những gì đang hiển thị
   // (kỳ + nhóm đang chọn, đã lọc tìm kiếm + sắp xếp), tách riêng Mã shop /
@@ -967,9 +1005,10 @@ export default function TheoDoiKiemKePage() {
             <h3>Kỳ {period}</h3>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <span className="note">
-                {searchQuery ? `${displayRows.length}/${rows.length} shop (đang lọc)` : `${rows.length} shop`}
+                {searchQuery || dkMcf.active ? `${displayRows.length}/${rows.length} shop (đang lọc)` : `${rows.length} shop`}
                 {" · bấm tiêu đề cột để sắp xếp"}
               </span>
+              {dkMcf.active && <button className="fbtn" onClick={dkMcf.clear}>✕ Bỏ lọc cột</button>}
               <button
                 onClick={handleExportDaKiem}
                 disabled={exportBusy || displayRows.length === 0}
@@ -984,29 +1023,29 @@ export default function TheoDoiKiemKePage() {
             <table>
               <thead>
                 <tr>
-                  <SortTh label="Vùng" sortCol="vung" />
-                  <SortTh label="Tên shop" sortCol="ten_shop" />
-                  <SortTh label="Ngày kiểm kê" sortCol="ngay_kiem_ke" />
-                  {isAdmin && <SortTh label={["Ngày chốt", "kiểm kê"]} sortCol="ngay_chot_kiem_ke" />}
-                  <SortTh label={["Ngày gửi", "báo cáo"]} sortCol="ngay_gui" />
+                  {sortTh("Vùng", "vung")}
+                  {sortTh("Tên shop", "ten_shop")}
+                  {sortTh("Ngày kiểm kê", "ngay_kiem_ke")}
+                  {isAdmin && sortTh(["Ngày chốt", "kiểm kê"], "ngay_chot_kiem_ke")}
+                  {sortTh(["Ngày gửi", "báo cáo"], "ngay_gui")}
                   {nhom === "long_chau" ? (
                     <>
-                      <SortTh label={["Kiểm kê", "Non CL"]} sortCol="gia_tri_non_cl" />
-                      <SortTh label={["Cân tồn", "Non CL"]} sortCol="can_ton_non_cl" />
-                      <SortTh label={["Kiểm kê", "Cắt liều"]} sortCol="gia_tri_cat_lieu" />
-                      <SortTh label={["Cân tồn", "Cắt liều"]} sortCol="can_ton_cat_lieu" />
+                      {sortTh(["Kiểm kê", "Non CL"], "gia_tri_non_cl")}
+                      {sortTh(["Cân tồn", "Non CL"], "can_ton_non_cl")}
+                      {sortTh(["Kiểm kê", "Cắt liều"], "gia_tri_cat_lieu")}
+                      {sortTh(["Cân tồn", "Cắt liều"], "can_ton_cat_lieu")}
                     </>
                   ) : (
                     <>
-                      <SortTh label="Kiểm kê VX" sortCol="kiem_ke_vx" />
-                      <SortTh label="Kiểm kê VTYT" sortCol="kiem_ke_vtyt" />
-                      <SortTh label="Kiểm kê VPKM" sortCol="kiem_ke_vpkm" />
+                      {sortTh("Kiểm kê VX", "kiem_ke_vx")}
+                      {sortTh("Kiểm kê VTYT", "kiem_ke_vtyt")}
+                      {sortTh("Kiểm kê VPKM", "kiem_ke_vpkm")}
                     </>
                   )}
-                  <SortTh label="Lũy Kế" sortCol="luy_ke" />
-                  <SortTh label={["Ước tính", "truy thu"]} sortCol="uoc_tinh_truy_thu" />
-                  <SortTh label={["Truy thu", "thanh lý"]} sortCol="truy_thu_thanh_ly" />
-                  <SortTh label="NV kiểm kê" sortCol="nv_kiem_ke" />
+                  {sortTh("Lũy Kế", "luy_ke")}
+                  {sortTh(["Ước tính", "truy thu"], "uoc_tinh_truy_thu")}
+                  {sortTh(["Truy thu", "thanh lý"], "truy_thu_thanh_ly")}
+                  {sortTh("NV kiểm kê", "nv_kiem_ke")}
                   {isAdmin && <th>Thao tác</th>}
                 </tr>
               </thead>
@@ -1055,7 +1094,7 @@ export default function TheoDoiKiemKePage() {
                 ))}
                 {displayRows.length === 0 && (
                   <tr><td colSpan={(nhom === "long_chau" ? 12 : 11) + (isAdmin ? 2 : 0)} style={{ textAlign: "center", color: "var(--text-400)" }}>
-                    {searchQuery ? "Không tìm thấy shop nào khớp" : "Không có shop nào trong tháng này"}
+                    {searchQuery || dkMcf.active ? "Không tìm thấy shop nào khớp" : "Không có shop nào trong tháng này"}
                   </td></tr>
                 )}
               </tbody>
