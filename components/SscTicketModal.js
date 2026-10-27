@@ -295,7 +295,7 @@ export default function SscTicketModal({ rows = [], group, onClose, onDone }) {
               {prog.skipped > 0 && <> · Bỏ qua {prog.skipped}</>}
               {" · "}{fmtSec(prog.elapsedSec || 0)}
             </div>
-            {phase === "running" && <div style={{ fontSize: 12, color: "var(--text-400)" }}>Giữ nguyên popup này và cửa sổ SSC trong lúc tạo (mỗi shop khoảng 20–40 giây).</div>}
+            {phase === "running" && <div style={{ fontSize: 12, color: "var(--text-400)" }}>Giữ nguyên popup này và cửa sổ SSC trong lúc tạo (agent gọi thẳng API của SSC, khoảng vài giây mỗi shop).</div>}
           </div>
         )}
 
