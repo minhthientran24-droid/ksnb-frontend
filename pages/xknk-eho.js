@@ -473,7 +473,7 @@ export default function XknkEhoPage() {
             <table style={{ minWidth: 1700, fontSize: 12.5 }}>
               <thead>
                 <tr>
-                  {["STT", "Trạng thái", "Mã phiếu", "Loại phiếu", "Loại yêu cầu", "Shop", "Kho", "Sản phẩm", "Giá trị", "Số lô - HSD", "Số lượng", "Đơn vị tính", "Ngày tạo phiếu", "Người tạo phiếu", "Ghi chú"].map((h) => (
+                  {["STT", "Trạng thái", "Mã phiếu", "Loại phiếu", "Loại yêu cầu", "Shop", "Kho", "Sản phẩm", "Số lô - HSD", "Số lượng", "Đơn vị tính", "Ngày tạo phiếu", "Người tạo phiếu", "Ghi chú"].map((h) => (
                     <th key={h} style={{ fontSize: 10.5, padding: "8px 8px", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -494,7 +494,6 @@ export default function XknkEhoPage() {
                       <td style={{ textAlign: "left" }}>{r.shop_code}{r.shop_name ? ` - ${r.shop_name}` : ""}</td>
                       <td style={{ textAlign: "left" }}>{r.whs_code}{r.whs_name ? ` - ${r.whs_name}` : ""}</td>
                       <td style={{ textAlign: "left" }}>{r.sku}{r.sku_name ? ` - ${r.sku_name}` : ""}</td>
-                      <td style={{ textAlign: "right" }}>{fmtNum(r.price)}</td>
                       <td>{[r.lot_number, r.expire_date ? String(r.expire_date).slice(0, 10) : ""].filter(Boolean).join(" - ") || "-"}</td>
                       <td style={{ textAlign: "right", fontWeight: 600 }}>{fmtNum(r.quantity)}</td>
                       <td>{r.unit_name || "-"}</td>
