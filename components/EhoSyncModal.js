@@ -5,7 +5,7 @@ import { getEhoStatus, ehoIngest } from "../lib/api";
 // (xem ksnb-backend/tools/eho_agent): agent mở Chrome riêng để admin TỰ đăng nhập EHO, rồi lấy các phiếu "Kiểm kê All shop -
 // Kho hàng thường - Hoàn tất"; web chuyển dữ liệu đó lên hệ thống. "Ngày duyệt" của phiếu = Ngày chốt kiểm kê của shop.
 const AGENT = "http://127.0.0.1:8765";
-const DAY_OPTIONS = [30, 60, 90, 120];
+const DAY_OPTIONS = [5, 15, 30];
 
 async function agentCall(path, { method = "GET", body, timeoutMs = 15000 } = {}) {
   const ctrl = new AbortController();
@@ -36,7 +36,7 @@ function fmtDateTime(iso) {
 export default function EhoSyncModal({ onClose }) {
   const [agent, setAgent] = useState("checking"); // checking | ok | missing
   const [login, setLogin] = useState({ driver: false, logged_in: false });
-  const [days, setDays] = useState(60);
+  const [days, setDays] = useState(5);
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState(null); // {type: "ok"|"err", text}
   const [info, setInfo] = useState(null);
@@ -95,13 +95,14 @@ export default function EhoSyncModal({ onClose }) {
             : `EHO trả lỗi (${e || "không rõ"})`);
       }
       const rows = res.rows || [];
-      let nhan = 0, shops = new Set();
+      let nhan = 0, moi = 0, shops = new Set();
       for (let i = 0; i < rows.length; i += 4000) {
         const r = await ehoIngest(rows.slice(i, i + 4000));
         nhan += r.nhan;
+        moi += r.moi || 0;
       }
       rows.forEach((x) => shops.add(x.shopCode));
-      setMsg({ type: "ok", text: `✅ Đồng bộ xong: lấy ${res.fetched?.toLocaleString("vi-VN")} phiếu Hoàn tất của ${days} ngày gần nhất, lưu ${nhan.toLocaleString("vi-VN")} phiếu "Kho hàng thường" của ${shops.size.toLocaleString("vi-VN")} shop. Cột Ngày chốt kiểm kê ở Theo dõi kiểm kê đã dùng dữ liệu mới.` });
+      setMsg({ type: "ok", text: `✅ Đồng bộ xong: lấy ${res.fetched?.toLocaleString("vi-VN")} phiếu Hoàn tất của ${days} ngày gần nhất, có ${nhan.toLocaleString("vi-VN")} phiếu "Kho hàng thường" của ${shops.size.toLocaleString("vi-VN")} shop: thêm mới ${moi.toLocaleString("vi-VN")} phiếu, ${(nhan - moi).toLocaleString("vi-VN")} phiếu đã có từ trước được giữ nguyên (không ghi đè). Ngày chốt kiểm kê ở Theo dõi kiểm kê đã dùng dữ liệu mới.` });
       loadInfo();
     } catch (e) {
       setMsg({ type: "err", text: e.name === "AbortError" ? "Quá thời gian chờ đồng bộ." : (e.message || "Đồng bộ thất bại") });
@@ -148,7 +149,7 @@ export default function EhoSyncModal({ onClose }) {
             <div style={row}>
               {step(2, false)}
               <select className="finput" value={days} onChange={(e) => setDays(Number(e.target.value))} style={{ width: 150 }} disabled={!!busy}>
-                {DAY_OPTIONS.map((d) => <option key={d} value={d}>{d} ngày gần nhất</option>)}
+                {DAY_OPTIONS.map((d) => <option key={d} value={d}>{d} ngày gần nhất{d === 5 ? " (mặc định)" : ""}</option>)}
               </select>
               <button className="login-btn" style={{ width: "auto", padding: "8px 22px", opacity: login.logged_in && !busy ? 1 : 0.5 }} disabled={!login.logged_in || !!busy} onClick={handleSync}>
                 {busy === "sync" ? "Đang đồng bộ (khoảng 15-60 giây)..." : "Đồng bộ"}
