@@ -218,7 +218,7 @@ export default function SscTicketModal({ rows = [], group, onClose, onDone }) {
               </>
             )}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-              <a className="login-btn" href="/downloads/EHO-Agent-Setup-2.2.zip" download style={{ display: "inline-block", width: "auto", padding: "8px 18px", textDecoration: "none", textAlign: "center" }}>⬇️ Tải file cài EHO Agent 2.2</a>
+              <a className="login-btn" href="/downloads/EHO-Agent-Setup-2.3.zip" download style={{ display: "inline-block", width: "auto", padding: "8px 18px", textDecoration: "none", textAlign: "center" }}>⬇️ Tải file cài EHO Agent 2.2</a>
               {agent === "missing" && <button className="fbtn" onClick={startAgent} disabled={launching} style={{ fontWeight: 700 }}>▶️ Đã cài rồi — khởi động EHO Agent</button>}
             </div>
             <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-600)" }}>

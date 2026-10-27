@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getEhoStatus, ehoIngest } from "../lib/api";
+import { getEhoStatus, ehoIngest, ehoCodIngest } from "../lib/api";
 import { launchEhoAgent } from "../lib/ehoAgentLaunch";
 
 // Popup "Đồng bộ dữ liệu EHO" (chốt 26/10) — chỉ admin/super_admin. Làm việc với EHO Agent chạy trên chính PC của admin
@@ -7,6 +7,8 @@ import { launchEhoAgent } from "../lib/ehoAgentLaunch";
 // Kho hàng thường - Hoàn tất"; web chuyển dữ liệu đó lên hệ thống. "Ngày duyệt" của phiếu = Ngày chốt kiểm kê của shop.
 const AGENT = "http://127.0.0.1:8765";
 const DAY_OPTIONS = [5, 15, 30];
+const COD_MIN_AGENT = "2.3"; // bản agent có /cod/fetch (đồng bộ Đơn Hàng COD)
+const verLt = (a, b) => { const x = String(a || "0").split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d < 0; } return false; };
 
 async function agentCall(path, { method = "GET", body, timeoutMs = 15000 } = {}) {
   const ctrl = new AbortController();
@@ -36,6 +38,7 @@ function fmtDateTime(iso) {
 
 export default function EhoSyncModal({ onClose }) {
   const [agent, setAgent] = useState("checking"); // checking | ok | missing
+  const [agentVer, setAgentVer] = useState("");
   const [login, setLogin] = useState({ driver: false, logged_in: false });
   const [days, setDays] = useState(5);
   const [busy, setBusy] = useState("");
@@ -66,6 +69,7 @@ export default function EhoSyncModal({ onClose }) {
         if (!alive.current) return;
         if (p && p.ok) {
           setAgent("ok");
+          setAgentVer(String(p.version || ""));
           setLaunching(false);
           const s = await agentCall("/status", { timeoutMs: 8000 });
           if (alive.current) setLogin(s);
@@ -118,6 +122,27 @@ export default function EhoSyncModal({ onClose }) {
       rows.forEach((x) => shops.add(x.shopCode));
       setMsg({ type: "ok", text: `✅ Đồng bộ xong: lấy ${res.fetched?.toLocaleString("vi-VN")} phiếu Hoàn tất của ${days} ngày gần nhất, có ${nhan.toLocaleString("vi-VN")} phiếu "Kho hàng thường" của ${shops.size.toLocaleString("vi-VN")} shop: thêm mới ${moi.toLocaleString("vi-VN")} phiếu, ${(nhan - moi).toLocaleString("vi-VN")} phiếu đã có từ trước được giữ nguyên (không ghi đè). Ngày chốt kiểm kê ở Theo dõi kiểm kê đã dùng dữ liệu mới.` });
       loadInfo();
+      // Bước 2: Đơn Hàng COD -> Theo dõi chủ đề (cần agent 2.3 trở lên). Lỗi phần này KHÔNG làm hỏng kết quả kiểm kê ở trên.
+      let codText = "";
+      if (verLt(agentVer, COD_MIN_AGENT)) {
+        codText = ` ⚠️ Chưa đồng bộ Đơn Hàng COD: EHO Agent trên máy này là bản ${agentVer || "cũ"}, cần bản ${COD_MIN_AGENT} trở lên (tải file cài bên dưới).`;
+      } else {
+        try {
+          const cod = await agentCall("/cod/fetch", { method: "POST", body: { from_date: isoLocal(from, false), to_date: isoLocal(to, true) }, timeoutMs: 15 * 60 * 1000 });
+          if (!cod || !cod.ok) throw new Error(cod && cod.error === "not_logged_in" ? "phiên đăng nhập EHO hết hạn" : `EHO trả lỗi (${(cod && cod.error) || "không rõ"})`);
+          let cNhan = 0, cMoi = 0;
+          const items = cod.items || [];
+          for (let i = 0; i < items.length; i += 100) {
+            const r = await ehoCodIngest(items.slice(i, i + 100));
+            cNhan += r.nhan;
+            cMoi += r.moi;
+          }
+          codText = ` Đơn Hàng COD: có ${cNhan.toLocaleString("vi-VN")} cảnh báo "Chưa tiếp nhận" trong ${days} ngày gần nhất, đã đăng ${cMoi.toLocaleString("vi-VN")} chủ đề mới vào Theo dõi chủ đề${cNhan - cMoi ? `, ${(cNhan - cMoi).toLocaleString("vi-VN")} cảnh báo đã có từ trước được giữ nguyên` : ""}${cod.failed ? ` (⚠️ ${cod.failed} cảnh báo không đọc được chi tiết, lần đồng bộ sau sẽ lấy lại)` : ""}.`;
+        } catch (ce) {
+          codText = ` ⚠️ Đồng bộ Đơn Hàng COD lỗi: ${ce.message || "không rõ"}.`;
+        }
+      }
+      setMsg((m) => (m && m.type === "ok" ? { ...m, text: m.text + codText } : m));
     } catch (e) {
       setMsg({ type: "err", text: e.name === "AbortError" ? "Quá thời gian chờ đồng bộ." : (e.message || "Đồng bộ thất bại") });
     } finally {
@@ -140,7 +165,7 @@ export default function EhoSyncModal({ onClose }) {
       <div style={box} onClick={(e) => e.stopPropagation()}>
         <h3 style={{ fontSize: 17, fontWeight: 800, color: "var(--navy-900)", marginBottom: 4 }}>🔄 Đồng bộ dữ liệu EHO</h3>
         <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 14, lineHeight: 1.6 }}>
-          Lấy "Ngày duyệt" của phiếu Kiểm kê All shop - Kho hàng thường (đã Hoàn tất) làm <b>Ngày chốt kiểm kê</b> của từng shop.
+          Gồm 2 phần: (1) lấy "Ngày duyệt" của phiếu Kiểm kê All shop - Kho hàng thường (đã Hoàn tất) làm <b>Ngày chốt kiểm kê</b> của từng shop; (2) lấy cảnh báo <b>Đơn Hàng COD</b> chưa tiếp nhận để tự đăng chủ đề vào Theo dõi chủ đề.
         </p>
 
         {agent === "checking" && <div style={note}>Đang kiểm tra EHO Agent trên máy này...</div>}
@@ -153,7 +178,7 @@ export default function EhoSyncModal({ onClose }) {
             )}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
               <button className="fbtn" onClick={startAgent} disabled={launching} style={{ fontWeight: 700 }}>▶️ Khởi động EHO Agent</button>
-              <a className="fbtn" href="/downloads/EHO-Agent-Setup-2.2.zip" download style={{ display: "inline-block", textDecoration: "none", color: "var(--navy-800)", fontWeight: 700 }}>⬇️ Tải file cài EHO Agent</a>
+              <a className="fbtn" href="/downloads/EHO-Agent-Setup-2.3.zip" download style={{ display: "inline-block", textDecoration: "none", color: "var(--navy-800)", fontWeight: 700 }}>⬇️ Tải file cài EHO Agent</a>
             </div>
             <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-600)" }}>Máy chưa cài: tải về, giải nén rồi bấm đúp <code>Cai-dat-EHO-Agent.bat</code>.</div>
           </div>
@@ -174,13 +199,21 @@ export default function EhoSyncModal({ onClose }) {
                 {DAY_OPTIONS.map((d) => <option key={d} value={d}>{d} ngày gần nhất{d === 5 ? " (mặc định)" : ""}</option>)}
               </select>
               <button className="login-btn" style={{ width: "auto", padding: "8px 22px", opacity: login.logged_in && !busy ? 1 : 0.5 }} disabled={!login.logged_in || !!busy} onClick={handleSync}>
-                {busy === "sync" ? "Đang đồng bộ (khoảng 15-60 giây)..." : "Đồng bộ"}
+                {busy === "sync" ? "Đang đồng bộ (khoảng 15-90 giây)..." : "Đồng bộ"}
               </button>
               {login.driver && <button className="fbtn" disabled={!!busy} onClick={handleCloseBrowser}>Đóng cửa sổ EHO</button>}
             </div>
           </>
         )}
 
+        {agent === "ok" && verLt(agentVer, COD_MIN_AGENT) && (
+          <div style={{ ...note, marginTop: 4, marginBottom: 12, borderColor: "var(--danger)", color: "var(--danger)", background: "#FFF6F5" }}>
+            <b>⚠️ EHO Agent trên máy này là bản {agentVer || "cũ"} — cần bản {COD_MIN_AGENT} trở lên để đồng bộ Đơn Hàng COD.</b> Phần Kiểm kê vẫn đồng bộ được. Tải file cài, giải nén, bấm đúp <code>Cai-dat-EHO-Agent.bat</code> (cài đè, giữ nguyên đăng nhập EHO).
+            <div style={{ marginTop: 8 }}>
+              <a className="login-btn" href="/downloads/EHO-Agent-Setup-2.3.zip" download style={{ display: "inline-block", width: "auto", padding: "8px 18px", textDecoration: "none", textAlign: "center" }}>⬇️ Tải file cài EHO Agent 2.3</a>
+            </div>
+          </div>
+        )}
         {msg && <div style={{ ...note, marginTop: 12, borderColor: msg.type === "ok" ? "#4C9A2A" : "var(--danger)", color: msg.type === "ok" ? "#2f6b1a" : "var(--danger)" }}>{msg.text}</div>}
 
         <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid var(--border)", fontSize: 12.5, color: "var(--text-600)", lineHeight: 1.7 }}>
