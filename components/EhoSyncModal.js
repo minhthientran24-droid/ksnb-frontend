@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getEhoStatus, ehoIngest, ehoCodIngest } from "../lib/api";
+import { getEhoStatus, ehoIngest, ehoCodIngest, ehoCodPendingPush, ehoCodPushResult } from "../lib/api";
 import { launchEhoAgent } from "../lib/ehoAgentLaunch";
 
 // Popup "Đồng bộ dữ liệu EHO" (chốt 26/10) — chỉ admin/super_admin. Làm việc với EHO Agent chạy trên chính PC của admin
@@ -7,7 +7,10 @@ import { launchEhoAgent } from "../lib/ehoAgentLaunch";
 // Kho hàng thường - Hoàn tất"; web chuyển dữ liệu đó lên hệ thống. "Ngày duyệt" của phiếu = Ngày chốt kiểm kê của shop.
 const AGENT = "http://127.0.0.1:8765";
 const DAY_OPTIONS = [5, 15, 30];
-const COD_MIN_AGENT = "2.3"; // bản agent có /cod/fetch (đồng bộ Đơn Hàng COD)
+const COD_MIN_AGENT = "2.4"; // bản agent có /cod/fetch (đồng bộ Đơn Hàng COD) + /cod/push (đẩy kết quả Có/Không vi phạm sang EHO)
+const AGENT_ZIP = "/downloads/EHO-Agent-Setup-2.4.zip";
+// Chạy thử đẩy kết quả (chỉ đọc EHO, không ghi): localStorage.codPushDryRun = "1"
+const codPushDry = () => { try { return localStorage.getItem("codPushDryRun") === "1"; } catch (e) { return false; } };
 const verLt = (a, b) => { const x = String(a || "0").split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d < 0; } return false; };
 
 async function agentCall(path, { method = "GET", body, timeoutMs = 15000 } = {}) {
@@ -122,7 +125,7 @@ export default function EhoSyncModal({ onClose }) {
       rows.forEach((x) => shops.add(x.shopCode));
       setMsg({ type: "ok", text: `✅ Đồng bộ xong: lấy ${res.fetched?.toLocaleString("vi-VN")} phiếu Hoàn tất của ${days} ngày gần nhất, có ${nhan.toLocaleString("vi-VN")} phiếu "Kho hàng thường" của ${shops.size.toLocaleString("vi-VN")} shop: thêm mới ${moi.toLocaleString("vi-VN")} phiếu, ${(nhan - moi).toLocaleString("vi-VN")} phiếu đã có từ trước được giữ nguyên (không ghi đè). Ngày chốt kiểm kê ở Theo dõi kiểm kê đã dùng dữ liệu mới.` });
       loadInfo();
-      // Bước 2: Đơn Hàng COD -> Theo dõi chủ đề (cần agent 2.3 trở lên). Lỗi phần này KHÔNG làm hỏng kết quả kiểm kê ở trên.
+      // Bước 2: Đơn Hàng COD -> Theo dõi chủ đề (cần agent 2.4 trở lên). Lỗi phần này KHÔNG làm hỏng kết quả kiểm kê ở trên.
       let codText = "";
       if (verLt(agentVer, COD_MIN_AGENT)) {
         codText = ` ⚠️ Chưa đồng bộ Đơn Hàng COD: EHO Agent trên máy này là bản ${agentVer || "cũ"}, cần bản ${COD_MIN_AGENT} trở lên (tải file cài bên dưới).`;
@@ -140,6 +143,25 @@ export default function EhoSyncModal({ onClose }) {
           codText = ` Đơn Hàng COD: có ${cNhan.toLocaleString("vi-VN")} cảnh báo "Chưa tiếp nhận" trong ${days} ngày gần nhất, đã đăng ${cMoi.toLocaleString("vi-VN")} chủ đề mới vào Theo dõi chủ đề${cNhan - cMoi ? `, ${(cNhan - cMoi).toLocaleString("vi-VN")} cảnh báo đã có từ trước được giữ nguyên` : ""}${cod.failed ? ` (⚠️ ${cod.failed} cảnh báo không đọc được chi tiết, lần đồng bộ sau sẽ lấy lại)` : ""}.`;
         } catch (ce) {
           codText = ` ⚠️ Đồng bộ Đơn Hàng COD lỗi: ${ce.message || "không rõ"}.`;
+        }
+        // Bước 3: đẩy kết quả NV KSNB đã Hoàn tất trên web (Có/Không vi phạm) sang EHO. Lỗi phần này không ảnh hưởng 2 phần trên.
+        try {
+          const dry = codPushDry();
+          const pend = (await ehoCodPendingPush()).items || [];
+          if (pend.length) {
+            const pr = await agentCall("/cod/push", { method: "POST", body: { items: pend, dry_run: dry }, timeoutMs: 15 * 60 * 1000 });
+            if (!pr || !pr.ok) throw new Error(pr && pr.error === "not_logged_in" ? "phiên đăng nhập EHO hết hạn" : `EHO trả lỗi (${(pr && pr.error) || "không rõ"})`);
+            const rs = pr.results || [];
+            const okN = rs.filter((r) => r.ok).length;
+            const skipN = rs.filter((r) => r.skipped).length;
+            const errs = rs.filter((r) => !r.ok);
+            if (!dry) await ehoCodPushResult(rs.map((r) => ({ job_id: r.job_id, ok: !!r.ok, sent: r.sent, error: r.error })));
+            codText += dry
+              ? ` 🧪 Chạy thử đẩy kết quả sang EHO (không ghi): ${rs.length} phiếu đủ điều kiện, ${okN} đọc được trên EHO.`
+              : ` Đẩy kết quả sang EHO: ${okN - skipN} phiếu đã cập nhật "Đã xử lý"${skipN ? `, ${skipN} phiếu EHO đã xử lý từ trước (giữ nguyên)` : ""}${errs.length ? `, ⚠️ ${errs.length} phiếu lỗi (${errs[0].error || "không rõ"}) — lần đồng bộ sau sẽ thử lại` : ""}.`;
+          } else codText += " Chưa có phiếu COD nào cần đẩy kết quả sang EHO.";
+        } catch (pe) {
+          codText += ` ⚠️ Đẩy kết quả sang EHO lỗi: ${pe.message || "không rõ"}.`;
         }
       }
       setMsg((m) => (m && m.type === "ok" ? { ...m, text: m.text + codText } : m));
@@ -165,7 +187,7 @@ export default function EhoSyncModal({ onClose }) {
       <div style={box} onClick={(e) => e.stopPropagation()}>
         <h3 style={{ fontSize: 17, fontWeight: 800, color: "var(--navy-900)", marginBottom: 4 }}>🔄 Đồng bộ dữ liệu EHO</h3>
         <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 14, lineHeight: 1.6 }}>
-          Gồm 2 phần: (1) lấy "Ngày duyệt" của phiếu Kiểm kê All shop - Kho hàng thường (đã Hoàn tất) làm <b>Ngày chốt kiểm kê</b> của từng shop; (2) lấy cảnh báo <b>Đơn Hàng COD</b> chưa tiếp nhận để tự đăng chủ đề vào Theo dõi chủ đề.
+          Gồm 3 phần: (1) lấy "Ngày duyệt" của phiếu Kiểm kê All shop - Kho hàng thường (đã Hoàn tất) làm <b>Ngày chốt kiểm kê</b> của từng shop; (2) lấy cảnh báo <b>Đơn Hàng COD</b> chưa tiếp nhận để tự đăng chủ đề vào Theo dõi chủ đề; (3) chủ đề COD mà NV KSNB đã <b>Hoàn tất</b> trên web được đẩy kết quả sang EHO (phiếu chuyển "Đã xử lý", ghi chú "&lt;Tên NV&gt; đã check có/không vi phạm").
         </p>
 
         {agent === "checking" && <div style={note}>Đang kiểm tra EHO Agent trên máy này...</div>}
@@ -178,7 +200,7 @@ export default function EhoSyncModal({ onClose }) {
             )}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
               <button className="fbtn" onClick={startAgent} disabled={launching} style={{ fontWeight: 700 }}>▶️ Khởi động EHO Agent</button>
-              <a className="fbtn" href="/downloads/EHO-Agent-Setup-2.3.zip" download style={{ display: "inline-block", textDecoration: "none", color: "var(--navy-800)", fontWeight: 700 }}>⬇️ Tải file cài EHO Agent</a>
+              <a className="fbtn" href={AGENT_ZIP} download style={{ display: "inline-block", textDecoration: "none", color: "var(--navy-800)", fontWeight: 700 }}>⬇️ Tải file cài EHO Agent</a>
             </div>
             <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-600)" }}>Máy chưa cài: tải về, giải nén rồi bấm đúp <code>Cai-dat-EHO-Agent.bat</code>.</div>
           </div>
@@ -210,7 +232,7 @@ export default function EhoSyncModal({ onClose }) {
           <div style={{ ...note, marginTop: 4, marginBottom: 12, borderColor: "var(--danger)", color: "var(--danger)", background: "#FFF6F5" }}>
             <b>⚠️ EHO Agent trên máy này là bản {agentVer || "cũ"} — cần bản {COD_MIN_AGENT} trở lên để đồng bộ Đơn Hàng COD.</b> Phần Kiểm kê vẫn đồng bộ được. Tải file cài, giải nén, bấm đúp <code>Cai-dat-EHO-Agent.bat</code> (cài đè, giữ nguyên đăng nhập EHO).
             <div style={{ marginTop: 8 }}>
-              <a className="login-btn" href="/downloads/EHO-Agent-Setup-2.3.zip" download style={{ display: "inline-block", width: "auto", padding: "8px 18px", textDecoration: "none", textAlign: "center" }}>⬇️ Tải file cài EHO Agent 2.3</a>
+              <a className="login-btn" href={AGENT_ZIP} download style={{ display: "inline-block", width: "auto", padding: "8px 18px", textDecoration: "none", textAlign: "center" }}>⬇️ Tải file cài EHO Agent 2.4</a>
             </div>
           </div>
         )}
