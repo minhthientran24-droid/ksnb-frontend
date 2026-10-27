@@ -183,17 +183,23 @@ export default function SscTicketModal({ ids, group, onClose, onDone }) {
 
         {agent === "checking" && <div style={{ padding: 10, color: "var(--text-400)" }}>Đang kiểm tra EHO Agent...</div>}
         {(agent === "missing" || agent === "old") && (
-          <div style={{ border: "1px solid", borderColor: launching ? "var(--border)" : "var(--danger)", borderRadius: 8, padding: "10px 12px", color: launching ? "var(--text-600)" : "var(--danger)", fontSize: 13, lineHeight: 1.6, marginBottom: 12 }}>
-            {agent === "old" ? (
-              <><b>EHO Agent trên máy này là bản cũ, chưa hỗ trợ tạo ticket SSC.</b> Tải file cài mới, giải nén rồi bấm đúp <code>Cai-dat-EHO-Agent.bat</code> (cài đè, giữ nguyên đăng nhập EHO).</>
-            ) : launching ? (
-              <><b>Đang khởi động EHO Agent...</b> Nếu trình duyệt hỏi "Mở EHO Agent?" hãy bấm <b>Mở</b>.</>
+          <div style={{ border: "2px solid", borderColor: launching ? "var(--border)" : "var(--danger)", borderRadius: 10, padding: "12px 14px", color: "var(--text-900, #1f2a44)", fontSize: 13, lineHeight: 1.65, marginBottom: 14, background: launching ? "transparent" : "#FFF6F5" }}>
+            {launching ? (
+              <><b>Đang khởi động EHO Agent...</b> Nếu trình duyệt hỏi "Mở EHO Agent?" hãy bấm <b>Mở</b> (tick "Luôn cho phép" để lần sau tự mở).</>
             ) : (
-              <><b>Chưa thấy EHO Agent trên máy này.</b> Bấm <b>Khởi động EHO Agent</b>, hoặc tải file cài về (chỉ cài 1 lần).</>
+              <>
+                <div style={{ fontWeight: 800, color: "var(--danger)", marginBottom: 4 }}>
+                  {agent === "old" ? "⚠️ Máy này đang dùng EHO Agent bản cũ — chưa tạo được ticket SSC." : "⚠️ Máy này chưa có EHO Agent 2.0 — cần cài để tạo ticket SSC."}
+                </div>
+                <div>Tải file cài bên dưới, giải nén, bấm đúp <code>Cai-dat-EHO-Agent.bat</code> (chỉ cài 1 lần{agent === "old" ? ", cài đè bản cũ" : ""}). Sau đó EHO Agent <b>tự chạy ngầm cùng Windows</b>, không hiện cửa sổ nào — popup này sẽ tự nhận ra khi cài xong.</div>
+              </>
             )}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-              {agent === "missing" && <button className="fbtn" onClick={startAgent} disabled={launching} style={{ fontWeight: 700 }}>▶️ Khởi động EHO Agent</button>}
-              <a className="fbtn" href="/downloads/EHO-Agent-Setup.zip" download style={{ display: "inline-block", textDecoration: "none", color: "var(--navy-800)", fontWeight: 700 }}>⬇️ Tải file cài EHO Agent</a>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+              <a className="login-btn" href="/downloads/EHO-Agent-Setup.zip" download style={{ display: "inline-block", width: "auto", padding: "8px 18px", textDecoration: "none", textAlign: "center" }}>⬇️ Tải file cài EHO Agent 2.0</a>
+              {agent === "missing" && <button className="fbtn" onClick={startAgent} disabled={launching} style={{ fontWeight: 700 }}>▶️ Đã cài rồi — khởi động EHO Agent</button>}
+            </div>
+            <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-600)" }}>
+              Cần Windows có Python 3 và Google Chrome (bộ cài sẽ báo nếu thiếu). Mật khẩu SSC/EHO không đi qua agent — anh/chị tự đăng nhập trong cửa sổ Chrome do agent mở.
             </div>
           </div>
         )}
