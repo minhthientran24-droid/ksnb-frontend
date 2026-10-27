@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 //   selected : null (= tất cả) hoặc Set các giá trị được tick
 //   onChange : (Set | null) => void   — chọn đủ hết thì trả null
 // Danh sách mở bằng position: fixed để không bị khung cuộn ngang của bảng cắt mất.
-export default function ColumnMultiFilter({ options, selected, onChange, width = 150, menuWidth = 300, allLabel = "Tất cả" }) {
+export default function ColumnMultiFilter({ options, selected, onChange, width = 150, menuWidth = 300, allLabel = "Tất cả", compact = false }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [pos, setPos] = useState({ left: 0, top: 0 });
@@ -64,13 +64,24 @@ export default function ColumnMultiFilter({ options, selected, onChange, width =
   const shownSome = shown.some((o) => picked.includes(o.value));
 
   return (
-    <div ref={box} style={{ display: "inline-block", fontWeight: 400, textAlign: "left", textTransform: "none", letterSpacing: "normal", fontSize: 12.5, whiteSpace: "normal" }}>
+    <div ref={box} onClick={(e) => e.stopPropagation()} style={{ display: "inline-block", fontWeight: 400, textAlign: "left", textTransform: "none", letterSpacing: "normal", fontSize: 12.5, whiteSpace: "normal", verticalAlign: "middle" }}>
+      {compact ? (
+        // Kiểu gọn nằm CÙNG DÒNG với tên cột (chốt 27/10, kiểu 2): tất cả = ô vuông xanh đặc nhỏ + mũi tên xuống; đang lọc = dấu check xanh + mũi tên xuống
+        <button ref={btn} type="button" onClick={openMenu} aria-label="Lọc cột" title={allOn ? "Lọc cột (đang chọn tất cả)" : `Đang lọc: ${text}`}
+          style={{ display: "inline-flex", alignItems: "center", gap: 1, border: "none", background: "transparent", padding: "2px 3px", borderRadius: 4, cursor: "pointer", color: "#185FA5" }}>
+          {allOn
+            ? <span style={{ width: 14, height: 14, borderRadius: 3, background: "#378ADD", display: "inline-block" }} />
+            : <span style={{ width: 14, height: 14, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 800, lineHeight: 1, color: "#185FA5" }}>✓</span>}
+          <span style={{ fontSize: 9, color: "#185FA5" }}>▼</span>
+        </button>
+      ) : (
       <button ref={btn} type="button" className="finput" onClick={openMenu} title={text}
         style={{ width, textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", padding: "5px 8px", fontSize: 12,
           background: allOn ? "var(--card, #fff)" : "#EEF4FF", borderColor: allOn ? undefined : "var(--blue-accent, #2F6FED)" }}>
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{text}</span>
         <span style={{ fontSize: 9, marginLeft: 6, color: "var(--text-400)" }}>▼</span>
       </button>
+      )}
       {open && (
         <div style={{ position: "fixed", left: pos.left, top: pos.top, zIndex: 2000, width: menuWidth, background: "var(--card, #fff)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 6px 20px rgba(0,0,0,.18)", padding: "4px 0" }}>
           {options.length > 8 && (

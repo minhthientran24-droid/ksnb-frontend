@@ -124,7 +124,7 @@ function applySort(rows, sortState, getters) {
   return sorted;
 }
 
-function SortTh({ label, sortKey, sortState, onSort, align }) {
+function SortTh({ label, sortKey, sortState, onSort, align, filter }) {
   const active = sortState?.key === sortKey;
   return (
     <th
@@ -139,6 +139,7 @@ function SortTh({ label, sortKey, sortState, onSort, align }) {
       <span style={{ marginLeft: 4, fontSize: 10, opacity: active ? 1 : 0.5 }}>
         {active ? (sortState.dir === "asc" ? "▲" : "▼") : "⇅"}
       </span>
+      {filter && <span style={{ marginLeft: 4 }}>{filter}</span>}
     </th>
   );
 }
@@ -1062,6 +1063,11 @@ export default function TheoDoiChuDeV2Page() {
     colOptions[c.key] = arr;
   });
   const colFilterActive = Object.keys(colFilters).length > 0;
+  // Nút lọc đặt cùng dòng với tên cột (kiểu gọn)
+  const filterBtn = (key) => {
+    const c = COL_FILTERS.find((x) => x.key === key);
+    return <ColumnMultiFilter compact options={colOptions[key] || []} selected={colFilters[key] || null} onChange={(set) => setColFilter(key, set)} menuWidth={c.menu || 300} />;
+  };
   const setColFilter = (key, set) => setColFilters((o) => { const n = { ...o }; if (set) n[key] = set; else delete n[key]; return n; });
   const sortedJobs = applySort(visibleJobs, sort.state, {
     ma_phieu: (j) => j.ma_phieu || "",
@@ -1249,27 +1255,18 @@ export default function TheoDoiChuDeV2Page() {
             <table>
               <thead>
                 <tr>
-                  <SortTh label="Mã phiếu" sortKey="ma_phieu" sortState={sort.state} onSort={sort.onSort} />
-                  <SortTh label="Ngày Upload" sortKey="upload_date" sortState={sort.state} onSort={sort.onSort} />
-                  <SortTh label="Loại Vi Phạm" sortKey="loai_vi_pham" sortState={sort.state} onSort={sort.onSort} align="left" />
-                  <SortTh label="Vùng" sortKey="vung" sortState={sort.state} onSort={sort.onSort} />
-                  <SortTh label="Mã Shop / Tên Shop" sortKey="ma_shop" sortState={sort.state} onSort={sort.onSort} align="left" />
-                  <SortTh label="Nội Dung Vi Phạm" sortKey="noi_dung_vi_pham" sortState={sort.state} onSort={sort.onSort} align="left" />
-                  <SortTh label="NV Check" sortKey="nhan_vien_phu_trach" sortState={sort.state} onSort={sort.onSort} align="left" />
-                  <SortTh label="Ngày Check" sortKey="ngay_bat_dau_check" sortState={sort.state} onSort={sort.onSort} />
-                  <SortTh label="Số ngày xử lý" sortKey="so_ngay_xu_ly" sortState={sort.state} onSort={sort.onSort} />
-                  <SortTh label="Kết quả" sortKey="ket_qua_vi_pham" sortState={sort.state} onSort={sort.onSort} />
-                  <SortTh label="Người upload" sortKey="nguoi_upload" sortState={sort.state} onSort={sort.onSort} align="left" />
+                  <SortTh label="Mã phiếu" sortKey="ma_phieu" sortState={sort.state} onSort={sort.onSort} filter={filterBtn("ma_phieu")} />
+                  <SortTh label="Ngày Upload" sortKey="upload_date" sortState={sort.state} onSort={sort.onSort} filter={filterBtn("upload_date")} />
+                  <SortTh label="Loại Vi Phạm" sortKey="loai_vi_pham" sortState={sort.state} onSort={sort.onSort} filter={filterBtn("loai_vi_pham")} align="left" />
+                  <SortTh label="Vùng" sortKey="vung" sortState={sort.state} onSort={sort.onSort} filter={filterBtn("vung")} />
+                  <SortTh label="Mã Shop / Tên Shop" sortKey="ma_shop" sortState={sort.state} onSort={sort.onSort} filter={filterBtn("ma_shop")} align="left" />
+                  <SortTh label="Nội Dung Vi Phạm" sortKey="noi_dung_vi_pham" sortState={sort.state} onSort={sort.onSort} filter={filterBtn("noi_dung_vi_pham")} align="left" />
+                  <SortTh label="NV Check" sortKey="nhan_vien_phu_trach" sortState={sort.state} onSort={sort.onSort} filter={filterBtn("nhan_vien_phu_trach")} align="left" />
+                  <SortTh label="Ngày Check" sortKey="ngay_bat_dau_check" sortState={sort.state} onSort={sort.onSort} filter={filterBtn("ngay_bat_dau_check")} />
+                  <SortTh label="Số ngày xử lý" sortKey="so_ngay_xu_ly" sortState={sort.state} onSort={sort.onSort} filter={filterBtn("so_ngay_xu_ly")} />
+                  <SortTh label="Kết quả" sortKey="ket_qua_vi_pham" sortState={sort.state} onSort={sort.onSort} filter={filterBtn("ket_qua_vi_pham")} />
+                  <SortTh label="Người upload" sortKey="nguoi_upload" sortState={sort.state} onSort={sort.onSort} filter={filterBtn("nguoi_upload")} align="left" />
                   <th></th>
-                </tr>
-                {/* Hàng nút lọc: mỗi cột 1 nút tick nhiều giá trị (mặc định Tất cả) */}
-                <tr>
-                  {COL_FILTERS.map((c) => (
-                    <th key={c.key} style={{ padding: "2px 6px 8px", background: "transparent" }}>
-                      <ColumnMultiFilter options={colOptions[c.key] || []} selected={colFilters[c.key] || null} onChange={(set) => setColFilter(c.key, set)} width={c.width} menuWidth={c.menu || 300} />
-                    </th>
-                  ))}
-                  <th style={{ padding: "2px 6px 8px", background: "transparent" }} />
                 </tr>
               </thead>
               <tbody>
