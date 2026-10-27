@@ -9,6 +9,7 @@ import {
   downloadLcnbThanhLyHni, downloadLcnbThanhLyHcm, getLcnbThanhLyMonths,
   exportDaKiemExcel,
 } from "../lib/api";
+import XuatNhapKhacModal from "../components/XuatNhapKhacModal";
 import { useAllowedKeys } from "../lib/permissions";
 import { fmtNgayThang, fmtNgayGio, fmtMoney, tinhUocTinhTruyThu, moneyStyle, sortDaKiemRows } from "../lib/daKiem";
 
@@ -144,6 +145,7 @@ function llvStatusText(r, soNgayKiem) {
 // ngày giảm dần — vẫn bấm đổi cột/chiều sắp được như mọi cột khác).
 function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canReschedule, onOpenReschedule, showHuy, onOpenHuy, emptyText, showSoNgayKiem, showTicket, showNgayChot, compactDate }) {
   const sort = useLlvSort(showSoNgayKiem ? "so_ngay_kiem" : null, "desc");
+  const [xnkShop, setXnkShop] = useState(null); // popup Xuất khác - Nhập khác của shop (từ Ngày kiểm tới Ngày chốt)
 
   let rows = (data?.rows || []).filter((r) => {
     if (!searchQuery) return true;
@@ -177,6 +179,7 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
 
   return (
     <div className="card">
+      {xnkShop && <XuatNhapKhacModal shop={xnkShop} onClose={() => setXnkShop(null)} />}
       <div className="card-head">
         <h3>{title} — {data.date}</h3>
         <span className="note">
@@ -229,7 +232,16 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
                   <td style={{ textAlign: "left", color: urgency ? undefined : tenColor }}>{r.ten_shop || "-"}</td>
                   <td>{r.ksnb || "-"}</td>
                   <td title={compactDate ? (r.ngay_kiem || "") : undefined}>{compactDate ? fmtNgayThang(r.ngay_kiem) : (r.ngay_kiem || "-")}</td>
-                  {showNgayChot && <td title={r.ngay_chot_kiem_ke || ""} style={{ whiteSpace: "nowrap" }}>{fmtNgayGio(r.ngay_chot_kiem_ke)}</td>}
+                  {showNgayChot && (
+                    <td title={r.ngay_chot_kiem_ke ? "Bấm để xem Xuất khác - Nhập khác của shop từ ngày kiểm đến ngày chốt" : ""} style={{ whiteSpace: "nowrap" }}>
+                      {r.ngay_chot_kiem_ke ? (
+                        <a href="#" style={{ color: "var(--blue-accent, #2F6FED)", textDecoration: "underline", fontWeight: 600 }}
+                          onClick={(e) => { e.preventDefault(); setXnkShop({ ma_shop: r.ma_shop, ten_shop: r.ten_shop, tu: r.ngay_kiem, den: r.ngay_chot_kiem_ke }); }}>
+                          {fmtNgayGio(r.ngay_chot_kiem_ke)}
+                        </a>
+                      ) : fmtNgayGio(r.ngay_chot_kiem_ke)}
+                    </td>
+                  )}
                   {showNgayChot && <td>{r._soNgayChot ?? "-"}</td>}
                   {showSoNgayKiem && <td>{soNgayKiem ?? "-"}</td>}
                   <td>{r.hinh_thuc || "-"}</td>
