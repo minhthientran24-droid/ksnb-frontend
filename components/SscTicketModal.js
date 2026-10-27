@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { agentCall } from "../lib/ehoAgent";
 import { launchEhoAgent } from "../lib/ehoAgentLaunch";
 import { llv2CreateDanhSachChia, llv2TicketJobs, llv2TicketResult } from "../lib/llv2Api";
@@ -15,7 +15,11 @@ const DRY = typeof window !== "undefined" && window.localStorage?.getItem("sscDr
 const fmtSec = (s) => (s >= 60 ? `${Math.floor(s / 60)} phút ${s % 60} giây` : `${s} giây`);
 const STATUS_TXT = { da_tao: "Đã tạo", can_xac_minh: "Cần xác minh", loi: "Lỗi", bo_qua: "Bỏ qua", dry_run: "Điền thử OK" };
 
-export default function SscTicketModal({ ids, group, onClose, onDone }) {
+const vi = (a, b) => String(a || "").localeCompare(String(b || ""), "vi");
+// Shop không tạo được ticket: đã có ticket (da_tao) hoặc hình thức Thanh lý (backend cũng bỏ qua 2 loại này)
+const skipReason = (r) => (r.hinh_thuc === "Thanh lý" ? "Thanh lý — không tạo" : r.ticket_status === "da_tao" ? "Đã có ticket" : "");
+
+export default function SscTicketModal({ rows = [], group, onClose, onDone }) {
   const [agent, setAgent] = useState("checking"); // checking | ok | old | missing
   const [ssc, setSsc] = useState({ driver: false, logged_in: false, running: false });
   const [opening, setOpening] = useState(false);
@@ -25,10 +29,20 @@ export default function SscTicketModal({ ids, group, onClose, onDone }) {
   const [fails, setFails] = useState([]); // kết quả lỗi / cần xác minh / bỏ qua để hiện
   const [msg, setMsg] = useState(null); // {type, text}
   const [okCount, setOkCount] = useState(0);
+  const [off, setOff] = useState(() => new Set()); // shop bị bỏ tick (mặc định tick tất cả shop tạo được)
   const alive = useRef(true);
   const cursor = useRef(0);
   const phaseRef = useRef("idle");
   const setPh = (p) => { phaseRef.current = p; setPhase(p); };
+
+  // Danh sách shop: sắp theo Hình thức kiểm -> Loại shop -> Thời gian kiểm (ngày kiểm) -> Mã shop
+  const sorted = useMemo(() => [...rows].sort((a, b) => vi(a.hinh_thuc, b.hinh_thuc) || vi(a.loai_shop, b.loai_shop) || vi(a.ngay_kiem, b.ngay_kiem) || vi(a.ma_shop, b.ma_shop)), [rows]);
+  const eligible = sorted.filter((r) => !skipReason(r));
+  const picked = eligible.filter((r) => !off.has(r.id));
+  const ids = picked.map((r) => r.id);
+  const allOn = eligible.length > 0 && picked.length === eligible.length;
+  const toggleOne = (id) => setOff((o) => { const n = new Set(o); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const toggleAll = () => setOff(allOn ? new Set(eligible.map((r) => r.id)) : new Set());
 
   function startAgent() {
     launchEhoAgent();
@@ -141,10 +155,13 @@ export default function SscTicketModal({ ids, group, onClose, onDone }) {
         return;
       }
       const j = await llv2TicketJobs(d.ma_phieu_chia);
-      if (!(j.rows || []).length) throw new Error("Không lấy được danh sách shop của mã " + d.ma_phieu_chia);
-      const st = await agentCall("/ssc/start", { method: "POST", body: { rows: j.rows, dry_run: DRY }, timeoutMs: 30000 });
+      // Chỉ tạo đúng các shop đang tick, theo đúng thứ tự đang hiển thị
+      const order = new Map(ids.map((id, i) => [id, i]));
+      const jobRows = (j.rows || []).filter((r) => order.has(r.id)).sort((a, b) => order.get(a.id) - order.get(b.id));
+      if (!jobRows.length) throw new Error("Không lấy được danh sách shop của mã " + d.ma_phieu_chia);
+      const st = await agentCall("/ssc/start", { method: "POST", body: { rows: jobRows, dry_run: DRY }, timeoutMs: 30000 });
       if (st.error) throw new Error(st.error === "no_browser" ? "Chưa mở SSC — làm Bước 1 trước." : st.error === "dang_chay" ? "Agent đang tạo ticket dở — chờ xong." : st.error);
-      setMsg({ type: "ok", text: `Mã phiếu chia ${d.ma_phieu_chia} — ${j.rows.length} shop${d.already_done_count ? ` (${d.already_done_count} shop đã có ticket từ trước, không tạo lại)` : ""}${d.skipped_count ? ` (${d.skipped_count} shop Thanh lý bỏ qua)` : ""}.` });
+      setMsg({ type: "ok", text: `Mã phiếu chia ${d.ma_phieu_chia} — ${jobRows.length} shop${d.already_done_count ? ` (${d.already_done_count} shop đã có ticket từ trước, không tạo lại)` : ""}${d.skipped_count ? ` (${d.skipped_count} shop Thanh lý bỏ qua)` : ""}.` });
       setPh("running");
       pollLoop();
     } catch (e) {
@@ -176,7 +193,7 @@ export default function SscTicketModal({ ids, group, onClose, onDone }) {
           <button className="fbtn" onClick={close}>✕ Đóng</button>
         </div>
         <div style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 12 }}>
-          Tạo ticket cho <b>tất cả {ids.length} shop</b> đang có trong danh sách "Shop được chia" (shop đã có ticket và shop Thanh lý được bỏ qua).
+          Chọn shop cần tạo ticket (mặc định chọn tất cả). Shop đã có ticket và shop Thanh lý không tạo lại.
         </div>
 
         {DRY && <div style={{ border: "1px solid #E0A100", color: "#8a5a00", borderRadius: 8, padding: "6px 10px", fontSize: 12.5, marginBottom: 10 }}>⚠️ CHẾ ĐỘ CHẠY THỬ: chỉ điền form, KHÔNG bấm Gửi, không ghi kết quả.</div>}
@@ -204,6 +221,41 @@ export default function SscTicketModal({ ids, group, onClose, onDone }) {
           </div>
         )}
 
+        <div style={{ border: "1px solid var(--border)", borderRadius: 8, marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 12px", borderBottom: "1px solid var(--border)", fontSize: 13 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: busy ? "default" : "pointer", fontWeight: 700 }}>
+              <input type="checkbox" disabled={busy || !eligible.length} checked={allOn} ref={(el) => { if (el) el.indeterminate = picked.length > 0 && !allOn; }} onChange={toggleAll} />
+              Chọn tất cả
+            </label>
+            <span style={{ color: "var(--text-600)" }}>Đã chọn <b>{picked.length}</b>/{eligible.length} shop có thể tạo{rows.length > eligible.length ? ` · ${rows.length - eligible.length} shop không tạo (đã có ticket / Thanh lý)` : ""}</span>
+            <span style={{ marginLeft: "auto", fontSize: 11.5, color: "var(--text-400)" }}>Sắp theo: Hình thức kiểm → Loại shop → Thời gian kiểm</span>
+          </div>
+          <div style={{ maxHeight: 260, overflowY: "auto" }}>
+            <table style={{ fontSize: 12.5, width: "100%" }}>
+              <thead>
+                <tr>{["", "Mã shop", "Hình thức kiểm", "Loại shop", "Thời gian kiểm", "KSNB phụ trách"].map((h, i) => <th key={i} style={{ fontSize: 10.5, padding: "6px 8px", position: "sticky", top: 0, background: "var(--card, #fff)", textAlign: i === 1 || i === 5 ? "left" : "center" }}>{h}</th>)}</tr>
+              </thead>
+              <tbody>
+                {sorted.map((r) => {
+                  const why = skipReason(r);
+                  const on = !why && !off.has(r.id);
+                  return (
+                    <tr key={r.id} style={{ opacity: why ? 0.5 : 1, cursor: why || busy ? "default" : "pointer" }} onClick={() => { if (!why && !busy) toggleOne(r.id); }}>
+                      <td style={{ width: 30, textAlign: "center" }}><input type="checkbox" checked={on} disabled={!!why || busy} onChange={() => toggleOne(r.id)} onClick={(e) => e.stopPropagation()} /></td>
+                      <td style={{ textAlign: "left", whiteSpace: "nowrap" }}>{r.ma_shop} — {r.ten_shop}{why && <span style={{ marginLeft: 6, fontSize: 11, color: "var(--text-400)" }}>({why})</span>}</td>
+                      <td>{r.hinh_thuc || "—"}</td>
+                      <td>{r.loai_shop || "—"}</td>
+                      <td>{r.ngay_kiem || "—"}</td>
+                      <td style={{ textAlign: "left" }}>{r.ksnb || "—"}</td>
+                    </tr>
+                  );
+                })}
+                {!sorted.length && <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--text-400)", padding: 12 }}>Chưa có shop nào trong danh sách.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-start" }}>
           <div>
             <div style={lbl}>Bước 1 — Đăng nhập SSC</div>
@@ -216,8 +268,8 @@ export default function SscTicketModal({ ids, group, onClose, onDone }) {
           </div>
           <div>
             <div style={lbl}>Bước 2 — Tạo ticket</div>
-            <button className="login-btn" style={{ width: "auto", padding: "9px 22px", opacity: loggedIn && !busy ? 1 : 0.5 }} disabled={!loggedIn || busy || !ids.length} onClick={runCreate}>
-              {phase === "preparing" ? "Đang chuẩn bị..." : phase === "running" ? "Đang tạo..." : `🎫 Tạo ticket cho ${ids.length} shop`}
+            <button className="login-btn" style={{ width: "auto", padding: "9px 22px", opacity: loggedIn && !busy && ids.length ? 1 : 0.5 }} disabled={!loggedIn || busy || !ids.length} onClick={runCreate}>
+              {phase === "preparing" ? "Đang chuẩn bị..." : phase === "running" ? "Đang tạo..." : `🎫 Tạo ticket cho ${ids.length} shop đã chọn`}
             </button>
             {phase === "running" && <button className="fbtn" style={{ marginLeft: 8, color: "var(--danger)" }} onClick={stop}>Dừng</button>}
           </div>
@@ -271,4 +323,4 @@ export default function SscTicketModal({ ids, group, onClose, onDone }) {
 
 const lbl = { display: "block", fontSize: 11, fontWeight: 700, color: "var(--text-600)", marginBottom: 6, textTransform: "uppercase" };
 const overlay = { position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "6vh 16px 16px", overflowY: "auto" };
-const box = { background: "var(--card, #fff)", borderRadius: 12, padding: "18px 20px", width: "min(820px, 100%)", boxShadow: "0 12px 40px rgba(0,0,0,0.25)" };
+const box = { background: "var(--card, #fff)", borderRadius: 12, padding: "18px 20px", width: "min(980px, 100%)", boxShadow: "0 12px 40px rgba(0,0,0,0.25)" };

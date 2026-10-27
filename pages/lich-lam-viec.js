@@ -1115,7 +1115,7 @@ function TodayScheduledView({ data, group, onDone }) {
           </button>
         </div>
       </div>
-      {sscOpen && <SscTicketModal ids={(data.rows || []).map((r) => r.id)} group={group} onClose={() => setSscOpen(false)} onDone={onDone} />}
+      {sscOpen && <SscTicketModal rows={data.rows || []} group={group} onClose={() => setSscOpen(false)} onDone={onDone} />}
       {(maPhieuChia || dsChiaMsg) && (
         <div style={{ padding: "0 20px 14px", display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
           {maPhieuChia && (
