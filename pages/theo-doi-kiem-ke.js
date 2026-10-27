@@ -126,7 +126,7 @@ function LlvSortTh({ label, sortKey, sortState, onSort, align, filter }) {
       <span style={{ marginLeft: 4, fontSize: 10, opacity: active ? 1 : 0.5 }}>
         {active ? (sortState.dir === "asc" ? "▲" : "▼") : ""}
       </span>
-      {filter && <span style={{ position: "absolute", right: 3, top: "50%", transform: "translateY(-50%)", display: "inline-flex" }}>{filter}</span>}
+      {filter && <span style={{ position: "absolute", right: 3, top: 0, bottom: 0, display: "inline-flex", alignItems: "center" }}>{filter}</span>}
     </th>
   );
 }
@@ -219,7 +219,7 @@ function LlvRowsTable({ title, data, isAdmin, showDoiLich, canReschedule, onOpen
               {showSoNgayKiem && <LlvSortTh label="Số ngày kiểm" sortKey="so_ngay_kiem" sortState={sort.state} onSort={sort.onSort} filter={fb("so_ngay_kiem")} />}
               <LlvSortTh label="Hình thức" sortKey="hinh_thuc" sortState={sort.state} onSort={sort.onSort} filter={fb("hinh_thuc")} />
               <LlvSortTh label="Trạng thái" sortKey="trang_thai" sortState={sort.state} onSort={sort.onSort} filter={fb("trang_thai")} />
-              {showTicket && <th style={{ whiteSpace: "nowrap", position: "relative", paddingLeft: 24, paddingRight: 24 }}>Ticket thông báo<span style={{ position: "absolute", right: 3, top: "50%", transform: "translateY(-50%)", display: "inline-flex" }}>{fb("ticket")}</span></th>}{showDoiLich && <th></th>}{showHuy && <th></th>}
+              {showTicket && <th style={{ whiteSpace: "nowrap", position: "relative", paddingLeft: 24, paddingRight: 24 }}>Ticket thông báo<span style={{ position: "absolute", right: 3, top: 0, bottom: 0, display: "inline-flex", alignItems: "center" }}>{fb("ticket")}</span></th>}{showDoiLich && <th></th>}{showHuy && <th></th>}
             </tr>
           </thead>
           <tbody>
@@ -595,7 +595,7 @@ export default function TheoDoiKiemKePage() {
             )}
           </div>
         ))}
-        <span style={{ position: "absolute", right: 3, top: "50%", transform: "translateY(-50%)", display: "inline-flex" }}>{dkFilterBtn(sortCol)}</span>
+        <span style={{ position: "absolute", right: 3, top: 0, bottom: 0, display: "inline-flex", alignItems: "center" }}>{dkFilterBtn(sortCol)}</span>
       </th>
     );
   }

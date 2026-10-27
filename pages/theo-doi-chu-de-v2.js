@@ -141,7 +141,7 @@ function SortTh({ label, sortKey, sortState, onSort, align, filter }) {
       <span style={{ marginLeft: 4, fontSize: 10, opacity: active ? 1 : 0.5 }}>
         {active ? (sortState.dir === "asc" ? "▲" : "▼") : ""}
       </span>
-      {filter && <span style={{ position: "absolute", right: 3, top: "50%", transform: "translateY(-50%)", display: "inline-flex" }}>{filter}</span>}
+      {filter && <span style={{ position: "absolute", right: 3, top: 0, bottom: 0, display: "inline-flex", alignItems: "center" }}>{filter}</span>}
     </th>
   );
 }
