@@ -145,17 +145,11 @@ function llvStatusText(r, soNgayKiem) {
 // "Shop được chia - Chuẩn bị kiểm kê" (có nút Dời lịch) và "Đang kiểm" (chỉ
 // xem, có thêm cột Số ngày kiểm + cảnh báo trễ hạn, mặc định sắp theo số
 // ngày giảm dần — vẫn bấm đổi cột/chiều sắp được như mọi cột khác).
-function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canReschedule, onOpenReschedule, showHuy, onOpenHuy, emptyText, showSoNgayKiem, showTicket, showNgayChot, compactDate }) {
+function LlvRowsTable({ title, data, isAdmin, showDoiLich, canReschedule, onOpenReschedule, showHuy, onOpenHuy, emptyText, showSoNgayKiem, showTicket, showNgayChot, compactDate }) {
   const sort = useLlvSort(showSoNgayKiem ? "so_ngay_kiem" : null, "desc");
   const [xnkShop, setXnkShop] = useState(null); // popup Xuất khác - Nhập khác của shop (từ Ngày kiểm tới Ngày chốt)
 
-  let rows = (data?.rows || []).filter((r) => {
-    if (!searchQuery) return true;
-    return (
-      (r.ma_shop || "").toLowerCase().includes(searchQuery) ||
-      (r.ten_shop || "").toLowerCase().includes(searchQuery)
-    );
-  });
+  let rows = data?.rows || [];
 
   if (showSoNgayKiem) {
     rows = rows.map((r) => ({ ...r, _soNgayKiem: daysBetween(data.date, r.ngay_kiem) }));
@@ -204,7 +198,7 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
       <div className="card-head">
         <h3>{title} — {data.date}</h3>
         <span className="note">
-          {searchQuery || mcf.active ? `${rows.length}/${data.rows.length} shop (đang lọc)` : `${data.rows.length} shop`}
+          {mcf.active ? `${rows.length}/${data.rows.length} shop (đang lọc)` : `${data.rows.length} shop`}
           {mcf.active && <button className="fbtn" style={{ marginLeft: 8 }} onClick={mcf.clear}>✕ Bỏ lọc cột</button>}
           {!isAdmin && " · chỉ hiện shop do bạn phụ trách"}
         </span>
@@ -286,7 +280,7 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
             })}
             {rows.length === 0 && (
               <tr><td colSpan={colCount} style={{ textAlign: "center", color: "var(--text-400)" }}>
-                {searchQuery || mcf.active ? "Không tìm thấy shop nào khớp" : emptyText}
+                {mcf.active ? "Không tìm thấy shop nào khớp" : emptyText}
               </td></tr>
             )}
           </tbody>
@@ -317,8 +311,6 @@ export default function TheoDoiKiemKePage() {
   const [shopHomNay, setShopHomNay] = useState(null); // { date, rows }
   const [dangKiemData, setDangKiemData] = useState(null); // { date, rows }
   const [error, setError] = useState("");
-  const [searchInput, setSearchInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
   // Sort bấm-vào-tiêu-đề bảng "Đã kiểm" (chốt 27/08 lần 10) — mặc định
   // vẫn là Ước tính truy thu tăng dần (giữ nguyên hành vi lần 9).
   const [sortKey, setSortKey] = useState("uoc_tinh_truy_thu");
@@ -570,15 +562,6 @@ export default function TheoDoiKiemKePage() {
     }
   }
 
-  function handleSearch() {
-    setSearchQuery(searchInput.trim().toLowerCase());
-  }
-
-  function handleClearSearch() {
-    setSearchInput("");
-    setSearchQuery("");
-  }
-
   // Bấm vào tiêu đề cột (chốt 27/08 lần 10) — bấm cột MỚI thì sort tăng
   // dần (A→Z / thấp→cao) trước; bấm LẠI đúng cột đang chọn thì đảo chiều.
   function handleSort(key) {
@@ -615,15 +598,9 @@ export default function TheoDoiKiemKePage() {
     );
   }
 
-  // Lọc theo mã shop/tên shop, rồi lọc theo cột (nút lọc tick nhiều giá trị ở đầu cột, chốt 27/10), rồi sắp xếp theo cột đang chọn
+  // Lọc theo cột (nút lọc tick nhiều giá trị ở đầu cột, chốt 27/10), rồi sắp xếp theo cột đang chọn
   // (mặc định Ước tính truy thu tăng dần). Xuất Excel dùng đúng displayRows nên cũng theo bộ lọc cột.
-  const searchedRows = rows.filter((r) => {
-    if (!searchQuery) return true;
-    return (
-      (r.ma_shop || "").toLowerCase().includes(searchQuery) ||
-      (r.ten_shop || "").toLowerCase().includes(searchQuery)
-    );
-  });
+  const searchedRows = rows;
   const dkMcf = useMultiColFilters();
   const moneyDef = (key, get) => ({ key, get: (r) => fmtMoney(get(r)), rank: (r) => get(r) || 0, desc: true });
   const dkDefs = [
@@ -841,33 +818,12 @@ export default function TheoDoiKiemKePage() {
         </div>
       )}
 
-      {(isLlvTab || periods.length > 0) && (
-        <div className="card" style={{ marginBottom: 14 }}>
-          <div className="card-body" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "14px 18px" }}>
-            <input
-              type="text"
-              placeholder="Mã shop / tên shop..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
-              style={{ width: "5cm", padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13.5 }}
-            />
-            <button onClick={handleSearch} style={syncBtnStyle}>🔍 Tìm kiếm</button>
-            {searchQuery && (
-              <button onClick={handleClearSearch} style={{ ...syncBtnStyle, background: "var(--border)", color: "var(--text-900)" }}>
-                Xóa lọc
-              </button>
-            )}
-          </div>
-        </div>
-      )}
 
       {loai === "shop_chia_hom_nay" && shopHomNay && (
         <LlvRowsTable
           title="Shop được chia - Chuẩn bị kiểm kê"
           data={shopHomNay}
           isAdmin={isAdmin}
-          searchQuery={searchQuery}
           showTicket
           showDoiLich
           canReschedule={canReschedule}
@@ -881,7 +837,6 @@ export default function TheoDoiKiemKePage() {
           title="Shop đang kiểm kê"
           data={dangKiemData}
           isAdmin={isAdmin}
-          searchQuery={searchQuery}
           showDoiLich={false}
           showHuy={isAdmin}
           onOpenHuy={openHuy}
@@ -1005,7 +960,7 @@ export default function TheoDoiKiemKePage() {
             <h3>Kỳ {period}</h3>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <span className="note">
-                {searchQuery || dkMcf.active ? `${displayRows.length}/${rows.length} shop (đang lọc)` : `${rows.length} shop`}
+                {dkMcf.active ? `${displayRows.length}/${rows.length} shop (đang lọc)` : `${rows.length} shop`}
                 {" · bấm tiêu đề cột để sắp xếp"}
               </span>
               {dkMcf.active && <button className="fbtn" onClick={dkMcf.clear}>✕ Bỏ lọc cột</button>}
@@ -1094,7 +1049,7 @@ export default function TheoDoiKiemKePage() {
                 ))}
                 {displayRows.length === 0 && (
                   <tr><td colSpan={(nhom === "long_chau" ? 12 : 11) + (isAdmin ? 2 : 0)} style={{ textAlign: "center", color: "var(--text-400)" }}>
-                    {searchQuery || dkMcf.active ? "Không tìm thấy shop nào khớp" : "Không có shop nào trong tháng này"}
+                    {dkMcf.active ? "Không tìm thấy shop nào khớp" : "Không có shop nào trong tháng này"}
                   </td></tr>
                 )}
               </tbody>
