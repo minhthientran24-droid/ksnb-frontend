@@ -236,7 +236,7 @@ function LlvRowsTable({ title, data, isAdmin, searchQuery, showDoiLich, canResch
                     <td title={r.ngay_chot_kiem_ke ? "Bấm để xem Xuất khác - Nhập khác của shop từ ngày kiểm đến ngày chốt" : ""} style={{ whiteSpace: "nowrap" }}>
                       {r.ngay_chot_kiem_ke ? (
                         <a href="#" style={{ color: "var(--blue-accent, #2F6FED)", textDecoration: "underline", fontWeight: 600 }}
-                          onClick={(e) => { e.preventDefault(); setXnkShop({ ma_shop: r.ma_shop, ten_shop: r.ten_shop, tu: r.ngay_kiem, den: r.ngay_chot_kiem_ke }); }}>
+                          onClick={(e) => { e.preventDefault(); setXnkShop({ ma_shop: r.ma_shop, ten_shop: r.ten_shop, tu: r.ngay_kiem, den: String(r.ngay_chot_kiem_ke).slice(0, 10), chot: r.ngay_chot_kiem_ke }); }}>
                           {fmtNgayGio(r.ngay_chot_kiem_ke)}
                         </a>
                       ) : fmtNgayGio(r.ngay_chot_kiem_ke)}

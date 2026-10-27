@@ -53,7 +53,8 @@ export default function XuatNhapKhacModal({ shop, onClose }) {
           <div>
             <h3 style={{ fontSize: 17, fontWeight: 800, color: "var(--navy-900)", margin: 0 }}>📦 Xuất Khác - Nhập Khác EHO — {shop.ma_shop}{shop.ten_shop ? ` · ${shop.ten_shop}` : ""}</h3>
             <div style={{ fontSize: 12.5, color: "var(--text-600)", marginTop: 4 }}>
-              Từ ngày kiểm <b>{fmtD(shop.tu)}</b> đến ngày chốt kiểm kê <b>{fmtDT(shop.den)}</b>
+              Tất cả các kho · từ ngày kiểm <b>{fmtD(shop.tu)}</b> đến hết ngày chốt kiểm kê <b>{fmtD(shop.den)}</b> (23:59)
+              {shop.chot && String(shop.chot).length > 10 ? <> · chốt lúc <b>{fmtDT(shop.chot).slice(11)}</b></> : null}
             </div>
           </div>
           <button className="fbtn" onClick={onClose}>✕ Đóng</button>
