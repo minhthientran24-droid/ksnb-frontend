@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import StaffAlertModal, { hasStaffAlertContent } from "../components/StaffAlertModal";
 import Layout from "../components/Layout";
+import ColumnMultiFilter from "../components/ColumnMultiFilter";
 import {
   getUser, listChuDeJobsV2, createChuDeJobV2, updateChuDeJobV2, deleteChuDeJobV2,
   claimChuDeJobV2, unclaimChuDeJobV2, addChuDeJobV2Supporters, listKsnbForChuDeV2,
@@ -83,6 +84,24 @@ function stripDiacritics(s) {
 }
 
 const VI_PHAM_OPTIONS = ["Không vi phạm", "Có vi phạm"];
+
+// Lọc theo cột (chốt 27/10) — mỗi cột 1 nút lọc tick nhiều giá trị (giống ô "Tất cả loại yêu cầu" của Xuất Khác - Nhập Khác EHO).
+// get = giá trị hiển thị của cột (lọc theo đúng chữ đang thấy trên bảng); rank = giá trị để sắp xếp danh sách trong nút lọc;
+// desc = sắp từ lớn/mới đến nhỏ/cũ (cột ngày, số).
+const fmtDay = (iso) => (iso ? new Date(iso).toLocaleDateString("vi-VN") : "-");
+const COL_FILTERS = [
+  { key: "ma_phieu", get: (j) => j.ma_phieu || "-", width: 90, desc: true },
+  { key: "upload_date", get: (j) => j.upload_date || "-", rank: (j) => j.upload_date || "", width: 110, desc: true },
+  { key: "loai_vi_pham", get: (j) => j.loai_vi_pham || "-", width: 150 },
+  { key: "vung", get: (j) => j.vung || "-", width: 110 },
+  { key: "ma_shop", get: (j) => ([j.ma_shop, j.ten_shop].filter(Boolean).join(" - ") || "-"), width: 160, menu: 380 },
+  { key: "noi_dung_vi_pham", get: (j) => (j.noi_dung_vi_pham || "-").replace(/\s+/g, " ").trim(), width: 170, menu: 460 },
+  { key: "nhan_vien_phu_trach", get: (j) => j.nhan_vien_phu_trach || "-", width: 130 },
+  { key: "ngay_bat_dau_check", get: (j) => fmtDay(j.ngay_bat_dau_check), rank: (j) => (j.ngay_bat_dau_check ? new Date(j.ngay_bat_dau_check).getTime() : -1), width: 110, desc: true },
+  { key: "so_ngay_xu_ly", get: (j) => { const n = soNgayXuLy(j.ngay_bat_dau_check); return n === null ? "-" : `${n} ngày`; }, rank: (j) => soNgayXuLy(j.ngay_bat_dau_check) ?? -1, width: 100, desc: true },
+  { key: "ket_qua_vi_pham", get: (j) => j.ket_qua_vi_pham || "-", width: 110 },
+  { key: "nguoi_upload", get: (j) => j.nguoi_upload || "-", width: 120 },
+];
 
 function useSort(defaultKey = null, defaultDir = "asc") {
   const [state, setState] = useState({ key: defaultKey, dir: defaultDir });
@@ -877,6 +896,7 @@ export default function TheoDoiChuDeV2Page() {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const sort = useSort();
+  const [colFilters, setColFilters] = useState({}); // { cột: Set giá trị được tick } — cột không có = tất cả
   // Tìm kiếm (chốt 29/09, khớp bản gốc theo-doi-chu-de.js) — gõ xong bấm
   // Enter hoặc bấm nút mới lọc (searchInput = đang gõ, searchQuery = đã
   // chốt tìm), không lọc theo từng phím gõ.
@@ -1019,7 +1039,30 @@ export default function TheoDoiChuDeV2Page() {
     ].filter(Boolean).join(" ");
     return stripDiacritics(haystack).includes(stripDiacritics(query));
   }
-  const visibleJobs = jobs.filter((job) => jobMatchesTab(job, activeTab) && jobMatchesSearch(job, searchQuery));
+  const tabJobs = jobs.filter((job) => jobMatchesTab(job, activeTab) && jobMatchesSearch(job, searchQuery));
+  // Lọc theo cột: danh sách tick của 1 cột được tính trên các dòng đã qua bộ lọc của CÁC CỘT KHÁC (số dòng luôn khớp với bảng)
+  const passCols = (j, skipKey) => COL_FILTERS.every((c) => c.key === skipKey || !colFilters[c.key] || colFilters[c.key].has(c.get(j)));
+  const visibleJobs = tabJobs.filter((j) => passCols(j, null));
+  const colOptions = {};
+  COL_FILTERS.forEach((c) => {
+    const m = new Map();
+    tabJobs.filter((j) => passCols(j, c.key)).forEach((j) => {
+      const v = c.get(j);
+      const cur = m.get(v) || { value: v, count: 0, rank: c.rank ? c.rank(j) : v };
+      cur.count += 1;
+      m.set(v, cur);
+    });
+    // giá trị đang tick nhưng tạm không còn dòng nào vẫn phải hiện để bỏ tick được
+    (colFilters[c.key] ? [...colFilters[c.key]] : []).forEach((v) => { if (!m.has(v)) m.set(v, { value: v, count: 0, rank: c.rank ? -2 : v }); });
+    const arr = [...m.values()];
+    arr.sort((a, b) => {
+      const x = typeof a.rank === "number" && typeof b.rank === "number" ? a.rank - b.rank : String(a.rank).localeCompare(String(b.rank), "vi");
+      return c.desc ? -x : x;
+    });
+    colOptions[c.key] = arr;
+  });
+  const colFilterActive = Object.keys(colFilters).length > 0;
+  const setColFilter = (key, set) => setColFilters((o) => { const n = { ...o }; if (set) n[key] = set; else delete n[key]; return n; });
   const sortedJobs = applySort(visibleJobs, sort.state, {
     ma_phieu: (j) => j.ma_phieu || "",
     upload_date: (j) => j.upload_date || "",
@@ -1161,7 +1204,7 @@ export default function TheoDoiChuDeV2Page() {
               <div
                 key={t.key}
                 className="month-tab"
-                onClick={() => setActiveTab(t.key)}
+                onClick={() => { setActiveTab(t.key); setColFilters({}); }}
                 style={isActive
                   ? { background: t.color, borderColor: t.color, color: "#fff" }
                   : { background: t.bg, borderColor: t.color, color: t.color }}
@@ -1182,6 +1225,11 @@ export default function TheoDoiChuDeV2Page() {
             style={{ width: "5cm", padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13.5 }}
           />
           <button onClick={handleSearch} style={searchBtnStyle}>🔍 Tìm kiếm</button>
+          {colFilterActive && (
+            <button onClick={() => setColFilters({})} style={{ ...searchBtnStyle, background: "#EEF4FF", color: "var(--navy-800)", border: "1px solid var(--blue-accent, #2F6FED)" }}>
+              ✕ Bỏ lọc cột
+            </button>
+          )}
           {searchQuery && (
             <button onClick={handleClearSearch} style={{ ...searchBtnStyle, background: "var(--border)", color: "var(--text-900)" }}>
               Xóa lọc
@@ -1214,11 +1262,20 @@ export default function TheoDoiChuDeV2Page() {
                   <SortTh label="Người upload" sortKey="nguoi_upload" sortState={sort.state} onSort={sort.onSort} align="left" />
                   <th></th>
                 </tr>
+                {/* Hàng nút lọc: mỗi cột 1 nút tick nhiều giá trị (mặc định Tất cả) */}
+                <tr>
+                  {COL_FILTERS.map((c) => (
+                    <th key={c.key} style={{ padding: "2px 6px 8px", background: "transparent" }}>
+                      <ColumnMultiFilter options={colOptions[c.key] || []} selected={colFilters[c.key] || null} onChange={(set) => setColFilter(c.key, set)} width={c.width} menuWidth={c.menu || 300} />
+                    </th>
+                  ))}
+                  <th style={{ padding: "2px 6px 8px", background: "transparent" }} />
+                </tr>
               </thead>
               <tbody>
                 {visibleJobs.length === 0 && (
                   <tr><td colSpan={12} style={{ textAlign: "center", color: "var(--text-400)" }}>
-                    {searchQuery ? "Không tìm thấy task nào khớp từ khoá tìm kiếm." : "Không có task nào ở tình trạng này."}
+                    {searchQuery || colFilterActive ? "Không có task nào khớp bộ lọc / từ khoá tìm kiếm." : "Không có task nào ở tình trạng này."}
                   </td></tr>
                 )}
                 {sortedJobs.map((job) => {
