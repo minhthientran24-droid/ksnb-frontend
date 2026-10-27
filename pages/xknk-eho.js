@@ -70,6 +70,7 @@ export default function XknkEhoPage() {
   const [srcSel, setSrcSel] = useState(() => new Set(SOURCE_IDS)); // mặc định tick tất cả
   const [agentVer, setAgentVer] = useState("");
   const [launching, setLaunching] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
   function startAgent() {
     launchEhoAgent();
     setLaunching(true);
@@ -304,20 +305,36 @@ export default function XknkEhoPage() {
   const pageNums = [];
   for (let p = Math.max(1, page - 2); p <= Math.min(totalPages, page + 2); p++) pageNums.push(p);
 
+  const syncMsgBox = syncMsg && (
+            <div style={{ marginTop: 12, border: "1px solid", borderColor: syncMsg.type === "ok" ? "#4C9A2A" : syncMsg.type === "warn" ? "#E0A100" : "var(--danger)", color: syncMsg.type === "ok" ? "#2f6b1a" : syncMsg.type === "warn" ? "#8a5a00" : "var(--danger)", borderRadius: 8, padding: "10px 12px", fontSize: 13, lineHeight: 1.6 }}>
+              {syncMsg.text}
+            </div>
+          );
+
   return (
     <Layout crumb="Xuất Khác - Nhập Khác EHO">
-      <div className="page-head">
-        <h1>🧾 Xuất Khác - Nhập Khác EHO</h1>
-        <p>Toàn bộ giao dịch Nhập khác / Xuất khác kéo từ EHO về theo tháng (menu thử nghiệm — chỉ Super Admin).</p>
+      <div className="page-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <h1>🧾 Xuất Khác - Nhập Khác EHO</h1>
+          <p>Toàn bộ giao dịch Nhập khác / Xuất khác kéo từ EHO về theo tháng (menu thử nghiệm — chỉ Super Admin).</p>
+        </div>
+        <button className="login-btn" style={{ width: "auto", padding: "9px 20px", whiteSpace: "nowrap" }} onClick={() => setSyncOpen(true)}>
+          {syncing ? `⏳ Đang đồng bộ... ${(prog?.lines || 0).toLocaleString("vi-VN")} dòng` : "🔄 Đồng bộ dữ liệu từ EHO"}
+        </button>
       </div>
+      {!syncOpen && syncMsgBox && <div style={{ marginBottom: 14 }}>{syncMsgBox}</div>}
 
-      {/* ------- Đồng bộ ------- */}
-      <div className="card" style={{ overflow: "visible" }}>
+      {/* ------- Đồng bộ (popup) ------- */}
+      {syncOpen && (
+      <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "6vh 16px 16px", overflowY: "auto" }}
+        onMouseDown={(e) => { if (e.target === e.currentTarget && !syncing) setSyncOpen(false); }}>
+      <div className="card" style={{ overflow: "visible", width: "min(900px, 100%)", margin: 0, boxShadow: "0 12px 40px rgba(0,0,0,0.25)" }}>
         <div className="card-head">
           <h3>🔄 Đồng bộ dữ liệu từ EHO</h3>
           <span className="note">
             {agent === "checking" ? "Đang kiểm tra EHO Agent..." : agent === "ok" ? (login.logged_in ? "✅ Đã đăng nhập EHO" : "EHO Agent sẵn sàng — chưa đăng nhập EHO") : "Chưa thấy EHO Agent"}
           </span>
+          <button className="fbtn" style={{ marginLeft: 12 }} onClick={() => setSyncOpen(false)} title={syncing ? "Đóng cửa sổ — việc đồng bộ vẫn chạy ngầm, mở lại bằng nút ở đầu trang" : "Đóng"}>✕ Đóng</button>
         </div>
         <div className="card-body" style={{ padding: "14px 20px" }}>
           {agent === "missing" && (
@@ -395,20 +412,18 @@ export default function XknkEhoPage() {
               {prog.retried > 0 && <span style={{ color: "var(--text-400)" }}> · thử lại {prog.retried} lần</span>}
             </div>
           )}
-          {syncMsg && (
-            <div style={{ marginTop: 12, border: "1px solid", borderColor: syncMsg.type === "ok" ? "#4C9A2A" : syncMsg.type === "warn" ? "#E0A100" : "var(--danger)", color: syncMsg.type === "ok" ? "#2f6b1a" : syncMsg.type === "warn" ? "#8a5a00" : "var(--danger)", borderRadius: 8, padding: "10px 12px", fontSize: 13, lineHeight: 1.6 }}>
-              {syncMsg.text}
-            </div>
-          )}
+          {syncMsgBox}
         </div>
       </div>
+      </div>
+      )}
 
       {/* ------- Dữ liệu ------- */}
       <div className="card">
         <div className="card-head" style={{ flexWrap: "wrap", gap: 10 }}>
           <h3>Dữ liệu theo tháng</h3>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {months.length === 0 && <span className="note">Chưa có dữ liệu — bấm Đồng bộ ở trên.</span>}
+            {months.length === 0 && <span className="note">Chưa có dữ liệu — bấm nút Đồng bộ dữ liệu từ EHO ở đầu trang.</span>}
             {months.map((m) => (
               <div key={m.thang} className={`month-tab ${m.thang === month ? "active" : ""}`} onClick={() => { setMonth(m.thang); setPage(1); }} title={`${m.so_dong.toLocaleString("vi-VN")} dòng · ${m.so_phieu.toLocaleString("vi-VN")} phiếu`}>
                 {m.thang.split("-").reverse().join("/")} ({m.so_dong.toLocaleString("vi-VN")})
