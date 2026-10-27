@@ -1,52 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import ColumnMultiFilter from "../components/ColumnMultiFilter";
 import FilterHeaderTh from "../components/FilterHeaderTh";
-import { launchEhoAgent } from "../lib/ehoAgentLaunch";
-import { getUser, xknkEhoMonths, xknkEhoFilters, xknkEhoRows, xknkEhoIngest, xknkEhoFinalize, xknkEhoSourceTypes, xknkEhoExportStart, xknkEhoExportStatus, xknkEhoExportDownload } from "../lib/api";
-
-// Loại yêu cầu EHO (mã -> tên). Tên chưa biết sẽ tự cập nhật theo dữ liệu đã kéo (/source-types).
-const SOURCE_BASE = {
-  3: "Xuất thanh lý", 4: "Xử lý kiểm kê tự động", 6: "Xuất khác từ kho hành chính", 7: "Xuất sử dụng", 9: "Xử lý kiểm kê allshop",
-  10: "Điều chỉnh quy cách ngành hàng", 11: "Xử lý được confirm từ marketing", 12: "Xử lý bồi thường Nhà vận chuyển", 13: "Xử lý không truy thu",
-  14: "Xử lý khác", 15: "Kiểm kê cận date", 16: "Hủy đa liều", 17: "Xuất khác dung môi", 18: "Điều chỉnh chênh lệch từ trả hàng NCC",
-  21: "Xuất hàng tặng", 22: "Hàng khuyến mãi Vacxin",
-};
-const SOURCE_IDS = Object.keys(SOURCE_BASE).map(Number);
-// Loại yêu cầu KHÔNG tự tick khi mở màn hình đồng bộ (chốt 27/10): Kiểm kê cận date — muốn kéo thì tự tick thêm.
-const DEFAULT_OFF = new Set([15]);
-const defaultSel = (ids) => new Set(ids.filter((id) => !DEFAULT_OFF.has(id)));
+import { getUser, xknkEhoMonths, xknkEhoFilters, xknkEhoRows, xknkEhoExportStart, xknkEhoExportStatus, xknkEhoExportDownload } from "../lib/api";
 
 // Menu "Xuất Khác - Nhập Khác EHO" (chốt 26/10; mở cho admin 27/10) — admin + super_admin. Toàn bộ giao dịch Nhập khác / Xuất khác kéo từ EHO
-// về theo tháng. Nút đồng bộ nằm ngay trong menu: chọn khoảng thời gian kéo (mặc định cả 1 tháng), đăng nhập EHO qua EHO Agent
-// chạy trên chính PC này (xem ksnb-backend/tools/eho_agent), web đẩy từng đợt dữ liệu lên hệ thống.
-const AGENT = "http://127.0.0.1:8765";
+// về theo tháng. Việc ĐỒNG BỘ làm chung ở nút "Đồng bộ dữ liệu EHO" ở Trang chủ (components/EhoSyncModal.js, chốt 27/10) — trang này chỉ xem/lọc/xuất Excel.
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function agentCall(path, { method = "GET", body, timeoutMs = 20000 } = {}) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const res = await fetch(AGENT + path, { method, headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined, signal: ctrl.signal });
-    return await res.json();
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 const pad = (n) => String(n).padStart(2, "0");
-const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-// Mặc định đồng bộ (chốt 27/10): Từ ngày = hôm nay - 5 ngày, Đến ngày = cuối tháng hiện tại
-function defaultRange() {
-  const now = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 5);
-  return { from: ymd(from), to: monthRange(`${now.getFullYear()}-${pad(now.getMonth() + 1)}`).to };
-}
-function monthRange(ym) {
-  const [y, m] = ym.split("-").map(Number);
-  const last = new Date(y, m, 0).getDate();
-  return { from: `${y}-${pad(m)}-01`, to: `${y}-${pad(m)}-${pad(last)}` };
-}
 function currentYm() {
   const d = new Date();
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
@@ -59,37 +21,10 @@ function fmtDT(iso) {
 function fmtNum(n) {
   return n === null || n === undefined ? "-" : Number(n).toLocaleString("vi-VN", { maximumFractionDigits: 2 });
 }
-function fmtMs(sec) {
-  return `${pad(Math.floor(sec / 60))}:${pad(sec % 60)}`;
-}
-
 const STATUS_COLOR = { "Hoàn tất": ["#E6F6E1", "#2f6b1a"], "Đã hủy": ["#FDE8E8", "#B42318"], "Chờ kiểm": ["#FFF4D6", "#8a5a00"] };
 
 export default function XknkEhoPage() {
   const [checked, setChecked] = useState(false);
-
-  // ---- Đồng bộ ----
-  const [agent, setAgent] = useState("checking"); // checking | ok | missing
-  const [login, setLogin] = useState({ driver: false, logged_in: false });
-  const [ym, setYm] = useState(currentYm());
-  const [from, setFrom] = useState(defaultRange().from);
-  const [to, setTo] = useState(defaultRange().to);
-  const [syncing, setSyncing] = useState(false);
-  const [prog, setProg] = useState(null);
-  const [syncMsg, setSyncMsg] = useState(null);
-  const [opening, setOpening] = useState(false);
-  const [srcNames, setSrcNames] = useState(SOURCE_BASE);
-  const [srcSel, setSrcSel] = useState(() => defaultSel(SOURCE_IDS)); // mặc định tick tất cả trừ DEFAULT_OFF
-  const [agentVer, setAgentVer] = useState("");
-  const [launching, setLaunching] = useState(false);
-  const [syncOpen, setSyncOpen] = useState(false);
-  function startAgent() {
-    launchEhoAgent();
-    setLaunching(true);
-    setTimeout(() => alive.current && setLaunching(false), 15000);
-  }
-  const cancelRef = useRef(false);
-  const alive = useRef(true);
 
   // ---- Xem dữ liệu ----
   const [months, setMonths] = useState([]);
@@ -116,30 +51,7 @@ export default function XknkEhoPage() {
     }
     setChecked(true);
     loadMonths(true);
-    xknkEhoSourceTypes()
-      .then((r) => {
-        const names = { ...SOURCE_BASE };
-        (r.loai_yeu_cau || []).forEach((x) => { if (x.ten) names[x.ma] = x.ten; else if (!(x.ma in names)) names[x.ma] = ""; });
-        setSrcNames(names);
-        setSrcSel(defaultSel(Object.keys(names).map(Number)));
-      })
-      .catch(() => {});
   }, []);
-
-  const srcIds = Object.keys(srcNames).map(Number).sort((a, b) => a - b);
-  const srcLabel = (id) => srcNames[id] || `Loại yêu cầu ${id}`;
-  const [srcOpen, setSrcOpen] = useState(false);
-  const srcBox = useRef(null);
-  useEffect(() => {
-    const close = (e) => { if (srcBox.current && !srcBox.current.contains(e.target)) setSrcOpen(false); };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, []);
-  const nSel = srcIds.filter((id) => srcSel.has(id)).length;
-  const srcText = nSel === srcIds.length ? "Tất cả loại yêu cầu" : nSel === 0 ? "Chưa chọn loại yêu cầu" : nSel === 1 ? srcLabel(srcIds.find((id) => srcSel.has(id))) : `Đã chọn ${nSel}/${srcIds.length} loại yêu cầu`;
-  function toggleSrc(id) {
-    setSrcSel((o) => { const n = new Set(o); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  }
 
   // Nút lọc tick nhiều giá trị ở đầu cột (chốt 27/10; lọc ở server vì tháng có hàng trăm nghìn dòng). Mỗi cột:
   //   label(o) = chữ hiện trong danh sách; code(o) = giá trị gửi lên server; param = tên tham số; none = giá trị "không chọn gì"
@@ -182,29 +94,6 @@ export default function XknkEhoPage() {
       })
       .catch((err) => setError(err.message));
   }
-
-  // Theo dõi EHO Agent + trạng thái đăng nhập EHO (chỉ khi mở trang)
-  useEffect(() => {
-    alive.current = true;
-    let timer;
-    async function tick() {
-      try {
-        const p = await agentCall("/ping", { timeoutMs: 4000 });
-        if (!alive.current) return;
-        if (p && p.ok) {
-          setAgent("ok");
-          setLaunching(false);
-          setAgentVer(String(p.version || ""));
-          if (!syncing) setLogin(await agentCall("/status", { timeoutMs: 8000 }));
-        } else setAgent("missing");
-      } catch (e) {
-        if (alive.current) setAgent("missing");
-      }
-      if (alive.current) timer = setTimeout(tick, 3000);
-    }
-    if (checked) tick();
-    return () => { alive.current = false; clearTimeout(timer); };
-  }, [checked, syncing]);
 
   useEffect(() => {
     if (!month) return;
@@ -252,224 +141,26 @@ export default function XknkEhoPage() {
     }
   }
 
-  function pickMonth(v) {
-    setYm(v);
-    if (/^\d{4}-\d{2}$/.test(v)) {
-      const r = monthRange(v);
-      setFrom(r.from);
-      setTo(r.to);
-    }
-  }
-
-  async function openEho() {
-    setOpening(true);
-    setSyncMsg(null);
-    try {
-      await agentCall("/open", { method: "POST", timeoutMs: 90000 });
-      setSyncMsg({ type: "ok", text: "Đã mở cửa sổ EHO. Hãy đăng nhập trong cửa sổ đó (tài khoản, mật khẩu, OTP) — xong trạng thái ở đây tự chuyển sang \"Đã đăng nhập\"." });
-    } catch (e) {
-      setSyncMsg({ type: "err", text: "Không mở được cửa sổ EHO: " + (e.message || "lỗi không rõ") });
-    } finally {
-      setOpening(false);
-    }
-  }
-
-  async function runSync() {
-    if (!from || !to || from > to) {
-      setSyncMsg({ type: "err", text: "Khoảng thời gian không hợp lệ (Từ ngày phải trước hoặc bằng Đến ngày)." });
-      return;
-    }
-    const picked = srcIds.filter((id) => srcSel.has(id));
-    if (!picked.length) {
-      setSyncMsg({ type: "err", text: "Hãy tick chọn ít nhất 1 Loại yêu cầu để đồng bộ." });
-      return;
-    }
-    const allPicked = picked.length === srcIds.length;
-    if (!allPicked && parseFloat(agentVer) < 1.2) {
-      setSyncMsg({ type: "err", text: "EHO Agent trên máy là bản cũ (chưa hỗ trợ chọn Loại yêu cầu). Hãy tắt cửa sổ EHO Agent rồi mở lại Chay-EHO-Agent.bat để dùng bản mới." });
-      return;
-    }
-    const days = Math.round((new Date(to) - new Date(from)) / 86400000) + 1;
-    if (days > 93 && !confirm(`Khoảng kéo ${days} ngày, rất nhiều dữ liệu và sẽ chạy lâu. Vẫn tiếp tục?`)) return;
-    setSyncing(true);
-    setSyncMsg(null);
-    setProg({ lines: 0, saved: 0, queries: 0, queued: 0, elapsedSec: 0 });
-    cancelRef.current = false;
-    const batch = `xk-${Date.now()}`;
-    let saved = 0, moi = 0, last = null;
-    try {
-      const st = await agentCall("/xknk/start", { method: "POST", body: { from_date: from, to_date: to, source_types: allPicked ? [] : picked }, timeoutMs: 30000 });
-      if (!st || st.error) {
-        throw new Error(st && st.error === "not_logged_in" ? "Chưa đăng nhập EHO — bấm \"Mở EHO & đăng nhập\" trước."
-          : st && st.error === "no_browser" ? "Chưa mở cửa sổ EHO — bấm \"Mở EHO & đăng nhập\" trước."
-            : st && st.error === "dang_chay" ? "Đang có một lần kéo dữ liệu chạy sẵn trong cửa sổ EHO — chờ xong hoặc mở lại cửa sổ EHO."
-              : `Không bắt đầu được (${st && st.error})`);
-      }
-      while (true) {
-        const t = await agentCall("/xknk/take?n=3000", { timeoutMs: 60000 });
-        if (t.error) throw new Error(t.error === "no_job" ? "Cửa sổ EHO đã bị tải lại/đóng giữa chừng — bấm Đồng bộ lại." : `Agent báo lỗi (${t.error})`);
-        last = t;
-        if (t.rows && t.rows.length) {
-          for (let i = 0; i < t.rows.length; i += 3000) {
-            const r = await xknkEhoIngest(batch, t.rows.slice(i, i + 3000));
-            saved += r.nhan;
-            moi += r.moi || 0;
-          }
-        }
-        setProg({ ...t, rows: undefined, saved });
-        if (cancelRef.current && t.running) await agentCall("/xknk/cancel", { method: "POST" }).catch(() => {});
-        if (!t.running && t.buffered === 0) break;
-        if (!t.rows || !t.rows.length) await sleep(1000);
-      }
-      if (last.error) {
-        throw new Error(last.error === "not_logged_in" ? "Phiên đăng nhập EHO đã hết hạn giữa chừng — đăng nhập lại rồi đồng bộ lại (dữ liệu đã lưu được giữ nguyên)." : `EHO báo lỗi (${last.error}).`);
-      }
-      if (last.cancelled || cancelRef.current) {
-        setSyncMsg({ type: "err", text: `Đã dừng. Đã lưu ${saved.toLocaleString("vi-VN")} dòng (${moi.toLocaleString("vi-VN")} dòng thêm mới); dữ liệu cũ được giữ nguyên.` });
-      } else {
-        await xknkEhoFinalize({ batch, from_time: `${from}T00:00:00`, to_time: `${to}T23:59:59.999999`, so_dong_da_luu: saved, source_types: allPicked ? null : picked });
-        setSyncMsg({
-          type: last.capped > 0 ? "warn" : "ok",
-          text: `✅ Đồng bộ xong ${from.split("-").reverse().join("/")} → ${to.split("-").reverse().join("/")}: ${allPicked ? "" : `(${picked.length}/${srcIds.length} loại yêu cầu) `}kéo được ${saved.toLocaleString("vi-VN")} dòng giao dịch: thêm mới ${moi.toLocaleString("vi-VN")} dòng, cập nhật ${(saved - moi).toLocaleString("vi-VN")} dòng đã có (${last.queries.toLocaleString("vi-VN")} lượt gọi EHO, ${fmtMs(last.elapsedSec)}). Dữ liệu cũ không bị xoá`
-            + (last.capped > 0 ? `. ⚠️ ${last.capped} cửa sổ giây vẫn chạm trần 500 phiếu nên có thể thiếu một ít dòng.` : "."),
-        });
-        loadMonths(false);
-        setMonth(to.slice(0, 7));
-        setPage(1);
-        xknkEhoFilters(to.slice(0, 7)).then(setOpts).catch(() => {});
-        setF((o) => ({ ...o }));
-      }
-    } catch (e) {
-      setSyncMsg({ type: "err", text: e.name === "AbortError" ? "Agent không phản hồi (quá thời gian chờ)." : (e.message || "Đồng bộ thất bại") });
-    } finally {
-      setSyncing(false);
-    }
-  }
-
   if (!checked) return null;
   const totalPages = Math.max(1, Math.ceil((data.total || 0) / pageSize));
   const pageNums = [];
   for (let p = Math.max(1, page - 2); p <= Math.min(totalPages, page + 2); p++) pageNums.push(p);
-
-  const syncMsgBox = syncMsg && (
-            <div style={{ marginTop: 12, border: "1px solid", borderColor: syncMsg.type === "ok" ? "#4C9A2A" : syncMsg.type === "warn" ? "#E0A100" : "var(--danger)", color: syncMsg.type === "ok" ? "#2f6b1a" : syncMsg.type === "warn" ? "#8a5a00" : "var(--danger)", borderRadius: 8, padding: "10px 12px", fontSize: 13, lineHeight: 1.6 }}>
-              {syncMsg.text}
-            </div>
-          );
 
   return (
     <Layout crumb="Xuất Khác - Nhập Khác EHO">
       <div className="page-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
         <div>
           <h1>🧾 Xuất Khác - Nhập Khác EHO</h1>
-          <p>Toàn bộ giao dịch Nhập khác / Xuất khác kéo từ EHO về theo tháng (menu thử nghiệm — Admin và Super Admin).</p>
-        </div>
-        <button className="login-btn" style={{ width: "auto", padding: "9px 20px", whiteSpace: "nowrap" }} onClick={() => setSyncOpen(true)}>
-          {syncing ? `⏳ Đang đồng bộ... ${(prog?.lines || 0).toLocaleString("vi-VN")} dòng` : "🔄 Đồng bộ dữ liệu từ EHO"}
-        </button>
-      </div>
-      {!syncOpen && syncMsgBox && <div style={{ marginBottom: 14 }}>{syncMsgBox}</div>}
-
-      {/* ------- Đồng bộ (popup) ------- */}
-      {syncOpen && (
-      <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "6vh 16px 16px", overflowY: "auto" }}
-        onMouseDown={(e) => { if (e.target === e.currentTarget && !syncing) setSyncOpen(false); }}>
-      <div className="card" style={{ overflow: "visible", width: "min(900px, 100%)", margin: 0, boxShadow: "0 12px 40px rgba(0,0,0,0.25)" }}>
-        <div className="card-head">
-          <h3>🔄 Đồng bộ dữ liệu từ EHO</h3>
-          <span className="note">
-            {agent === "checking" ? "Đang kiểm tra EHO Agent..." : agent === "ok" ? (login.logged_in ? "✅ Đã đăng nhập EHO" : "EHO Agent sẵn sàng — chưa đăng nhập EHO") : "Chưa thấy EHO Agent"}
-          </span>
-          <button className="fbtn" style={{ marginLeft: 12 }} onClick={() => setSyncOpen(false)} title={syncing ? "Đóng cửa sổ — việc đồng bộ vẫn chạy ngầm, mở lại bằng nút ở đầu trang" : "Đóng"}>✕ Đóng</button>
-        </div>
-        <div className="card-body" style={{ padding: "14px 20px" }}>
-          {agent === "missing" && (
-            <div style={{ border: "1px solid", borderColor: launching ? "var(--border)" : "var(--danger)", borderRadius: 8, padding: "10px 12px", color: launching ? "var(--text-600)" : "var(--danger)", fontSize: 13, lineHeight: 1.6, marginBottom: 12 }}>
-              {launching ? (
-                <><b>Đang khởi động EHO Agent...</b> Nếu trình duyệt hỏi "Mở EHO Agent?" hãy bấm <b>Mở</b> (tick "Luôn cho phép" để lần sau tự mở); nếu hỏi quyền truy cập thiết bị trong mạng nội bộ, chọn <b>Cho phép</b>.</>
-              ) : (
-                <><b>Chưa thấy EHO Agent trên máy này.</b> Bấm <b>Khởi động EHO Agent</b>. Máy chưa cài lần nào thì tải file cài về (chỉ cài 1 lần — sau đó agent tự chạy ngầm cùng Windows).</>
-              )}
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-                <button className="fbtn" onClick={startAgent} disabled={launching} style={{ fontWeight: 700 }}>▶️ Khởi động EHO Agent</button>
-                <a className="fbtn" href="/downloads/EHO-Agent-Setup-2.3.zip" download style={{ display: "inline-block", textDecoration: "none", color: "var(--navy-800)", fontWeight: 700 }}>⬇️ Tải file cài EHO Agent</a>
-              </div>
-              <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-600)" }}>Máy chưa cài: tải về, giải nén rồi bấm đúp <code>Cai-dat-EHO-Agent.bat</code>.</div>
-            </div>
-          )}
-          <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
-            <div>
-              <label style={lbl}>Bước 1</label>
-              <button className="fbtn" disabled={agent !== "ok" || opening || syncing} onClick={openEho}>
-                {opening ? "Đang mở..." : login.logged_in ? "Mở lại cửa sổ EHO" : "Mở EHO & đăng nhập"}
-              </button>
-            </div>
-            <div>
-              <label style={lbl}>Bước 2 — Tháng kéo dữ liệu</label>
-              <input type="month" className="finput" value={ym} onChange={(e) => pickMonth(e.target.value)} disabled={syncing} style={{ width: 150 }} />
-            </div>
-            <div>
-              <label style={lbl}>Từ ngày</label>
-              <input type="date" className="finput" value={from} onChange={(e) => setFrom(e.target.value)} disabled={syncing} />
-            </div>
-            <div>
-              <label style={lbl}>Đến ngày</label>
-              <input type="date" className="finput" value={to} onChange={(e) => setTo(e.target.value)} disabled={syncing} />
-            </div>
-            <div ref={srcBox} style={{ position: "relative" }}>
-              <label style={lbl}>Loại yêu cầu</label>
-              <button type="button" className="finput" disabled={syncing} onClick={() => setSrcOpen((o) => !o)}
-                style={{ width: 270, textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: syncing ? "default" : "pointer", background: "var(--card)" }}>
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{srcText}</span>
-                <span style={{ fontSize: 10, marginLeft: 8, color: "var(--text-400)" }}>▼</span>
-              </button>
-              {srcOpen && !syncing && (
-                <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, zIndex: 30, width: 330, maxHeight: 340, overflowY: "auto", background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 6px 20px rgba(0,0,0,.15)", padding: "4px 0" }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", cursor: "pointer", fontSize: 13, fontWeight: 600, borderBottom: "1px solid var(--border)" }}>
-                    <input type="checkbox" checked={nSel === srcIds.length} ref={(el) => { if (el) el.indeterminate = nSel > 0 && nSel < srcIds.length; }}
-                      onChange={() => setSrcSel(nSel === srcIds.length ? new Set() : new Set(srcIds))} />
-                    Tất cả loại yêu cầu
-                  </label>
-                  {srcIds.map((id) => (
-                    <label key={id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", cursor: "pointer", fontSize: 13, background: srcSel.has(id) ? "#EEF4FF" : "transparent" }}>
-                      <input type="checkbox" checked={srcSel.has(id)} onChange={() => toggleSrc(id)} />
-                      {srcLabel(id)}
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-            <button className="login-btn" style={{ width: "auto", padding: "9px 24px", opacity: login.logged_in && !syncing ? 1 : 0.5 }} disabled={!login.logged_in || syncing} onClick={runSync}>
-              {syncing ? "Đang đồng bộ..." : "Đồng bộ"}
-            </button>
-            {syncing && <button className="fbtn" style={{ color: "var(--danger)" }} onClick={() => { cancelRef.current = true; }}>Dừng</button>}
-          </div>
-          <div style={{ fontSize: 12, color: "var(--text-400)", marginTop: 8 }}>
-            Chọn tháng sẽ tự điền Từ ngày/Đến ngày của cả tháng (VD 01/10–31/10); có thể sửa tay để kéo khoảng khác. Mặc định kéo từ 5 ngày trước đến cuối tháng này. Đồng bộ chỉ GHI THÊM giao dịch chưa có (và cập nhật giao dịch đã có theo bản mới nhất trên EHO), KHÔNG xoá dữ liệu cũ — kể cả khi kéo khoảng ngày khác hay loại yêu cầu khác.
-            Một tháng có thể hơn 500.000 dòng nên chạy vài phút — giữ nguyên trang này và cửa sổ EHO trong lúc kéo.
-          </div>
-
-          {prog && syncing && (
-            <div style={{ marginTop: 12, fontSize: 13, lineHeight: 1.7 }}>
-              <div style={{ height: 8, background: "var(--bg)", borderRadius: 4, overflow: "hidden", marginBottom: 6 }}>
-                <div style={{ width: `${Math.min(100, prog.windowsDone ? (prog.windowsDone / (prog.windowsDone + (prog.queued || 0) + (prog.inflight || 0))) * 100 : 3)}%`, height: "100%", background: "#2F6FED", transition: "width .4s" }} />
-              </div>
-              Đã kéo <b>{(prog.lines || 0).toLocaleString("vi-VN")}</b> dòng · đã lưu <b>{(prog.saved || 0).toLocaleString("vi-VN")}</b> · {(prog.queries || 0).toLocaleString("vi-VN")} lượt gọi EHO · còn {(prog.queued || 0).toLocaleString("vi-VN")} khoảng chờ · {fmtMs(prog.elapsedSec || 0)}
-              {prog.retried > 0 && <span style={{ color: "var(--text-400)" }}> · thử lại {prog.retried} lần</span>}
-            </div>
-          )}
-          {syncMsgBox}
+          <p>Toàn bộ giao dịch Nhập khác / Xuất khác kéo từ EHO về theo tháng (menu thử nghiệm — Admin và Super Admin). Đồng bộ dữ liệu: nút "Đồng bộ dữ liệu EHO" ở Trang chủ.</p>
         </div>
       </div>
-      </div>
-      )}
 
       {/* ------- Dữ liệu ------- */}
       <div className="card">
         <div className="card-head" style={{ flexWrap: "wrap", gap: 10 }}>
           <h3>Dữ liệu theo tháng</h3>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {months.length === 0 && <span className="note">Chưa có dữ liệu — bấm nút Đồng bộ dữ liệu từ EHO ở đầu trang.</span>}
+            {months.length === 0 && <span className="note">Chưa có dữ liệu — vào Trang chủ, bấm nút “Đồng bộ dữ liệu EHO” (tick Loại yêu cầu rồi bấm Đồng bộ).</span>}
             {months.map((m) => (
               <div key={m.thang} className={`month-tab ${m.thang === month ? "active" : ""}`} onClick={() => { setMonth(m.thang); setPage(1); }} title={`${m.so_dong.toLocaleString("vi-VN")} dòng · ${m.so_phieu.toLocaleString("vi-VN")} phiếu`}>
                 {m.thang.split("-").reverse().join("/")} ({m.so_dong.toLocaleString("vi-VN")})
