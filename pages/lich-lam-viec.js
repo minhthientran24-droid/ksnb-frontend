@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
+import SscTicketModal from "../components/SscTicketModal";
 import { getUser, listKiemKeStaff, getLlvThongKeThang, downloadLlvThongKeThang, leaveDaysByDate } from "../lib/api";
 import { useAllowedKeys } from "../lib/permissions";
 import {
@@ -946,6 +947,7 @@ function TodayScheduledView({ data, group, onDone }) {
   const [maPhieuChia, setMaPhieuChia] = useState("");
   const [dsChiaMsg, setDsChiaMsg] = useState("");
   const [copiedPhieu, setCopiedPhieu] = useState(false);
+  const [sscOpen, setSscOpen] = useState(false); // popup "Tạo Ticket SSC" (EHO Agent trên PC admin tự điền form + gửi)
 
   async function onCreateDanhSachChia() {
     const ids = (data.rows || []).map((r) => r.id);
@@ -1104,11 +1106,16 @@ function TodayScheduledView({ data, group, onDone }) {
           <button className="fbtn" disabled={ehoBusy} onClick={onExportEho} style={ACTION_BTN_STYLES.orange}>
             {ehoBusy ? "Đang tải..." : "📋 Tạo phiếu kiểm kê"}
           </button>
+          <button className="fbtn" disabled={!(data.rows || []).length} onClick={() => setSscOpen(true)} style={ACTION_BTN_STYLES.blue}
+            title="Mở SSC để đăng nhập, rồi tạo ticket Thông báo kiểm soát cho tất cả shop trong danh sách">
+            🎫 Tạo Ticket SSC
+          </button>
           <button className="fbtn" disabled={dsChiaBusy} onClick={onCreateDanhSachChia} style={ACTION_BTN_STYLES.green}>
             {dsChiaBusy ? "Đang tạo..." : "🗂️ Tạo danh sách chia"}
           </button>
         </div>
       </div>
+      {sscOpen && <SscTicketModal ids={(data.rows || []).map((r) => r.id)} group={group} onClose={() => setSscOpen(false)} onDone={onDone} />}
       {(maPhieuChia || dsChiaMsg) && (
         <div style={{ padding: "0 20px 14px", display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
           {maPhieuChia && (
