@@ -265,7 +265,7 @@ export default function SscTicketModal({ rows = [], group, onClose, onDone }) {
         <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-start" }}>
           <div>
             <div style={lbl}>Bước 1 — Đăng nhập SSC</div>
-            <button className="fbtn" disabled={agent !== "ok" || opening || busy} onClick={openSsc}>
+            <button className="fbtn" disabled={agent !== "ok" || opening || busy} onClick={openSsc} style={loggedIn ? undefined : { background: "#FFE6CC", borderColor: "#F2B27A", color: "#8A4B0F", fontWeight: 700 }}>
               {opening ? "Đang mở..." : loggedIn ? "Mở lại cửa sổ SSC" : "Mở SSC & đăng nhập"}
             </button>
             <div style={{ fontSize: 12.5, marginTop: 6, color: loggedIn ? "#2f6b1a" : "var(--text-600)" }}>
