@@ -317,9 +317,6 @@ export default function EhoSyncModal({ onClose }) {
     <div style={overlay} onClick={close}>
       <div style={box} onClick={(e) => e.stopPropagation()}>
         <h3 style={{ fontSize: 17, fontWeight: 800, color: "var(--navy-900)", marginBottom: 4 }}>🔄 Đồng bộ dữ liệu EHO</h3>
-        <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 14, lineHeight: 1.6 }}>
-          1 lần bấm đồng bộ gồm 4 phần: (1) lấy "Ngày duyệt" của phiếu Kiểm kê All shop - Kho hàng thường (đã Hoàn tất) làm <b>Ngày chốt kiểm kê</b> của từng shop; (2) lấy cảnh báo <b>Đơn Hàng COD</b> chưa tiếp nhận để tự đăng chủ đề vào Theo dõi chủ đề; (3) chủ đề COD mà NV KSNB đã <b>Hoàn tất</b> trên web được đẩy kết quả sang EHO (phiếu chuyển "Đã xử lý", ghi chú "&lt;Tên NV&gt; đã check có/không vi phạm"); (4) giao dịch <b>Xuất khác - Nhập khác</b> theo Loại yêu cầu đã chọn, xem ở menu "Xuất Khác - Nhập Khác EHO".
-        </p>
 
         {agent === "checking" && <div style={note}>Đang kiểm tra EHO Agent trên máy này...</div>}
         {agent === "missing" && (
@@ -392,9 +389,6 @@ export default function EhoSyncModal({ onClose }) {
               </button>
               {syncing && <button className="fbtn" style={{ color: "var(--danger)" }} onClick={() => { cancelRef.current = true; }} title="Dừng phần kéo Xuất khác - Nhập khác (dữ liệu đã lưu được giữ nguyên)">Dừng</button>}
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-400)", marginBottom: 8, lineHeight: 1.6 }}>
-              Chọn tháng sẽ tự điền Từ ngày/Đến ngày của cả tháng; có thể sửa tay. Mặc định kéo từ 5 ngày trước đến cuối tháng này. Khoảng ngày áp dụng cho cả Kiểm kê, Đơn Hàng COD và Xuất khác - Nhập khác. Đồng bộ chỉ GHI THÊM dữ liệu chưa có (và cập nhật giao dịch Xuất/Nhập khác đã có theo bản mới nhất trên EHO), KHÔNG xoá dữ liệu cũ. Phần Xuất khác - Nhập khác có thể hơn 500.000 dòng nên chạy vài phút — giữ nguyên popup này và cửa sổ EHO trong lúc kéo.
-            </div>
           </>
         )}
 
@@ -423,7 +417,7 @@ export default function EhoSyncModal({ onClose }) {
 
         <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid var(--border)", fontSize: 12.5, color: "var(--text-600)", lineHeight: 1.7 }}>
           {info && info.so_phieu > 0 ? (
-            <>Dữ liệu kiểm kê đã đồng bộ: <b>{vn(info.so_phieu)}</b> phiếu của <b>{vn(info.so_shop)}</b> shop · Ngày duyệt mới nhất: <b>{fmtDateTime(info.ngay_duyet_moi_nhat)}</b> · Đồng bộ lần cuối: <b>{fmtDateTime(info.dong_bo_lan_cuoi)}</b></>
+            <>Dữ liệu kiểm kê đã đồng bộ: <b>{vn(info.so_phieu)}</b> phiếu của <b>{vn(info.so_shop)}</b> shop · Ngày duyệt mới nhất: <b>{fmtDateTime(info.ngay_duyet_moi_nhat)}</b> · Đồng bộ lần cuối: <b>{fmtDateTime(info.dong_bo_lan_cuoi)}</b>{info.dong_bo_boi && <> · Người đồng bộ: <b>{info.dong_bo_boi}</b></>}</>
           ) : <>Chưa có dữ liệu EHO nào được đồng bộ.</>}
         </div>
 
