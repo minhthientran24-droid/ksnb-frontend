@@ -54,16 +54,26 @@ export default function ColumnMultiFilter({ options, selected, onChange, width =
     }
     setOpen((o) => !o);
   }
-  // "Chọn tất cả" trong ô tìm: khi đang lọc chữ thì tick/bỏ tick đúng các dòng đang hiện
+  // Ô tick đầu danh sách khi đang gõ chữ tìm:
+  //  - đang ở "Tất cả" -> CHỈ chọn các dòng khớp chữ tìm (như Excel: tìm "Nguyễn" rồi chọn = lọc đúng các Nguyễn);
+  //  - đã có chọn riêng -> tick thêm / bỏ tick đúng các dòng đang hiện.
   function toggleShown() {
     const shownVals = shown.map((o) => o.value);
+    if (!shownVals.length) return;
+    if (allOn) { apply(new Set(shownVals)); return; }
     const allShownOn = shownVals.every((v) => picked.includes(v));
     const n = new Set(picked);
     shownVals.forEach((v) => (allShownOn ? n.delete(v) : n.add(v)));
     apply(n);
   }
-  const shownAllOn = shown.length > 0 && shown.every((o) => picked.includes(o.value));
-  const shownSome = shown.some((o) => picked.includes(o.value));
+  // Enter trong ô tìm = lọc đúng các kết quả đang hiện rồi đóng danh sách
+  function applySearch() {
+    if (!q.trim() || !shown.length) return;
+    apply(new Set(shown.map((o) => o.value)));
+    setOpen(false);
+  }
+  const shownAllOn = !allOn && shown.length > 0 && shown.every((o) => picked.includes(o.value));
+  const shownSome = !allOn && shown.some((o) => picked.includes(o.value));
 
   return (
     <div ref={box} onClick={(e) => e.stopPropagation()} style={{ display: "inline-block", fontWeight: 400, textAlign: "left", textTransform: "none", letterSpacing: "normal", fontSize: 12.5, whiteSpace: "normal", verticalAlign: "middle" }}>
@@ -90,13 +100,13 @@ export default function ColumnMultiFilter({ options, selected, onChange, width =
         <div style={{ position: "fixed", left: pos.left, top: pos.top, zIndex: 2000, width: menuWidth, background: "var(--card, #fff)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 6px 20px rgba(0,0,0,.18)", padding: "4px 0" }}>
           {options.length > 8 && (
             <div style={{ padding: "6px 10px" }}>
-              <input className="finput" autoFocus placeholder="Tìm trong danh sách..." value={q} onChange={(e) => setQ(e.target.value)} style={{ width: "100%", fontSize: 12.5, padding: "5px 8px" }} />
+              <input className="finput" autoFocus placeholder="Tìm trong danh sách (Enter = lọc kết quả)..." value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applySearch(); } }} style={{ width: "100%", fontSize: 12.5, padding: "5px 8px" }} />
             </div>
           )}
           <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", cursor: "pointer", fontSize: 13, fontWeight: 600, borderBottom: "1px solid var(--border)" }}>
             <input type="checkbox" checked={q ? shownAllOn : allOn} ref={(el) => { if (el) el.indeterminate = q ? (!shownAllOn && shownSome) : (!allOn && picked.length > 0); }}
               onChange={() => (q ? toggleShown() : apply(allOn ? new Set() : null))} />
-            {q ? "Chọn tất cả kết quả tìm" : allLabel}
+            {q ? (allOn ? `Chỉ chọn ${shown.length.toLocaleString("vi-VN")} kết quả tìm` : "Chọn tất cả kết quả tìm") : allLabel}
           </label>
           <div style={{ maxHeight: 300, overflowY: "auto" }}>
             {shown.slice(0, MAX_SHOWN).map((o) => (
