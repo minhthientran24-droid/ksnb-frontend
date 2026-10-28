@@ -338,7 +338,7 @@ export default function EhoSyncModal({ onClose }) {
           <>
             <div style={row}>
               {step(1, login.logged_in)}
-              <button className="fbtn" disabled={!!busy} onClick={handleOpen}>{busy === "open" ? "Đang mở..." : login.driver ? "Mở lại cửa sổ EHO" : "Mở EHO & đăng nhập"}</button>
+              <button className="fbtn" disabled={!!busy} onClick={handleOpen} style={login.logged_in ? undefined : { background: "#FFE6CC", borderColor: "#F2B27A", color: "#8A4B0F", fontWeight: 700 }}>{busy === "open" ? "Đang mở..." : login.driver ? "Mở lại cửa sổ EHO" : "Mở EHO & đăng nhập"}</button>
               <span style={{ fontSize: 12.5, color: login.logged_in ? "#4C9A2A" : "var(--text-600)", fontWeight: login.logged_in ? 700 : 400 }}>
                 {login.logged_in ? "✅ Đã đăng nhập EHO" : login.driver ? "Chờ anh/chị đăng nhập trong cửa sổ EHO..." : "Chưa mở EHO"}
               </span>
