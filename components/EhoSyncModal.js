@@ -166,7 +166,7 @@ export default function EhoSyncModal({ onClose }) {
     const rows = res.rows || [];
     let nhan = 0, moi = 0;
     const shops = new Set();
-    for (let i = 0; i < rows.length; i += 4000) {
+    for (let i = 0; i < rows.length || i === 0; i += 4000) { // luôn gọi ít nhất 1 lần (kể cả 0 phiếu) để ghi nhận thời điểm + người đồng bộ
       const r = await ehoIngest(rows.slice(i, i + 4000));
       nhan += r.nhan;
       moi += r.moi || 0;
