@@ -26,6 +26,15 @@ import {
 // chốt 03/09 — giờ view chung tất cả chủ đề, y hệt bản thật.
 const ADMIN_ROLES = ["admin", "super_admin"];
 
+// Chủ đề "Giao hàng COD chưa hoàn tất" có tổng giá trị trong nội dung > 10.000.000 đ -> chữ nội dung hiện màu đỏ (chốt 29/10)
+const COD_LOAI_VI_PHAM = "Giao hàng COD chưa hoàn tất";
+const COD_NGUONG_DO = 10000000;
+function codGiaTriCao(job) {
+  if (job.loai_vi_pham !== COD_LOAI_VI_PHAM) return false;
+  const m = String(job.noi_dung_vi_pham || "").match(/tổng giá trị là\s*([\d.,]+)\s*đ/i);
+  return !!m && Number(m[1].replace(/[.,]/g, "")) > COD_NGUONG_DO;
+}
+
 const emptyForm = { ten_chu_de: "", loai_vi_pham: "", vung: "", ma_shop: "", ten_shop: "", noi_dung_vi_pham: "" };
 
 function currentMonthStr() {
@@ -1301,7 +1310,7 @@ export default function TheoDoiChuDeV2Page() {
                           ? [job.ma_shop, job.ten_shop].filter(Boolean).join(" - ")
                           : "-"}
                       </td>
-                      <td style={{ textAlign: "left" }}>{job.noi_dung_vi_pham || "-"}</td>
+                      <td style={codGiaTriCao(job) ? { textAlign: "left", color: "#D92D20", fontWeight: 600 } : { textAlign: "left" }}>{job.noi_dung_vi_pham || "-"}</td>
                       <td style={{ textAlign: "left" }}>
                         {job.nhan_vien_phu_trach || "-"}
                         {supporters.length > 0 && (
