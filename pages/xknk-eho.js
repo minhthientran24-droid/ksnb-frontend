@@ -31,9 +31,14 @@ export default function XknkEhoPage() {
   const [month, setMonth] = useState("");
   const [opts, setOpts] = useState({ loai_yeu_cau: [], trang_thai: [], loai_phieu: [], shop: [], kho: [], don_vi: [], nguoi_tao: [] });
   // Bộ lọc: q = ô tìm Mã phiếu/SKU/Tên SP; các mảng = giá trị được tick ở nút lọc đầu cột (mảng rỗng = tất cả)
-  const [f, setF] = useState({ q: "", source_types: "", status_names: [], gri_types: [], shop_codes: [], whs_names: [], unit_names: [], creators: [] });
-  const [colSel, setColSel] = useState({}); // { cột: Set nhãn được tick } — cột không có = tất cả
-  const [qInput, setQInput] = useState("");
+  const F0 = { q: "", product: "", date_from: "", date_to: "", source_types: "", status_names: [], gri_types: [], shop_codes: [], whs_names: [], unit_names: [], creators: [] };
+  const [f, setF] = useState(F0);
+  const [colSel, setColSel] = useState({}); // { cột: Set nhãn được tick } — bộ lọc ở tiêu đề cột (còn lại: Trạng thái, Loại phiếu, Đơn vị tính, Người tạo); cột không có = tất cả
+  // Ô tìm kiếm phía trên (chốt 30/10): vào menu KHÔNG tự tải dữ liệu — chọn điều kiện rồi bấm "Tìm kiếm" (không chọn gì = cả tháng)
+  const FORM0 = { shop: null, kho: null, loai_yc: null, product: "", from: "", to: "", q: "" };
+  const [form, setForm] = useState(FORM0);
+  const [searched, setSearched] = useState(false);
+  const [searchTick, setSearchTick] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [data, setData] = useState({ total: 0, rows: [] });
@@ -65,26 +70,41 @@ export default function XknkEhoPage() {
     nguoi_tao: { optsKey: "nguoi_tao", label: (o) => o.ten, code: (o) => o.ten, param: "creators", none: "__none__", menu: 300 },
   };
   const colOptions = (key) => (opts[COLS[key].optsKey] || []).map((o) => ({ value: COLS[key].label(o), count: o.so_dong }));
-  function setColFilter(key, set) { // set = Set nhãn được tick, hoặc null = tất cả
+  function paramOf(key, set) { // set = Set nhãn được tick, hoặc null = tất cả -> giá trị gửi lên server
     const c = COLS[key];
+    if (!set) return c.csv ? "" : [];
+    if (set.size === 0) return c.csv ? c.none : [c.none];
+    const codes = (opts[c.optsKey] || []).filter((o) => set.has(c.label(o))).map((o) => c.code(o));
+    return c.csv ? codes.join(",") : codes;
+  }
+  function setColFilter(key, set) { // bộ lọc ở tiêu đề cột: áp dụng ngay (bảng chỉ hiện sau khi đã bấm Tìm kiếm)
     setColSel((o) => { const n = { ...o }; if (set) n[key] = set; else delete n[key]; return n; });
-    let value;
-    if (!set) value = c.csv ? "" : [];
-    else if (set.size === 0) value = c.csv ? c.none : [c.none];
-    else {
-      const codes = (opts[c.optsKey] || []).filter((o) => set.has(c.label(o))).map((o) => c.code(o));
-      value = c.csv ? codes.join(",") : codes;
-    }
-    setF((o) => ({ ...o, [c.param]: value }));
+    setF((o) => ({ ...o, [COLS[key].param]: paramOf(key, set) }));
     setPage(1);
   }
   const colFilterActive = Object.keys(colSel).length > 0;
   function clearColFilters() {
     setColSel({});
-    setF((o) => ({ ...o, source_types: "", status_names: [], gri_types: [], shop_codes: [], whs_names: [], unit_names: [], creators: [] }));
+    setF((o) => ({ ...o, status_names: [], gri_types: [], unit_names: [], creators: [] }));
     setPage(1);
   }
+  const setFormKey = (k, v) => setForm((o) => ({ ...o, [k]: v }));
+  function doSearch() {
+    if (form.from && form.to && form.from > form.to) { setError("Từ ngày phải trước hoặc bằng Đến ngày."); return; }
+    setError("");
+    setF((o) => ({
+      ...o, q: form.q.trim(), product: form.product.trim(), date_from: form.from, date_to: form.to,
+      shop_codes: paramOf("shop", form.shop), whs_names: paramOf("kho", form.kho), source_types: paramOf("loai_yc", form.loai_yc),
+    }));
+    setPage(1);
+    setSearched(true);
+    setSearchTick((t) => t + 1);
+  }
+  function resetSearch() { // đổi tháng / bấm Xóa: về trạng thái chưa tìm
+    setForm(FORM0); setColSel({}); setF(F0); setPage(1); setSearched(false); setData({ total: 0, rows: [] }); setError("");
+  }
   const filterBtn = (key) => <ColumnMultiFilter compact options={colOptions(key)} selected={colSel[key] || null} onChange={(set) => setColFilter(key, set)} menuWidth={COLS[key].menu || 300} />;
+  const formFilter = (key, width) => <ColumnMultiFilter options={colOptions(key)} selected={form[key]} onChange={(set) => setFormKey(key, set)} width={width} menuWidth={COLS[key].menu || 300} />;
 
   function loadMonths(selectFirst) {
     xknkEhoMonths()
@@ -97,25 +117,20 @@ export default function XknkEhoPage() {
 
   useEffect(() => {
     if (!month) return;
-    clearColFilters();
+    resetSearch();
     xknkEhoFilters(month).then(setOpts).catch(() => {});
   }, [month]);
 
+  // Chỉ tải dữ liệu SAU KHI bấm "Tìm kiếm" (searchTick đổi); sau đó đổi trang / bộ lọc ở tiêu đề cột thì tải lại ngay
   useEffect(() => {
-    if (!month) return;
+    if (!month || !searched) return;
     setLoading(true);
     setError("");
     xknkEhoRows({ month, ...f, page, page_size: pageSize })
       .then(setData)
       .catch((err) => { setError(err.message); setData({ total: 0, rows: [] }); })
       .finally(() => setLoading(false));
-  }, [month, f, page, pageSize]);
-
-  // gõ tìm kiếm -> áp dụng sau 400ms
-  useEffect(() => {
-    const t = setTimeout(() => { setF((o) => (o.q === qInput.trim() ? o : { ...o, q: qInput.trim() })); setPage(1); }, 400);
-    return () => clearTimeout(t);
-  }, [qInput]);
+  }, [month, f, page, pageSize, searched, searchTick]);
 
   // Xuất Excel đúng tháng đang xem (kèm bộ lọc đang áp dụng)
   async function exportExcel() {
@@ -169,12 +184,31 @@ export default function XknkEhoPage() {
           </div>
         </div>
         <div className="card-body" style={{ padding: "12px 16px" }}>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
-            <input className="finput" placeholder="Mã phiếu / SKU / Tên SP" value={qInput} onChange={(e) => setQInput(e.target.value)} style={{ width: 260 }} />
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 12, padding: "12px 14px", background: "#F7FAFF", border: "1px solid var(--border)", borderRadius: 8 }}
+            onKeyDown={(e) => { if (e.key === "Enter" && e.target.tagName === "INPUT" && !String(e.target.placeholder).startsWith("Tìm trong danh sách")) doSearch(); }}>
+            <div><label style={lbl}>Shop</label>{formFilter("shop", 230)}</div>
+            <div><label style={lbl}>Loại kho</label>{formFilter("kho", 170)}</div>
+            <div><label style={lbl}>Loại yêu cầu</label>{formFilter("loai_yc", 230)}</div>
+            <div><label style={lbl}>Sản phẩm (mã sản phẩm)</label>
+              <input className="finput" placeholder="VD 00050118 (nhiều mã: cách nhau dấu phẩy)" value={form.product} onChange={(e) => setFormKey("product", e.target.value)} style={{ width: 260 }} />
+            </div>
+            <div><label style={lbl}>Mã phiếu</label>
+              <input className="finput" placeholder="GR… / GI…" value={form.q} onChange={(e) => setFormKey("q", e.target.value)} style={{ width: 140 }} />
+            </div>
+            <div><label style={lbl}>Ngày tạo từ ngày</label>
+              <input type="date" className="finput" value={form.from} min={month ? `${month}-01` : undefined} max={month ? `${month}-31` : undefined} onChange={(e) => setFormKey("from", e.target.value)} />
+            </div>
+            <div><label style={lbl}>Đến ngày</label>
+              <input type="date" className="finput" value={form.to} min={month ? `${month}-01` : undefined} max={month ? `${month}-31` : undefined} onChange={(e) => setFormKey("to", e.target.value)} />
+            </div>
+            <button className="login-btn" style={{ width: "auto", padding: "8px 22px", opacity: loading || !month ? 0.6 : 1 }} disabled={loading || !month} onClick={doSearch}>{loading ? "Đang tìm..." : "🔍 Tìm kiếm"}</button>
+            <button className="fbtn" onClick={resetSearch} disabled={loading}>Xóa</button>
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12, alignItems: "center" }}>
             {colFilterActive && <button className="fbtn" onClick={clearColFilters}>✕ Bỏ lọc cột</button>}
-            <span style={{ alignSelf: "center", fontSize: 12.5, color: "var(--text-600)" }}>{loading ? "Đang tải..." : `${(data.total || 0).toLocaleString("vi-VN")} dòng`}</span>
-            <button className="fbtn" style={{ marginLeft: "auto" }} disabled={!!exp || !month || !(data.total > 0)} onClick={exportExcel}
-              title="Xuất toàn bộ dữ liệu của tháng đang xem (theo bộ lọc hiện tại) ra file Excel">
+            <span style={{ fontSize: 12.5, color: "var(--text-600)" }}>{!searched ? "Chọn điều kiện rồi bấm Tìm kiếm (không chọn gì = toàn bộ dữ liệu của tháng)" : loading ? "Đang tải..." : `${(data.total || 0).toLocaleString("vi-VN")} dòng`}</span>
+            <button className="fbtn" style={{ marginLeft: "auto" }} disabled={!!exp || !month || !searched || !(data.total > 0)} onClick={exportExcel}
+              title="Xuất toàn bộ kết quả tìm kiếm của tháng đang xem (theo bộ lọc hiện tại) ra file Excel">
               {exp ? (exp.phase === "saving" ? "Đang đóng gói file..." : exp.phase === "downloading" ? "Đang tải về..." : `Đang tạo file... ${(exp.done || 0).toLocaleString("vi-VN")}/${(exp.total || 0).toLocaleString("vi-VN")}`) : "📥 Xuất Excel"}
             </button>
           </div>
@@ -184,11 +218,14 @@ export default function XknkEhoPage() {
           )}
           {error && <div className="placeholder-box" style={{ color: "var(--danger)" }}>{error}</div>}
 
+          {!searched ? (
+            <div className="placeholder-box" style={{ textAlign: "center", color: "var(--text-400)" }}>Chưa tìm kiếm — chọn điều kiện ở trên rồi bấm <b>Tìm kiếm</b> để xem dữ liệu.</div>
+          ) : (<>
           <div style={{ overflowX: "auto" }}>
             <table style={{ minWidth: 1700, fontSize: 12.5 }}>
               <thead>
                 <tr>
-                  {[["STT"], ["Trạng thái", "status"], ["Mã phiếu"], ["Loại phiếu", "loai_phieu"], ["Loại yêu cầu", "loai_yc"], ["Shop", "shop"], ["Kho", "kho"], ["Sản phẩm"], ["Số lô - HSD"], ["Số lượng"], ["Đơn vị tính", "don_vi"], ["Ngày tạo phiếu"], ["Người tạo phiếu", "nguoi_tao"], ["Ghi chú"]].map(([h, key]) => (
+                  {[["STT"], ["Trạng thái", "status"], ["Mã phiếu"], ["Loại phiếu", "loai_phieu"], ["Loại yêu cầu"], ["Shop"], ["Kho"], ["Sản phẩm"], ["Số lô - HSD"], ["Số lượng"], ["Đơn vị tính", "don_vi"], ["Ngày tạo phiếu"], ["Người tạo phiếu", "nguoi_tao"], ["Ghi chú"]].map(([h, key]) => (
                     <FilterHeaderTh key={h} label={h} filter={key ? filterBtn(key) : null} style={{ fontSize: 10.5, paddingTop: 8, paddingBottom: 8, paddingLeft: key ? 24 : 8, paddingRight: key ? 26 : 8 }} />
                   ))}
                 </tr>
@@ -237,6 +274,7 @@ export default function XknkEhoPage() {
             <span>Đi đến trang</span>
             <input className="finput" value={gotoInput} onChange={(e) => setGotoInput(e.target.value.replace(/\D/g, ""))} onKeyDown={(e) => { if (e.key === "Enter" && gotoInput) { setPage(Math.min(totalPages, Math.max(1, Number(gotoInput)))); setGotoInput(""); } }} style={{ width: 60 }} />
           </div>
+          </>)}
         </div>
       </div>
     </Layout>
