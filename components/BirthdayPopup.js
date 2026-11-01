@@ -4,12 +4,15 @@ import { getUser, listUpcomingBirthdays } from "../lib/api";
 // Popup chúc mừng sinh nhật góc dưới bên phải (rộng ~14% màn hình) — hiện từ
 // D-2 tới hết ngày D (D = ngày sinh nhật, theo trường "Ngày sinh" ở Quản lý
 // tài khoản), báo cho mọi người TRỪ chính người có sinh nhật.
+// Khi có người sắp sinh nhật (D-2..D) thì popup liệt kê luôn TẤT CẢ người có sinh nhật trong cùng tháng (chốt 01/11): người sắp
+// tới được làm nổi bật (noi_bat), người đã qua sinh nhật mờ đi + "Đã qua", người còn xa hơn hiện "Còn N ngày".
 // Tần suất giống popup cảnh báo trễ hạn kiểm kê: mỗi lần ĐĂNG NHẬP hiện 1 lần
 // — popup ở lại khi chuyển trang, bấm đóng thì ẩn tới lần đăng nhập sau (cờ ở
 // sessionStorage theo user id, lib/api.js::saveSession xoá cờ khi đăng nhập).
 const flagKey = (userId) => `ksnb_sinh_nhat_checked_${userId}`;
 
 function whenText(daysLeft) {
+  if (daysLeft < 0) return "Đã qua";
   if (daysLeft === 0) return "Hôm nay";
   if (daysLeft === 1) return "Ngày mai";
   return `Còn ${daysLeft} ngày`;
@@ -57,19 +60,22 @@ export default function BirthdayPopup() {
         <button onClick={handleClose} style={closeStyle} aria-label="Đóng">×</button>
       </div>
       <div style={{ padding: "10px 14px 14px" }}>
-        {items.map((b) => (
-          <div key={b.id} style={rowStyle}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: 13.5 }}>{b.full_name}</div>
-              <div style={{ fontSize: 12, color: "var(--text-600)" }}>
-                {b.position ? `${b.position} · ` : ""}{formatDdMm(b.ngay_sinh_nhat)}
+        {items.map((b) => {
+          const past = b.days_left < 0;
+          return (
+            <div key={b.id} style={{ ...rowStyle, ...(b.noi_bat ? rowHotStyle : {}), ...(past ? { opacity: 0.55 } : {}) }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: b.noi_bat ? 700 : 500, fontSize: 13.5 }}>{b.noi_bat ? "🎂 " : ""}{b.full_name}</div>
+                <div style={{ fontSize: 12, color: "var(--text-600)" }}>
+                  {b.position ? `${b.position} · ` : ""}{formatDdMm(b.ngay_sinh_nhat)}
+                </div>
               </div>
+              <span style={{ ...pillStyle, ...(b.noi_bat ? pillHotStyle : {}), ...(b.days_left === 0 ? pillTodayStyle : {}), ...(past || !b.noi_bat ? pillQuietStyle : {}) }}>
+                {b.days_left === 0 ? "🎉 " : ""}{whenText(b.days_left)}
+              </span>
             </div>
-            <span style={{ ...pillStyle, ...(b.days_left === 0 ? pillTodayStyle : {}) }}>
-              {b.days_left === 0 ? "🎉 " : ""}{whenText(b.days_left)}
-            </span>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -100,4 +106,7 @@ const pillStyle = {
   flexShrink: 0, fontSize: 11.5, fontWeight: 600, padding: "3px 10px", borderRadius: 999,
   background: "#EAF1FC", color: "#1F4E79", whiteSpace: "nowrap",
 };
+const rowHotStyle = { background: "#FFF4F8", margin: "0 -14px", padding: "8px 14px", borderLeft: "3px solid #E0457B" };
+const pillHotStyle = { background: "#FDE7EF", color: "#B0245A" };
+const pillQuietStyle = { background: "#F1F3F5", color: "#667085" };
 const pillTodayStyle = { background: "#FDE7EF", color: "#B0245A" };
