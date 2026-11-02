@@ -50,26 +50,45 @@ export default function KiemKeLabPage() {
 
   // ---- Import ----
   const importRef = useRef(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newFile, setNewFile] = useState(null);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState("");
   const [created, setCreated] = useState(null);
   const [templateBusy, setTemplateBusy] = useState(false);
 
-  async function handleImportFile(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImporting(true);
+  function openCreate() {
+    setShowCreate(true);
+    setNewName("");
+    setNewFile(null);
     setImportError("");
     setCreated(null);
+  }
+  function closeCreate() {
+    if (importing) return;
+    setShowCreate(false);
+  }
+  function handlePickFile(e) {
+    const file = e.target.files?.[0] || null;
+    setNewFile(file);
+    setImportError("");
+    if (file && !newName.trim()) setNewName(file.name.replace(/\.xlsx?$/i, ""));
+  }
+  async function handleCreate() {
+    if (!newName.trim()) { setImportError("Vui lòng nhập tên phiếu kiểm kê"); return; }
+    if (!newFile) { setImportError("Vui lòng đính kèm file Excel tồn kho cần kiểm"); return; }
+    setImporting(true);
+    setImportError("");
     try {
-      const p = await importKiemKeLabExcel(file, "");
+      const p = await importKiemKeLabExcel(newFile, newName.trim());
+      setShowCreate(false);
       setCreated(p);
       reload();
     } catch (err) {
-      setImportError(err.message || "Import thất bại");
+      setImportError(err.message || "Tạo phiếu thất bại");
     } finally {
       setImporting(false);
-      if (importRef.current) importRef.current.value = "";
     }
   }
   async function handleTemplate() {
@@ -135,7 +154,7 @@ export default function KiemKeLabPage() {
     <Layout crumb="Kiểm kê LAB">
       <div className="page-head">
         <h1>🧪 Kiểm kê LAB</h1>
-        <p>Kiểm kê tay (nhập số lượng) cho sản phẩm không có barcode. Import file tồn kho cần kiểm để tạo phiếu — hệ thống sinh link công khai (không cần đăng nhập) gửi cho người kiểm.</p>
+        <p>Kiểm kê tay (nhập số lượng) cho sản phẩm không có barcode. Bấm “Tạo phiếu kiểm kê”, đặt tên phiếu và đính kèm file tồn kho cần kiểm — hệ thống sinh link công khai (không cần đăng nhập) gửi cho người kiểm.</p>
       </div>
 
       <div className="card">
@@ -143,16 +162,14 @@ export default function KiemKeLabPage() {
           <h3>Danh sách phiếu kiểm kê</h3>
           <div style={{ display: "flex", gap: 8 }}>
             <button className="upload-btn" disabled={templateBusy} onClick={handleTemplate}>{templateBusy ? "Đang tải..." : "📄 Tải template"}</button>
-            <input ref={importRef} type="file" accept=".xlsx" style={{ display: "none" }} onChange={handleImportFile} />
-            <button className="upload-btn" disabled={importing} onClick={() => importRef.current?.click()}>{importing ? "Đang import..." : "📥 Import Excel"}</button>
+            <button className="upload-btn" onClick={openCreate}>➕ Tạo phiếu kiểm kê</button>
           </div>
         </div>
         <div className="card-body">
           <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 14, lineHeight: 1.6 }}>
-            File gồm các cột <b>Mã hàng / Tên hàng / Đơn vị / Số lượng tồn / Phân loại tài sản</b> (mỗi lần import 1 file = 1 phiếu mới, tên phiếu lấy theo tên file).
+            File gồm các cột <b>Mã hàng / Tên hàng / Đơn vị / Số lượng tồn / Phân loại tài sản</b> (mỗi lần tạo = 1 file = 1 phiếu mới, mã phiếu tăng dần LAB-0001, LAB-0002...).
             Người kiểm mở link, gõ mã hoặc tên sản phẩm rồi nhấn Enter để tìm, nhập số lượng kiểm kê và bấm Lưu.
           </p>
-          {importError && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14 }}>❌ {importError}</div>}
           {loadError && <div className="placeholder-box">Không tải được dữ liệu: {loadError}</div>}
           {!loadError && loading && <div className="placeholder-box">Đang tải...</div>}
           {!loadError && !loading && (
@@ -173,7 +190,7 @@ export default function KiemKeLabPage() {
                 <tbody>
                   {list.map((p) => (
                     <tr key={p.id}>
-                      <td>#{p.id}</td>
+                      <td style={{ whiteSpace: "nowrap" }}><b>{p.ma_phieu}</b></td>
                       <td style={{ textAlign: "left" }}>{p.ten_phieu || "-"}</td>
                       <td>{p.created_by_name || "-"}</td>
                       <td>{fmtDateTime(p.created_at)}</td>
@@ -193,7 +210,7 @@ export default function KiemKeLabPage() {
                       </td>
                     </tr>
                   ))}
-                  {list.length === 0 && <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-400)" }}>Chưa có phiếu nào — bấm “Import Excel” để tạo phiếu đầu tiên</td></tr>}
+                  {list.length === 0 && <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--text-400)" }}>Chưa có phiếu nào — bấm “Tạo phiếu kiểm kê” để tạo phiếu đầu tiên</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -209,7 +226,7 @@ export default function KiemKeLabPage() {
             {!viewError && !detail && <div style={{ fontSize: 13, color: "var(--text-600)" }}>Đang tải...</div>}
             {detail && (
               <>
-                <h3 style={{ fontSize: 16, fontWeight: 800, color: "var(--navy-900)", marginBottom: 4 }}>Phiếu #{detail.id} — {detail.ten_phieu}</h3>
+                <h3 style={{ fontSize: 16, fontWeight: 800, color: "var(--navy-900)", marginBottom: 4 }}>Phiếu {detail.ma_phieu} — {detail.ten_phieu}</h3>
                 <div style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 12 }}>
                   Tạo lúc {fmtDateTime(detail.created_at)} bởi {detail.created_by_name || "-"} {" · "}
                   <span className={`pill ${detail.trang_thai === "hoan_tat" ? "ok" : "warn"}`}>{detail.trang_thai === "hoan_tat" ? "Đã hoàn tất" : "Đang kiểm"}</span>
@@ -274,11 +291,37 @@ export default function KiemKeLabPage() {
         </div>
       )}
 
-      {/* Popup kết quả import */}
+      {/* Popup tạo phiếu */}
+      {showCreate && (
+        <div style={overlayStyle} onClick={closeCreate}>
+          <div style={{ ...modalStyle, width: 520 }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: "var(--navy-900)", marginBottom: 14 }}>➕ Tạo phiếu kiểm kê</h3>
+            <label style={{ fontSize: 12.5, fontWeight: 700, display: "block", marginBottom: 4 }}>Tên phiếu kiểm kê <span style={{ color: "var(--danger)" }}>*</span></label>
+            <input className="finput" style={{ width: "100%", marginBottom: 14 }} placeholder="VD: Kiểm kê LAB tháng 11" value={newName} maxLength={200}
+              onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }} autoFocus />
+            <label style={{ fontSize: 12.5, fontWeight: 700, display: "block", marginBottom: 4 }}>File Excel tồn kho cần kiểm <span style={{ color: "var(--danger)" }}>*</span></label>
+            <input ref={importRef} type="file" accept=".xlsx" style={{ display: "none" }} onChange={handlePickFile} />
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 6 }}>
+              <button className="fbtn" disabled={importing} onClick={() => importRef.current?.click()}>📎 Đính kèm file Excel</button>
+              <span style={{ fontSize: 12.5, color: newFile ? "var(--text-900)" : "var(--text-400)", wordBreak: "break-all" }}>{newFile ? newFile.name : "Chưa chọn file"}</span>
+            </div>
+            <p style={{ fontSize: 11.5, color: "var(--text-600)", marginBottom: 14, lineHeight: 1.5 }}>
+              File gồm các cột Mã hàng / Tên hàng / Đơn vị / Số lượng tồn / Phân loại tài sản. Chưa có file mẫu? Đóng popup và bấm “Tải template”.
+            </p>
+            {importError && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 12 }}>❌ {importError}</div>}
+            <div style={{ display: "flex", gap: 10 }}>
+              <button className="login-btn" style={{ width: "auto", padding: "9px 20px" }} disabled={importing} onClick={handleCreate}>{importing ? "Đang tạo..." : "Tạo phiếu"}</button>
+              <button className="fbtn" disabled={importing} onClick={closeCreate}>Huỷ</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Popup kết quả tạo phiếu */}
       {created && (
         <div style={overlayStyle} onClick={() => setCreated(null)}>
           <div style={{ ...modalStyle, width: 560 }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ fontSize: 16, fontWeight: 800, color: "#3E7A2A", marginBottom: 6 }}>✅ Đã tạo phiếu #{created.id}</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: "#3E7A2A", marginBottom: 6 }}>✅ Đã tạo phiếu {created.ma_phieu}</h3>
             <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 12 }}>
               {created.ten_phieu} · {created.so_sp} sản phẩm. Gửi link này cho người kiểm (không cần đăng nhập):
             </p>
