@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import Head from "next/head";
 import {
   getKiemKeLabPublic, searchKiemKeLabPublic, getKiemKeLabPublicItem, saveKiemKeLabPublicItem,
-  listKiemKeLabPublicDaKiem, hoanTatKiemKeLabPublic, xoaKiemKeLabPublicItem,
+  listKiemKeLabPublicDaKiem, listKiemKeLabPublicChuaKiem, hoanTatKiemKeLabPublic, xoaKiemKeLabPublicItem,
 } from "../../lib/api";
 
 // Trang CÔNG KHAI (chốt 02/11) — KHÔNG dùng Layout/Sidebar, KHÔNG cần đăng nhập. Người kiểm kê sản phẩm LAB (không có barcode)
@@ -61,7 +61,9 @@ export default function KiemKeLabPublicPage() {
   const [toast, setToast] = useState("");
   const [history, setHistory] = useState(null); // lịch sử kiểm kê (mới nhất trước) | null (đang tải)
   const [deletingId, setDeletingId] = useState(null);
-  const [hq, setHq] = useState(""); // ô tìm trong lịch sử kiểm kê (mã / tên)
+  const [hq, setHq] = useState(""); // ô tìm trong danh sách đang mở (mã / tên / vị trí)
+  const [panel, setPanel] = useState(null); // null (ẩn) | "ls" lịch sử kiểm kê | "chua" sản phẩm chưa kiểm | "lech" sản phẩm lệch tồn
+  const [chuaKiem, setChuaKiem] = useState(null); // danh sách sản phẩm chưa kiểm (tải khi mở) | null
   const [scanOpen, setScanOpen] = useState(false);
   const [camError, setCamError] = useState("");
   const videoRef = useRef(null);
@@ -83,7 +85,14 @@ export default function KiemKeLabPublicPage() {
   function loadHistory() {
     if (!token) return;
     listKiemKeLabPublicDaKiem(token).then((r) => setHistory(r.items)).catch(() => {});
+    setChuaKiem(null); // số liệu đã đổi -> tải lại danh sách chưa kiểm khi cần
   }
+
+  useEffect(() => {
+    if (panel === "chua" && chuaKiem === null && token) {
+      listKiemKeLabPublicChuaKiem(token).then((r) => setChuaKiem(r.items)).catch(() => setChuaKiem([]));
+    }
+  }, [panel, chuaKiem, token]);
 
   // ---- Camera quét barcode ----
   // Dùng @zxing/browser + TRY_HARDER (html5-qrcode đọc mã vạch 1D khi quét trực tiếp rất kém — đã thử, không ra mã Code128).
@@ -229,6 +238,7 @@ export default function KiemKeLabPublicPage() {
       const r = await xoaKiemKeLabPublicItem(token, it.id);
       setPhieu(r.phieu);
       setHistory((h) => (h || []).filter((x) => x.id !== it.id));
+      setChuaKiem(null);
     } catch (e) {
       alert(e.message || "Xoá thất bại");
     } finally {
@@ -245,8 +255,18 @@ export default function KiemKeLabPublicPage() {
 
   // Màn tìm kiếm: khung cố định theo chiều cao màn hình — phần đầu + ô tìm kiếm luôn treo trên cùng, chỉ "Lịch sử kiểm kê" có thanh cuộn riêng
   const hqn = normVi(hq).trim();
-  const histShown = (history || []).filter((it) => !hqn || normVi(`${it.ma_hang} ${it.ten_hang || ""} ${it.vi_tri || ""}`).includes(hqn));
-  const fixedView = !!phieu && view === "search";
+  const lechOf = (it) => (it.da_kiem ? Math.round(((it.sl_kiem || 0) - (it.ton_kho || 0)) * 1000) / 1000 : 0);
+  const lechList = (history || []).filter((it) => lechOf(it) !== 0);
+  const baseList = panel === "chua" ? chuaKiem : panel === "lech" ? (history === null ? null : lechList) : history;
+  const histShown = (baseList || []).filter((it) => !hqn || normVi(`${it.ma_hang} ${it.ten_hang || ""} ${it.vi_tri || ""}`).includes(hqn));
+  const soChua = phieu ? Math.max((phieu.so_sp || 0) - (phieu.so_da_kiem || 0), 0) : 0;
+  const PANELS = [
+    ["ls", "🕘 Lịch sử kiểm kê", history ? history.length : phieu?.so_da_kiem],
+    ["chua", "📭 Sản phẩm chưa kiểm", soChua],
+    ["lech", "⚖️ Sản phẩm lệch tồn", history ? lechList.length : null],
+  ];
+  const panelTitle = (PANELS.find((x) => x[0] === panel) || [])[1];
+  const fixedView = !!phieu && view === "search" && !!panel;
   const pct = phieu && phieu.so_sp ? Math.round((phieu.so_da_kiem / phieu.so_sp) * 100) : 0;
 
   return (
@@ -316,32 +336,69 @@ export default function KiemKeLabPublicPage() {
             )}
 
             {view === "search" && (
+              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                {PANELS.map(([k, label, n]) => (
+                  <button
+                    key={k} type="button" onClick={() => { setPanel(panel === k ? null : k); setHq(""); }}
+                    style={{ ...tabBtn, ...(panel === k ? tabBtnOn : {}) }}
+                  >
+                    <span style={{ display: "block", fontSize: 13, fontWeight: 700, lineHeight: 1.25 }}>{label}</span>
+                    <span style={{ display: "block", fontSize: 15, fontWeight: 800, marginTop: 2 }}>{n === null || n === undefined ? "…" : n}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {view === "search" && panel && (
               <div style={{ ...card, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexShrink: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: "#16365C", whiteSpace: "nowrap" }}>🕘 Lịch sử kiểm kê{history ? ` (${hq.trim() ? `${histShown.length}/` : ""}${history.length})` : ""}</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#16365C", whiteSpace: "nowrap" }}>{panelTitle}{baseList ? ` (${hqn ? `${histShown.length}/` : ""}${baseList.length})` : ""}</div>
                   <input
-                    value={hq} onChange={(e) => setHq(e.target.value)} placeholder="🔍 Tìm mã / tên / vị trí" autoComplete="off" autoCapitalize="none"
+                    value={hq} onChange={(e) => setHq(e.target.value)} placeholder="🔍 Tìm mã, tên, vị trí" autoComplete="off" autoCapitalize="none"
                     style={{ ...inputStyle, flex: 1, minWidth: 0, padding: "6px 10px", fontSize: 16, borderRadius: 8 }}
                   />
                 </div>
-                {history === null && <div style={{ color: "#667085", fontSize: 14 }}>Đang tải...</div>}
-                {history && history.length > 0 && histShown.length === 0 && <div style={{ color: "#667085", fontSize: 14 }}>Không có dòng nào khớp “{hq.trim()}”.</div>}
-                {history && history.length === 0 && <div style={{ color: "#667085", fontSize: 14 }}>Chưa kiểm sản phẩm nào — bấm 📷 để quét mã hoặc gõ mã/tên để tìm sản phẩm.</div>}
+                {baseList === null && <div style={{ color: "#667085", fontSize: 14 }}>Đang tải...</div>}
+                {baseList && baseList.length > 0 && histShown.length === 0 && <div style={{ color: "#667085", fontSize: 14 }}>Không có dòng nào khớp “{hq.trim()}”.</div>}
+                {baseList && baseList.length === 0 && (
+                  <div style={{ color: "#667085", fontSize: 14 }}>
+                    {panel === "ls" ? "Chưa kiểm sản phẩm nào — bấm 📷 để quét mã hoặc gõ mã/tên để tìm sản phẩm."
+                      : panel === "chua" ? "🎉 Đã kiểm hết tất cả sản phẩm."
+                        : "Không có sản phẩm nào lệch tồn."}
+                  </div>
+                )}
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1, minHeight: 0, overflowY: "auto", overscrollBehavior: "contain", paddingRight: 2 }}>
-                  {histShown.map((it) => (
-                    <div key={it.id} style={{ ...resultBtn, display: "flex", gap: 8, alignItems: "center", cursor: "default" }}>
-                      <div style={{ minWidth: 0, flex: 1, cursor: done ? "default" : "pointer" }} onClick={() => { if (!done) openItem(it.id); }}>
-                        <div style={{ fontSize: 12, color: "#667085" }}>{it.ma_hang} · {fmtTime(it.kiem_at)}</div>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: "#16365C" }}>{it.ten_hang || "(không có tên)"}</div>
-                        {it.vi_tri && <div style={{ fontSize: 12, color: "#1F4E79", marginTop: 2, wordBreak: "break-word" }}>📍 {it.vi_tri}</div>}
-                        {it.ghi_chu && <div style={{ fontSize: 12, color: "#8A5A00", marginTop: 2, wordBreak: "break-word" }}>📝 {it.ghi_chu}</div>}
+                  {histShown.map((it) => {
+                    const lech = lechOf(it);
+                    const bg = !it.da_kiem || lech === 0 ? {} : lech > 0 ? { background: "#E3F0FF", borderColor: "#B7D4F7" } : { background: "#FDE8E6", borderColor: "#F3C0BB" };
+                    return (
+                      <div key={it.id} style={{ ...resultBtn, ...bg, display: "flex", gap: 8, alignItems: "center", cursor: "default" }}>
+                        <div style={{ minWidth: 0, flex: 1, cursor: done ? "default" : "pointer" }} onClick={() => { if (!done) openItem(it.id); }}>
+                          <div style={{ fontSize: 12, color: "#667085" }}>{it.ma_hang}{it.da_kiem ? ` · ${fmtTime(it.kiem_at)}` : ""}</div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: "#16365C" }}>{it.ten_hang || "(không có tên)"}</div>
+                          {it.vi_tri && <div style={{ fontSize: 12, color: "#1F4E79", marginTop: 2, wordBreak: "break-word" }}>📍 {it.vi_tri}</div>}
+                          {it.ghi_chu && <div style={{ fontSize: 12, color: "#8A5A00", marginTop: 2, wordBreak: "break-word" }}>📝 {it.ghi_chu}</div>}
+                        </div>
+                        {it.da_kiem ? (
+                          <div style={{ flexShrink: 0, textAlign: "right", lineHeight: 1.3 }}>
+                            <div style={{ fontSize: 17, fontWeight: 800 }}>{fmtNum(it.sl_kiem)} <span style={{ fontSize: 11.5, fontWeight: 500, color: "#667085" }}>{it.don_vi}</span></div>
+                            <div style={{ fontSize: 11.5, color: "#667085" }}>Tồn: {fmtNum(it.ton_kho)}</div>
+                            <div style={{ fontSize: 12.5, fontWeight: 800, color: lech === 0 ? "#3E7A2A" : lech > 0 ? "#1F6FD6" : "#C0392B" }}>
+                              {lech === 0 ? "Khớp" : `Lệch ${lech > 0 ? "+" : ""}${fmtNum(lech)}`}
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ flexShrink: 0, textAlign: "right", lineHeight: 1.3 }}>
+                            <div style={{ fontSize: 11.5, color: "#667085" }}>Tồn kho</div>
+                            <div style={{ fontSize: 16, fontWeight: 800 }}>{fmtNum(it.ton_kho)} <span style={{ fontSize: 11.5, fontWeight: 500, color: "#667085" }}>{it.don_vi}</span></div>
+                          </div>
+                        )}
+                        {it.da_kiem && !done && (
+                          <button style={btnDel} disabled={deletingId === it.id} onClick={() => doXoaDong(it)} aria-label="Xoá dòng kiểm kê">{deletingId === it.id ? "…" : "🗑"}</button>
+                        )}
                       </div>
-                      <div style={{ fontSize: 17, fontWeight: 800, flexShrink: 0, textAlign: "right" }}>{fmtNum(it.sl_kiem)}<div style={{ fontSize: 11.5, fontWeight: 500, color: "#667085" }}>{it.don_vi}</div></div>
-                      {!done && (
-                        <button style={btnDel} disabled={deletingId === it.id} onClick={() => doXoaDong(it)} aria-label="Xoá dòng kiểm kê">{deletingId === it.id ? "…" : "🗑"}</button>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -458,6 +515,8 @@ export default function KiemKeLabPublicPage() {
   );
 }
 
+const tabBtn = { flex: 1, minWidth: 0, background: "#fff", color: "#1F4E79", border: "1.5px solid #C5D0E0", borderRadius: 12, padding: "9px 6px", cursor: "pointer", textAlign: "center", boxShadow: "0 2px 8px rgba(15,40,80,0.05)" };
+const tabBtnOn = { background: "#1F6FD6", color: "#fff", borderColor: "#1F6FD6" };
 const btnScan = { background: "#fff", color: "#1F4E79", border: "1.5px solid #1F6FD6", borderRadius: 10, padding: "0 12px", fontSize: 20, cursor: "pointer", flexShrink: 0 };
 const btnDel = { background: "#fff", border: "1.5px solid #F0C4C0", borderRadius: 10, padding: "8px 10px", fontSize: 16, cursor: "pointer", flexShrink: 0 };
 const scanOverlay = { position: "fixed", inset: 0, background: "rgba(8,16,32,0.96)", zIndex: 200, overflowY: "auto" };
