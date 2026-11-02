@@ -54,6 +54,7 @@ export default function KiemKeLabPublicPage() {
   const [qty, setQty] = useState("");
   const [note, setNote] = useState("");
   const [viTri, setViTri] = useState("");
+  const [viTriOpen, setViTriOpen] = useState(false); // mở danh sách gợi ý vị trí
   const [ghiDe, setGhiDe] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -162,6 +163,7 @@ export default function KiemKeLabPublicPage() {
         setQty(""); // lần kiểm mới: nhập số đếm thêm, hệ thống cộng dồn vào số đã kiểm trước đó
         setNote("");
         setViTri("");
+        setViTriOpen(false);
         setGhiDe(false);
         setView("detail");
       })
@@ -366,17 +368,33 @@ export default function KiemKeLabPublicPage() {
                   </div>
                 )}
                 <label style={lbl}>Vị trí kiểm kê <span style={{ fontWeight: 500, color: "#667085" }}>(không bắt buộc)</span></label>
-                <input
-                  value={viTri} onChange={(e) => setViTri(e.target.value)} disabled={done} maxLength={200}
-                  placeholder="Chọn gợi ý bên dưới hoặc tự nhập" autoComplete="off" style={{ ...inputStyle, fontSize: 16 }}
-                />
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "8px 0 14px" }}>
-                  {VI_TRI_GOI_Y.map((g) => {
-                    const on = viTri.trim().toLowerCase() === g.toLowerCase();
-                    return (
-                      <button key={g} type="button" disabled={done} onClick={() => setViTri(on ? "" : g)} style={on ? chipOn : chip}>{g}</button>
-                    );
-                  })}
+                <div style={{ position: "relative", marginBottom: 14 }}>
+                  <input
+                    value={viTri} onChange={(e) => setViTri(e.target.value)} onFocus={() => setViTriOpen(false)} disabled={done} maxLength={200}
+                    placeholder="Nhập hoặc chọn vị trí..." autoComplete="off" style={{ ...inputStyle, fontSize: 16, paddingRight: 54 }}
+                  />
+                  <button
+                    type="button" disabled={done} aria-label="Chọn vị trí gợi ý" onClick={() => setViTriOpen((o) => !o)}
+                    style={{ position: "absolute", right: 6, top: 6, bottom: 6, width: 40, border: "none", borderRadius: 8, background: viTriOpen ? "#CFE3FB" : "#E8F1FD", color: "#1F6FD6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: viTriOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}><path d="M5 8l5 5 5-5" /></svg>
+                  </button>
+                  {viTriOpen && (
+                    <>
+                      <div style={{ position: "fixed", inset: 0, zIndex: 19 }} onClick={() => setViTriOpen(false)} />
+                      <div style={{ position: "absolute", left: 0, right: 0, top: "calc(100% + 4px)", zIndex: 20, background: "#fff", border: "1.5px solid #C5D0E0", borderRadius: 10, boxShadow: "0 10px 24px rgba(15,40,80,0.18)", maxHeight: 280, overflowY: "auto" }}>
+                        {VI_TRI_GOI_Y.map((g) => {
+                          const on = viTri.trim().toLowerCase() === g.toLowerCase();
+                          return (
+                            <button
+                              key={g} type="button" onClick={() => { setViTri(on ? "" : g); setViTriOpen(false); }}
+                              style={{ display: "block", width: "100%", textAlign: "left", padding: "12px 14px", fontSize: 15, border: "none", borderBottom: "1px solid #EEF2F8", background: on ? "#E8F1FD" : "#fff", color: on ? "#1F6FD6" : "#16365C", fontWeight: on ? 700 : 500, cursor: "pointer" }}
+                            >{on ? "✓ " : ""}{g}</button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
                 </div>
                 <label style={lbl}>{item.da_kiem && !ghiDe ? "Số lượng kiểm thêm lần này" : "Số lượng kiểm kê"}{item.don_vi ? ` (${item.don_vi})` : ""}</label>
                 <input
@@ -440,8 +458,6 @@ export default function KiemKeLabPublicPage() {
   );
 }
 
-const chip = { background: "#F6F8FC", color: "#1F4E79", border: "1.5px solid #C5D0E0", borderRadius: 99, padding: "6px 11px", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left" };
-const chipOn = { ...chip, background: "#1F6FD6", color: "#fff", borderColor: "#1F6FD6" };
 const btnScan = { background: "#fff", color: "#1F4E79", border: "1.5px solid #1F6FD6", borderRadius: 10, padding: "0 12px", fontSize: 20, cursor: "pointer", flexShrink: 0 };
 const btnDel = { background: "#fff", border: "1.5px solid #F0C4C0", borderRadius: 10, padding: "8px 10px", fontSize: 16, cursor: "pointer", flexShrink: 0 };
 const scanOverlay = { position: "fixed", inset: 0, background: "rgba(8,16,32,0.96)", zIndex: 200, overflowY: "auto" };
