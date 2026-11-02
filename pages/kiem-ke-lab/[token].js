@@ -33,6 +33,11 @@ function beep() {
   } catch {}
 }
 const normVi = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/g, "d");
+// Gợi ý vị trí kiểm kê (chốt 02/11) — bấm chọn nhanh hoặc tự gõ; không bắt buộc.
+const VI_TRI_GOI_Y = [
+  "Phòng kho", "Tủ lạnh hóa chất", "Tủ âm sâu", "Tủ lạnh vắc xin có vách băng HBC-260",
+  "Tủ lạnh hóa chất miễn dịch", "Tủ lạnh HC sinh hóa + elisa + blot",
+];
 const fmtNum = (n) => (n === null || n === undefined ? "-" : Number(n).toLocaleString("vi-VN", { maximumFractionDigits: 3 }));
 
 export default function KiemKeLabPublicPage() {
@@ -48,6 +53,7 @@ export default function KiemKeLabPublicPage() {
   const [item, setItem] = useState(null);
   const [qty, setQty] = useState("");
   const [note, setNote] = useState("");
+  const [viTri, setViTri] = useState("");
   const [ghiDe, setGhiDe] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -155,6 +161,7 @@ export default function KiemKeLabPublicPage() {
         setItem(it);
         setQty(""); // lần kiểm mới: nhập số đếm thêm, hệ thống cộng dồn vào số đã kiểm trước đó
         setNote("");
+        setViTri("");
         setGhiDe(false);
         setView("detail");
       })
@@ -191,7 +198,7 @@ export default function KiemKeLabPublicPage() {
     setSaving(true);
     setErr("");
     try {
-      const r = await saveKiemKeLabPublicItem(token, item.id, n, note, ghiDe);
+      const r = await saveKiemKeLabPublicItem(token, item.id, n, note, ghiDe, viTri);
       setPhieu(r.phieu);
       setToast(`✅ Đã lưu: ${item.ten_hang || item.ma_hang} — ${item.da_kiem && !ghiDe ? `+${fmtNum(n)}, tổng đã kiểm ${fmtNum(r.item.sl_kiem)}` : fmtNum(r.item.sl_kiem)} ${item.don_vi || ""}`);
       setItem(null);
@@ -236,7 +243,7 @@ export default function KiemKeLabPublicPage() {
 
   // Màn tìm kiếm: khung cố định theo chiều cao màn hình — phần đầu + ô tìm kiếm luôn treo trên cùng, chỉ "Lịch sử kiểm kê" có thanh cuộn riêng
   const hqn = normVi(hq).trim();
-  const histShown = (history || []).filter((it) => !hqn || normVi(`${it.ma_hang} ${it.ten_hang || ""}`).includes(hqn));
+  const histShown = (history || []).filter((it) => !hqn || normVi(`${it.ma_hang} ${it.ten_hang || ""} ${it.vi_tri || ""}`).includes(hqn));
   const fixedView = !!phieu && view === "search";
   const pct = phieu && phieu.so_sp ? Math.round((phieu.so_da_kiem / phieu.so_sp) * 100) : 0;
 
@@ -311,7 +318,7 @@ export default function KiemKeLabPublicPage() {
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexShrink: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 800, color: "#16365C", whiteSpace: "nowrap" }}>🕘 Lịch sử kiểm kê{history ? ` (${hq.trim() ? `${histShown.length}/` : ""}${history.length})` : ""}</div>
                   <input
-                    value={hq} onChange={(e) => setHq(e.target.value)} placeholder="🔍 Tìm mã / tên..." autoComplete="off" autoCapitalize="none"
+                    value={hq} onChange={(e) => setHq(e.target.value)} placeholder="🔍 Tìm mã / tên / vị trí" autoComplete="off" autoCapitalize="none"
                     style={{ ...inputStyle, flex: 1, minWidth: 0, padding: "6px 10px", fontSize: 16, borderRadius: 8 }}
                   />
                 </div>
@@ -324,6 +331,7 @@ export default function KiemKeLabPublicPage() {
                       <div style={{ minWidth: 0, flex: 1, cursor: done ? "default" : "pointer" }} onClick={() => { if (!done) openItem(it.id); }}>
                         <div style={{ fontSize: 12, color: "#667085" }}>{it.ma_hang} · {fmtTime(it.kiem_at)}</div>
                         <div style={{ fontSize: 14, fontWeight: 600, color: "#16365C" }}>{it.ten_hang || "(không có tên)"}</div>
+                        {it.vi_tri && <div style={{ fontSize: 12, color: "#1F4E79", marginTop: 2, wordBreak: "break-word" }}>📍 {it.vi_tri}</div>}
                         {it.ghi_chu && <div style={{ fontSize: 12, color: "#8A5A00", marginTop: 2, wordBreak: "break-word" }}>📝 {it.ghi_chu}</div>}
                       </div>
                       <div style={{ fontSize: 17, fontWeight: 800, flexShrink: 0, textAlign: "right" }}>{fmtNum(it.sl_kiem)}<div style={{ fontSize: 11.5, fontWeight: 500, color: "#667085" }}>{it.don_vi}</div></div>
@@ -352,10 +360,24 @@ export default function KiemKeLabPublicPage() {
                   <div style={{ marginBottom: 12, padding: "10px 12px", background: "#FFF4D6", border: "1px solid #F0D58A", borderRadius: 10, color: "#6B4700" }}>
                     <div style={{ fontSize: 13 }}>Đã kiểm trước đó</div>
                     <div style={{ fontSize: 22, fontWeight: 800 }}>{fmtNum(item.sl_kiem)} <span style={{ fontSize: 13, fontWeight: 600 }}>{item.don_vi}</span></div>
+                    {item.vi_tri && <div style={{ fontSize: 13, marginTop: 2 }}>📍 {item.vi_tri}</div>}
                     {item.ghi_chu && <div style={{ fontSize: 13, marginTop: 2 }}>📝 {item.ghi_chu}</div>}
                     <div style={{ fontSize: 12.5, marginTop: 4 }}>Nhập số lượng kiểm <b>thêm</b> lần này — hệ thống sẽ <b>cộng dồn</b> vào số trên.</div>
                   </div>
                 )}
+                <label style={lbl}>Vị trí kiểm kê <span style={{ fontWeight: 500, color: "#667085" }}>(không bắt buộc)</span></label>
+                <input
+                  value={viTri} onChange={(e) => setViTri(e.target.value)} disabled={done} maxLength={200}
+                  placeholder="Chọn gợi ý bên dưới hoặc tự nhập" autoComplete="off" style={{ ...inputStyle, fontSize: 16 }}
+                />
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "8px 0 14px" }}>
+                  {VI_TRI_GOI_Y.map((g) => {
+                    const on = viTri.trim().toLowerCase() === g.toLowerCase();
+                    return (
+                      <button key={g} type="button" disabled={done} onClick={() => setViTri(on ? "" : g)} style={on ? chipOn : chip}>{g}</button>
+                    );
+                  })}
+                </div>
                 <label style={lbl}>{item.da_kiem && !ghiDe ? "Số lượng kiểm thêm lần này" : "Số lượng kiểm kê"}{item.don_vi ? ` (${item.don_vi})` : ""}</label>
                 <input
                   ref={qtyRef} value={qty} onChange={(e) => setQty(e.target.value)} disabled={done}
@@ -418,6 +440,8 @@ export default function KiemKeLabPublicPage() {
   );
 }
 
+const chip = { background: "#F6F8FC", color: "#1F4E79", border: "1.5px solid #C5D0E0", borderRadius: 99, padding: "6px 11px", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left" };
+const chipOn = { ...chip, background: "#1F6FD6", color: "#fff", borderColor: "#1F6FD6" };
 const btnScan = { background: "#fff", color: "#1F4E79", border: "1.5px solid #1F6FD6", borderRadius: 10, padding: "0 12px", fontSize: 20, cursor: "pointer", flexShrink: 0 };
 const btnDel = { background: "#fff", border: "1.5px solid #F0C4C0", borderRadius: 10, padding: "8px 10px", fontSize: 16, cursor: "pointer", flexShrink: 0 };
 const scanOverlay = { position: "fixed", inset: 0, background: "rgba(8,16,32,0.96)", zIndex: 200, overflowY: "auto" };
