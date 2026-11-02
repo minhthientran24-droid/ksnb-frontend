@@ -3,12 +3,35 @@ import { useRouter } from "next/router";
 import Head from "next/head";
 import {
   getKiemKeLabPublic, searchKiemKeLabPublic, getKiemKeLabPublicItem, saveKiemKeLabPublicItem,
-  listKiemKeLabPublicDaKiem, hoanTatKiemKeLabPublic,
+  listKiemKeLabPublicDaKiem, hoanTatKiemKeLabPublic, xoaKiemKeLabPublicItem,
 } from "../../lib/api";
 
 // Trang CÔNG KHAI (chốt 02/11) — KHÔNG dùng Layout/Sidebar, KHÔNG cần đăng nhập. Người kiểm kê sản phẩm LAB (không có barcode)
 // gõ mã / tên sản phẩm + Enter -> chọn đúng sản phẩm (chỉ 1 kết quả thì vào thẳng) -> xem thông tin + tồn kho -> nhập TAY số
 // lượng kiểm kê -> Lưu -> quay lại màn tìm kiếm. Xác thực DUY NHẤT bằng `token` trong URL (xem backend/app/routers/kiem_ke_lab.py).
+// Chốt 02/11 (lần 2): thêm nút 📷 mở camera quét barcode (Code128...) của tem sản phẩm thay cho gõ tay mã; màn tìm kiếm có
+// "Lịch sử kiểm kê" (tất cả sản phẩm đã kiểm, mới nhất trên đầu, cho xoá từng dòng). Dùng @zxing/browser, import ĐỘNG (không import
+// tĩnh ở đầu file để build SSR không đụng window/document).
+function fmtTime(s) {
+  if (!s) return "";
+  const d = new Date(s);
+  if (isNaN(d)) return "";
+  const z = (n) => String(n).padStart(2, "0");
+  return `${z(d.getHours())}:${z(d.getMinutes())} ${z(d.getDate())}/${z(d.getMonth() + 1)}`;
+}
+function beep() {
+  try { navigator.vibrate?.(120); } catch {}
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    const o = ctx.createOscillator();
+    o.frequency.value = 1000;
+    o.connect(ctx.destination);
+    o.start();
+    setTimeout(() => { o.stop(); ctx.close(); }, 130);
+  } catch {}
+}
 const fmtNum = (n) => (n === null || n === undefined ? "-" : Number(n).toLocaleString("vi-VN", { maximumFractionDigits: 3 }));
 
 export default function KiemKeLabPublicPage() {
@@ -28,7 +51,14 @@ export default function KiemKeLabPublicPage() {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const [toast, setToast] = useState("");
-  const [daKiem, setDaKiem] = useState(null); // danh sách đã kiểm (popup) | null
+  const [history, setHistory] = useState(null); // lịch sử kiểm kê (mới nhất trước) | null (đang tải)
+  const [deletingId, setDeletingId] = useState(null);
+  const [scanOpen, setScanOpen] = useState(false);
+  const [camError, setCamError] = useState("");
+  const videoRef = useRef(null);
+  const handledRef = useRef(false);
+  const camModeRef = useRef(false); // đang kiểm bằng camera -> lưu xong tự mở lại camera cho sản phẩm kế
+  const runSearchRef = useRef(null);
   const [completing, setCompleting] = useState(false);
 
   const searchRef = useRef(null);
@@ -38,7 +68,78 @@ export default function KiemKeLabPublicPage() {
   useEffect(() => {
     if (!router.isReady || !token) return;
     getKiemKeLabPublic(token).then(setPhieu).catch((e) => setLoadError(e.message || "Không tải được phiếu kiểm kê"));
+    loadHistory();
   }, [router.isReady, token]);
+
+  function loadHistory() {
+    if (!token) return;
+    listKiemKeLabPublicDaKiem(token).then((r) => setHistory(r.items)).catch(() => {});
+  }
+
+  // ---- Camera quét barcode ----
+  // Dùng @zxing/browser + TRY_HARDER (html5-qrcode đọc mã vạch 1D khi quét trực tiếp rất kém — đã thử, không ra mã Code128).
+  useEffect(() => {
+    if (!scanOpen) return undefined;
+    let cancelled = false;
+    let controls = null;
+    (async () => {
+      try {
+        const [{ BrowserMultiFormatReader }, { DecodeHintType, BarcodeFormat }] = await Promise.all([import("@zxing/browser"), import("@zxing/library")]);
+        if (cancelled) return;
+        const hints = new Map();
+        hints.set(DecodeHintType.TRY_HARDER, true);
+        hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+          BarcodeFormat.CODE_128, BarcodeFormat.CODE_39, BarcodeFormat.CODE_93, BarcodeFormat.EAN_13, BarcodeFormat.EAN_8,
+          BarcodeFormat.UPC_A, BarcodeFormat.UPC_E, BarcodeFormat.ITF, BarcodeFormat.CODABAR, BarcodeFormat.QR_CODE, BarcodeFormat.DATA_MATRIX,
+        ]);
+        const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 80 });
+        const onResult = (res, _err, ctl) => {
+          if (!res || handledRef.current) return;
+          handledRef.current = true;
+          const text = res.getText();
+          try { ctl.stop(); } catch {}
+          beep();
+          setScanOpen(false);
+          setQ(text);
+          runSearchRef.current?.(text);
+        };
+        const video = videoRef.current;
+        try {
+          controls = await reader.decodeFromConstraints({ video: { facingMode: "environment", width: { ideal: 1600 }, height: { ideal: 900 } } }, video, onResult);
+        } catch (e1) {
+          if (String(e1?.name || e1).includes("NotAllowed")) throw e1;
+          controls = await reader.decodeFromConstraints({ video: { facingMode: "environment" } }, video, onResult); // máy từ chối cấu hình nâng cao -> lùi về mặc định
+        }
+        if (cancelled) { try { controls.stop(); } catch {} }
+      } catch (e) {
+        if (cancelled) return;
+        camModeRef.current = false;
+        const m = String(e?.name || "") + " " + String(e?.message || e);
+        setCamError(m.includes("NotAllowed") || m.includes("Permission")
+          ? "Trình duyệt chưa được cấp quyền camera — bật quyền Camera cho trang này rồi thử lại."
+          : (m.includes("NotFound") ? "Thiết bị không có camera." : "Không mở được camera trên thiết bị này."));
+      }
+    })();
+    return () => {
+      cancelled = true;
+      try { controls?.stop(); } catch {}
+    };
+  }, [scanOpen]);
+
+  function startScan() {
+    if (done) return;
+    setErr("");
+    setToast("");
+    setCamError("");
+    setResult(null);
+    handledRef.current = false;
+    camModeRef.current = true;
+    setScanOpen(true);
+  }
+  function closeScan() {
+    camModeRef.current = false;
+    setScanOpen(false);
+  }
 
   useEffect(() => {
     if (view === "search") searchRef.current?.focus();
@@ -54,13 +155,12 @@ export default function KiemKeLabPublicPage() {
         setNote("");
         setGhiDe(false);
         setView("detail");
-        setDaKiem(null);
       })
       .catch((e) => setErr(e.message));
   }
 
-  async function doSearch() {
-    const text = q.trim();
+  async function doSearch(textArg) {
+    const text = (typeof textArg === "string" ? textArg : q).trim();
     if (!text || searching) return;
     setSearching(true);
     setErr("");
@@ -80,6 +180,8 @@ export default function KiemKeLabPublicPage() {
     }
   }
 
+  runSearchRef.current = doSearch;
+
   async function doSave() {
     const raw = qty.trim().replace(",", ".");
     const n = Number(raw);
@@ -94,6 +196,8 @@ export default function KiemKeLabPublicPage() {
       setResult(null);
       setQ("");
       setView("search");
+      loadHistory();
+      if (camModeRef.current) setTimeout(startScan, 700); // đang kiểm bằng camera -> mở lại camera cho sản phẩm kế
     } catch (e) {
       setErr(e.message || "Lưu thất bại");
     } finally {
@@ -107,8 +211,18 @@ export default function KiemKeLabPublicPage() {
     setView("search");
   }
 
-  async function openDaKiem() {
-    try { setDaKiem((await listKiemKeLabPublicDaKiem(token)).items); } catch (e) { setErr(e.message); }
+  async function doXoaDong(it) {
+    if (!confirm(`Xoá dòng kiểm kê “${it.ten_hang || it.ma_hang}” (${fmtNum(it.sl_kiem)} ${it.don_vi || ""})? Số lượng và ghi chú đã nhập sẽ bị xoá, sản phẩm quay về trạng thái chưa kiểm.`)) return;
+    setDeletingId(it.id);
+    try {
+      const r = await xoaKiemKeLabPublicItem(token, it.id);
+      setPhieu(r.phieu);
+      setHistory((h) => (h || []).filter((x) => x.id !== it.id));
+    } catch (e) {
+      alert(e.message || "Xoá thất bại");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   async function doHoanTat() {
@@ -141,7 +255,6 @@ export default function KiemKeLabPublicPage() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, fontSize: 13, gap: 8, flexWrap: "wrap" }}>
                 <span>Đã kiểm <b>{phieu.so_da_kiem}</b>/{phieu.so_sp} sản phẩm ({pct}%)</span>
                 <span style={{ display: "flex", gap: 6 }}>
-                  <button style={btnGhost} onClick={openDaKiem}>📋 Đã kiểm</button>
                   {!done && <button style={btnGhost} disabled={completing} onClick={doHoanTat}>{completing ? "..." : "🏁 Hoàn tất"}</button>}
                 </span>
               </div>
@@ -156,10 +269,11 @@ export default function KiemKeLabPublicPage() {
                   <input
                     ref={searchRef} value={q} onChange={(e) => { setQ(e.target.value); setToast(""); }}
                     onKeyDown={(e) => { if (e.key === "Enter") doSearch(); }}
-                    placeholder="Gõ mã hoặc tên rồi nhấn Enter" enterKeyHint="search" autoComplete="off" autoCapitalize="none"
+                    placeholder="Gõ mã hoặc tên + Enter" enterKeyHint="search" autoComplete="off" autoCapitalize="none"
                     style={inputStyle}
                   />
-                  <button style={btnPrimary} disabled={searching || !q.trim()} onClick={doSearch}>{searching ? "..." : "Tìm"}</button>
+                  <button style={btnScan} disabled={done} onClick={startScan} title="Quét barcode bằng camera" aria-label="Quét barcode bằng camera">📷</button>
+                  <button style={btnPrimary} disabled={searching || !q.trim()} onClick={() => doSearch()}>{searching ? "..." : "Tìm"}</button>
                 </div>
                 {err && <div style={errStyle}>{err}</div>}
 
@@ -183,6 +297,29 @@ export default function KiemKeLabPublicPage() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {view === "search" && (
+              <div style={card}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "#16365C", marginBottom: 10 }}>🕘 Lịch sử kiểm kê{history ? ` (${history.length})` : ""}</div>
+                {history === null && <div style={{ color: "#667085", fontSize: 14 }}>Đang tải...</div>}
+                {history && history.length === 0 && <div style={{ color: "#667085", fontSize: 14 }}>Chưa kiểm sản phẩm nào — bấm 📷 để quét mã hoặc gõ mã/tên để tìm sản phẩm.</div>}
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {(history || []).map((it) => (
+                    <div key={it.id} style={{ ...resultBtn, display: "flex", gap: 8, alignItems: "center", cursor: "default" }}>
+                      <div style={{ minWidth: 0, flex: 1, cursor: done ? "default" : "pointer" }} onClick={() => { if (!done) openItem(it.id); }}>
+                        <div style={{ fontSize: 12, color: "#667085" }}>{it.ma_hang} · {fmtTime(it.kiem_at)}</div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: "#16365C" }}>{it.ten_hang || "(không có tên)"}</div>
+                        {it.ghi_chu && <div style={{ fontSize: 12, color: "#8A5A00", marginTop: 2, wordBreak: "break-word" }}>📝 {it.ghi_chu}</div>}
+                      </div>
+                      <div style={{ fontSize: 17, fontWeight: 800, flexShrink: 0, textAlign: "right" }}>{fmtNum(it.sl_kiem)}<div style={{ fontSize: 11.5, fontWeight: 500, color: "#667085" }}>{it.don_vi}</div></div>
+                      {!done && (
+                        <button style={btnDel} disabled={deletingId === it.id} onClick={() => doXoaDong(it)} aria-label="Xoá dòng kiểm kê">{deletingId === it.id ? "…" : "🗑"}</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -243,26 +380,24 @@ export default function KiemKeLabPublicPage() {
         )}
       </div>
 
-      {daKiem && (
-        <div style={overlay} onClick={() => setDaKiem(null)}>
-          <div style={sheet} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <b style={{ fontSize: 15 }}>Đã kiểm ({daKiem.length})</b>
-              <button style={btnGhost} onClick={() => setDaKiem(null)}>Đóng</button>
+      {scanOpen && (
+        <div style={scanOverlay}>
+          <div style={{ width: "100%", maxWidth: 560, margin: "0 auto", padding: "14px 16px", boxSizing: "border-box" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, color: "#fff" }}>
+              <b style={{ fontSize: 16 }}>📷 Quét barcode sản phẩm</b>
+              <button style={btnGhost} onClick={closeScan}>✕ Đóng</button>
             </div>
-            {daKiem.length === 0 && <div style={{ color: "#667085", fontSize: 14 }}>Chưa kiểm sản phẩm nào.</div>}
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {daKiem.map((it) => (
-                <button key={it.id} style={{ ...resultBtn, display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }} onClick={() => openItem(it.id)}>
-                  <span style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 12, color: "#667085" }}>{it.ma_hang}</div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: "#16365C" }}>{it.ten_hang}</div>
-                    {it.ghi_chu && <div style={{ fontSize: 12, color: "#8A5A00", marginTop: 2 }}>📝 {it.ghi_chu}</div>}
-                  </span>
-                  <span style={{ fontSize: 15, fontWeight: 800, flexShrink: 0 }}>{fmtNum(it.sl_kiem)} <span style={{ fontSize: 11.5, fontWeight: 500, color: "#667085" }}>{it.don_vi}</span></span>
-                </button>
-              ))}
+            {toast && <div style={{ marginBottom: 10, padding: "8px 10px", background: "#E6F6E1", color: "#2f6b1a", borderRadius: 8, fontSize: 13.5, fontWeight: 600 }}>{toast}</div>}
+            <div style={{ position: "relative", width: "100%", aspectRatio: "4 / 3", background: "#000", borderRadius: 12, overflow: "hidden" }}>
+              <video ref={videoRef} muted playsInline autoPlay style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              <div style={{ position: "absolute", left: "5%", right: "5%", top: "30%", bottom: "30%", border: "2px solid rgba(255,255,255,0.85)", borderRadius: 10, boxShadow: "0 0 0 999px rgba(0,0,0,0.35)", pointerEvents: "none" }}>
+                <div style={{ position: "absolute", left: 6, right: 6, top: "50%", height: 2, background: "rgba(255,70,70,0.9)" }} />
+              </div>
             </div>
+            {camError
+              ? <div style={{ color: "#FFB4AB", fontSize: 13.5, marginTop: 12 }}>⚠️ {camError}</div>
+              : <div style={{ color: "#C9D6EA", fontSize: 13, marginTop: 12, lineHeight: 1.5 }}>Đưa mã vạch trên tem vào khung, giữ máy ổn định cách tem khoảng 15–25cm. Quét được sẽ tự rung/bíp và mở sản phẩm.</div>}
+            <button style={{ ...btnGhost, width: "100%", marginTop: 14, padding: "12px" }} onClick={closeScan}>⌨️ Nhập mã bằng tay</button>
           </div>
         </div>
       )}
@@ -270,6 +405,9 @@ export default function KiemKeLabPublicPage() {
   );
 }
 
+const btnScan = { background: "#fff", color: "#1F4E79", border: "1.5px solid #1F6FD6", borderRadius: 10, padding: "0 12px", fontSize: 20, cursor: "pointer", flexShrink: 0 };
+const btnDel = { background: "#fff", border: "1.5px solid #F0C4C0", borderRadius: 10, padding: "8px 10px", fontSize: 16, cursor: "pointer", flexShrink: 0 };
+const scanOverlay = { position: "fixed", inset: 0, background: "rgba(8,16,32,0.96)", zIndex: 200, overflowY: "auto" };
 const pageStyle = { minHeight: "100vh", background: "#F2F5FA", padding: "14px 16px 40px", fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif", color: "#101828" };
 const wrapStyle = { maxWidth: 560, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12 };
 const card = { background: "#fff", borderRadius: 14, padding: "16px 16px", border: "1px solid #E4E9F2", boxShadow: "0 2px 8px rgba(15,40,80,0.05)" };
@@ -282,5 +420,3 @@ const errStyle = { marginTop: 10, color: "#B42318", fontSize: 13.5, fontWeight: 
 const infoBox = { background: "#F6F8FC", border: "1px solid #E1E8F3", borderRadius: 10, padding: "8px 10px" };
 const infoLbl = { fontSize: 11.5, color: "#667085", marginBottom: 2 };
 const infoVal = { fontSize: 16, fontWeight: 700 };
-const overlay = { position: "fixed", inset: 0, background: "rgba(10,20,40,0.45)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 };
-const sheet = { background: "#fff", width: "100%", maxWidth: 560, maxHeight: "80vh", overflowY: "auto", borderRadius: "16px 16px 0 0", padding: "16px 16px 28px" };
