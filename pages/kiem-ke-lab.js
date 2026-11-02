@@ -128,7 +128,7 @@ export default function KiemKeLabPage() {
     if (filter === "chua" && it.da_kiem) return false;
     if (filter === "lech" && !(it.da_kiem && (it.sl_kiem || 0) !== (it.ton_kho || 0))) return false;
     const q = dq.trim().toLowerCase();
-    return !q || `${it.ma_hang} ${it.ten_hang || ""}`.toLowerCase().includes(q);
+    return !q || `${it.ma_hang} ${it.ten_hang || ""} ${it.ghi_chu || ""}`.toLowerCase().includes(q);
   });
 
   return (
@@ -222,7 +222,7 @@ export default function KiemKeLabPage() {
                   <button className="fbtn" disabled={exportingId === detail.id} onClick={() => handleExport(detail.id)}>{exportingId === detail.id ? "Đang xuất..." : "📥 Xuất Excel"}</button>
                 </div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10, alignItems: "center" }}>
-                  <input className="finput" placeholder="Tìm mã / tên sản phẩm..." value={dq} onChange={(e) => setDq(e.target.value)} style={{ width: 240 }} />
+                  <input className="finput" placeholder="Tìm mã / tên / ghi chú..." value={dq} onChange={(e) => setDq(e.target.value)} style={{ width: 240 }} />
                   {[["all", "Tất cả"], ["da", "Đã kiểm"], ["chua", "Chưa kiểm"], ["lech", "Có chênh lệch"]].map(([k, l]) => (
                     <button key={k} className="fbtn" style={filter === k ? { background: "#EAF1FC", borderColor: "#1F4E79", fontWeight: 700 } : {}} onClick={() => setFilter(k)}>{l}</button>
                   ))}
@@ -239,6 +239,7 @@ export default function KiemKeLabPage() {
                         <th style={{ padding: "6px 10px", textAlign: "right" }}>Tồn kho</th>
                         <th style={{ padding: "6px 10px", textAlign: "right" }}>SL kiểm kê</th>
                         <th style={{ padding: "6px 10px", textAlign: "right" }}>Chênh lệch</th>
+                        <th style={{ padding: "6px 10px", textAlign: "left" }}>Ghi chú</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -255,10 +256,11 @@ export default function KiemKeLabPage() {
                             <td style={{ padding: "5px 10px", textAlign: "right", fontWeight: 700, color: chenh === null ? "var(--text-400)" : chenh === 0 ? "#3E7A2A" : "var(--danger)" }}>
                               {chenh === null ? "-" : `${chenh > 0 ? "+" : ""}${fmtNum(chenh)}`}
                             </td>
+                            <td style={{ padding: "5px 10px", textAlign: "left", maxWidth: 260 }}>{it.ghi_chu || ""}</td>
                           </tr>
                         );
                       })}
-                      {shown.length === 0 && <tr><td colSpan={7} style={{ textAlign: "center", padding: 14, color: "var(--text-400)" }}>Không có dòng nào</td></tr>}
+                      {shown.length === 0 && <tr><td colSpan={8} style={{ textAlign: "center", padding: 14, color: "var(--text-400)" }}>Không có dòng nào</td></tr>}
                     </tbody>
                   </table>
                 </div>

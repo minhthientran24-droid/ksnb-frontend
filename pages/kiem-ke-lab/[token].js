@@ -23,6 +23,7 @@ export default function KiemKeLabPublicPage() {
   const [result, setResult] = useState(null); // {items, tong, gan_dung, q} | null (chưa tìm)
   const [item, setItem] = useState(null);
   const [qty, setQty] = useState("");
+  const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const [toast, setToast] = useState("");
@@ -49,6 +50,7 @@ export default function KiemKeLabPublicPage() {
       .then((it) => {
         setItem(it);
         setQty(it.da_kiem && it.sl_kiem !== null ? String(it.sl_kiem) : "");
+        setNote(it.ghi_chu || "");
         setView("detail");
         setDaKiem(null);
       })
@@ -83,7 +85,7 @@ export default function KiemKeLabPublicPage() {
     setSaving(true);
     setErr("");
     try {
-      const r = await saveKiemKeLabPublicItem(token, item.id, n);
+      const r = await saveKiemKeLabPublicItem(token, item.id, n, note);
       setPhieu(r.phieu);
       setToast(`✅ Đã lưu: ${item.ten_hang || item.ma_hang} — ${fmtNum(r.item.sl_kiem)} ${item.don_vi || ""}`);
       setItem(null);
@@ -200,6 +202,11 @@ export default function KiemKeLabPublicPage() {
                   inputMode="decimal" placeholder="Nhập số lượng đếm được" autoComplete="off"
                   style={{ ...inputStyle, fontSize: 22, fontWeight: 700, textAlign: "center" }}
                 />
+                <label style={{ ...lbl, marginTop: 14 }}>Ghi chú (nếu có)</label>
+                <textarea
+                  value={note} onChange={(e) => setNote(e.target.value)} disabled={done} rows={3} maxLength={1000}
+                  placeholder="VD: hộp móp, hết hạn, thiếu nắp..." style={{ ...inputStyle, fontSize: 15, resize: "vertical", fontFamily: "inherit" }}
+                />
                 {item.da_kiem && <div style={{ fontSize: 12.5, color: "#8A5A00", marginTop: 6 }}>Sản phẩm này đã kiểm: {fmtNum(item.sl_kiem)}. Lưu lại sẽ ghi đè số cũ.</div>}
                 {err && <div style={errStyle}>{err}</div>}
                 <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
@@ -226,6 +233,7 @@ export default function KiemKeLabPublicPage() {
                   <span style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 12, color: "#667085" }}>{it.ma_hang}</div>
                     <div style={{ fontSize: 14, fontWeight: 600, color: "#16365C" }}>{it.ten_hang}</div>
+                    {it.ghi_chu && <div style={{ fontSize: 12, color: "#8A5A00", marginTop: 2 }}>📝 {it.ghi_chu}</div>}
                   </span>
                   <span style={{ fontSize: 15, fontWeight: 800, flexShrink: 0 }}>{fmtNum(it.sl_kiem)} <span style={{ fontSize: 11.5, fontWeight: 500, color: "#667085" }}>{it.don_vi}</span></span>
                 </button>
