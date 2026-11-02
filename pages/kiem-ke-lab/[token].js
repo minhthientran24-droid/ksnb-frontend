@@ -261,9 +261,9 @@ export default function KiemKeLabPublicPage() {
   const histShown = (baseList || []).filter((it) => !hqn || normVi(`${it.ma_hang} ${it.ten_hang || ""} ${it.vi_tri || ""}`).includes(hqn));
   const soChua = phieu ? Math.max((phieu.so_sp || 0) - (phieu.so_da_kiem || 0), 0) : 0;
   const PANELS = [
-    ["ls", "🕘 Lịch sử kiểm kê", history ? history.length : phieu?.so_da_kiem],
-    ["chua", "📭 Sản phẩm chưa kiểm", soChua],
-    ["lech", "⚖️ Sản phẩm lệch tồn", history ? lechList.length : null],
+    ["ls", "Lịch sử kiểm kê", history ? history.length : phieu?.so_da_kiem],
+    ["chua", "Sản phẩm chưa kiểm", soChua],
+    ["lech", "Sản phẩm lệch tồn", history ? lechList.length : null],
   ];
   const panelTitle = (PANELS.find((x) => x[0] === panel) || [])[1];
   const fixedView = !!phieu && view === "search" && !!panel;
@@ -342,7 +342,7 @@ export default function KiemKeLabPublicPage() {
                     key={k} type="button" onClick={() => { setPanel(panel === k ? null : k); setHq(""); }}
                     style={{ ...tabBtn, ...(panel === k ? tabBtnOn : {}) }}
                   >
-                    <span style={{ display: "block", fontSize: 13, fontWeight: 700, lineHeight: 1.25 }}>{label}</span>
+                    <span style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 33, fontSize: 13, fontWeight: 700, lineHeight: 1.25 }}>{label}</span>
                     <span style={{ display: "block", fontSize: 15, fontWeight: 800, marginTop: 2 }}>{n === null || n === undefined ? "…" : n}</span>
                   </button>
                 ))}
@@ -354,7 +354,7 @@ export default function KiemKeLabPublicPage() {
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexShrink: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 800, color: "#16365C", whiteSpace: "nowrap" }}>{panelTitle}{baseList ? ` (${hqn ? `${histShown.length}/` : ""}${baseList.length})` : ""}</div>
                   <input
-                    value={hq} onChange={(e) => setHq(e.target.value)} placeholder="🔍 Tìm mã, tên, vị trí" autoComplete="off" autoCapitalize="none"
+                    value={hq} onChange={(e) => setHq(e.target.value)} placeholder="Tìm mã, tên, vị trí" autoComplete="off" autoCapitalize="none"
                     style={{ ...inputStyle, flex: 1, minWidth: 0, padding: "6px 10px", fontSize: 16, borderRadius: 8 }}
                   />
                 </div>
