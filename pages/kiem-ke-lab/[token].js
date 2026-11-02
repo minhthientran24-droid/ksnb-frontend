@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
 import {
-  getKiemKeLabPublic, searchKiemKeLabPublic, getKiemKeLabPublicItem, saveKiemKeLabPublicItem,
+  getToken, getUser, getKiemKeLabPublic, searchKiemKeLabPublic, getKiemKeLabPublicItem, saveKiemKeLabPublicItem,
   listKiemKeLabPublicDaKiem, listKiemKeLabPublicChuaKiem, hoanTatKiemKeLabPublic, xoaKiemKeLabPublicItem,
 } from "../../lib/api";
 
-// Trang CÔNG KHAI (chốt 02/11) — KHÔNG dùng Layout/Sidebar, KHÔNG cần đăng nhập. Người kiểm kê sản phẩm LAB (không có barcode)
+// Trang kiểm kê cho người kiểm — KHÔNG dùng Layout/Sidebar. Từ 03/11 YÊU CẦU ĐĂNG NHẬP (trước đó là link công khai không cần login);
+// mỗi lượt kiểm ghi lại người kiểm (phần trước @ của email). Người kiểm kê sản phẩm LAB (không có barcode)
 // gõ mã / tên sản phẩm + Enter -> chọn đúng sản phẩm (chỉ 1 kết quả thì vào thẳng) -> xem thông tin + tồn kho -> nhập TAY số
 // lượng kiểm kê -> Lưu -> quay lại màn tìm kiếm. Xác thực DUY NHẤT bằng `token` trong URL (xem backend/app/routers/kiem_ke_lab.py).
 // Chốt 02/11 (lần 2): thêm nút 📷 mở camera quét barcode (Code128...) của tem sản phẩm thay cho gõ tay mã; màn tìm kiếm có
@@ -76,11 +77,20 @@ export default function KiemKeLabPublicPage() {
   const qtyRef = useRef(null);
   const done = phieu?.trang_thai === "hoan_tat";
 
+  // Từ 03/11 phải ĐĂNG NHẬP mới kiểm kê được: chưa có phiên -> chuyển sang trang đăng nhập, xong quay lại đúng link này.
+  const [authed, setAuthed] = useState(false);
   useEffect(() => {
-    if (!router.isReady || !token) return;
+    if (!router.isReady) return;
+    if (!getToken()) { router.replace(`/login?next=${encodeURIComponent(router.asPath)}`); return; }
+    if (getUser()?.must_change_password) { router.replace("/doi-mat-khau"); return; }
+    setAuthed(true);
+  }, [router.isReady]);
+
+  useEffect(() => {
+    if (!authed || !token) return;
     getKiemKeLabPublic(token).then(setPhieu).catch((e) => setLoadError(e.message || "Không tải được phiếu kiểm kê"));
     loadHistory();
-  }, [router.isReady, token]);
+  }, [authed, token]);
 
   function loadHistory() {
     if (!token) return;
@@ -258,7 +268,7 @@ export default function KiemKeLabPublicPage() {
   const lechOf = (it) => (it.da_kiem ? Math.round(((it.sl_kiem || 0) - (it.ton_kho || 0)) * 1000) / 1000 : 0);
   const lechList = (history || []).filter((it) => lechOf(it) !== 0);
   const baseList = panel === "chua" ? chuaKiem : panel === "lech" ? (history === null ? null : lechList) : history;
-  const histShown = (baseList || []).filter((it) => !hqn || normVi(`${it.ma_hang} ${it.ten_hang || ""} ${it.vi_tri || ""}`).includes(hqn));
+  const histShown = (baseList || []).filter((it) => !hqn || normVi(`${it.ma_hang} ${it.ten_hang || ""} ${it.vi_tri || ""} ${it.kiem_by || ""}`).includes(hqn));
   const soChua = phieu ? Math.max((phieu.so_sp || 0) - (phieu.so_da_kiem || 0), 0) : 0;
   const PANELS = [
     ["ls", "Lịch sử kiểm kê", history ? history.length : phieu?.so_da_kiem],
@@ -277,7 +287,7 @@ export default function KiemKeLabPublicPage() {
       </Head>
       <div style={fixedView ? { ...wrapStyle, height: "100%" } : wrapStyle}>
         {loadError && <div style={{ ...card, color: "#B42318", textAlign: "center" }}>{loadError}</div>}
-        {!loadError && !phieu && <div style={{ ...card, textAlign: "center", color: "#667085" }}>Đang tải...</div>}
+        {!loadError && !phieu && <div style={{ ...card, textAlign: "center", color: "#667085" }}>{authed ? "Đang tải..." : "Đang chuyển sang trang đăng nhập..."}</div>}
 
         {phieu && (
           <>
@@ -374,7 +384,7 @@ export default function KiemKeLabPublicPage() {
                     return (
                       <div key={it.id} style={{ ...resultBtn, ...bg, display: "flex", gap: 8, alignItems: "center", cursor: "default" }}>
                         <div style={{ minWidth: 0, flex: 1, cursor: done ? "default" : "pointer" }} onClick={() => { if (!done) openItem(it.id); }}>
-                          <div style={{ fontSize: 12, color: "#667085" }}>{it.ma_hang}{it.da_kiem ? ` · ${fmtTime(it.kiem_at)}` : ""}</div>
+                          <div style={{ fontSize: 12, color: "#667085" }}>{it.ma_hang}{it.da_kiem ? ` · ${fmtTime(it.kiem_at)}` : ""}{it.da_kiem && it.kiem_by ? ` · ${it.kiem_by}` : ""}</div>
                           <div style={{ fontSize: 14, fontWeight: 600, color: "#16365C" }}>{it.ten_hang || "(không có tên)"}</div>
                           {it.vi_tri && <div style={{ fontSize: 12, color: "#1F4E79", marginTop: 2, wordBreak: "break-word" }}>📍 {it.vi_tri}</div>}
                           {it.ghi_chu && <div style={{ fontSize: 12, color: "#8A5A00", marginTop: 2, wordBreak: "break-word" }}>📝 {it.ghi_chu}</div>}
@@ -419,6 +429,7 @@ export default function KiemKeLabPublicPage() {
                   <div style={{ marginBottom: 12, padding: "10px 12px", background: "#FFF4D6", border: "1px solid #F0D58A", borderRadius: 10, color: "#6B4700" }}>
                     <div style={{ fontSize: 13 }}>Đã kiểm trước đó</div>
                     <div style={{ fontSize: 22, fontWeight: 800 }}>{fmtNum(item.sl_kiem)} <span style={{ fontSize: 13, fontWeight: 600 }}>{item.don_vi}</span></div>
+                    {item.kiem_by && <div style={{ fontSize: 13, marginTop: 2 }}>Người kiểm: {item.kiem_by}</div>}
                     {item.vi_tri && <div style={{ fontSize: 13, marginTop: 2 }}>📍 {item.vi_tri}</div>}
                     {item.ghi_chu && <div style={{ fontSize: 13, marginTop: 2 }}>📝 {item.ghi_chu}</div>}
                     <div style={{ fontSize: 12.5, marginTop: 4 }}>Nhập số lượng kiểm <b>thêm</b> lần này — hệ thống sẽ <b>cộng dồn</b> vào số trên.</div>

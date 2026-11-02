@@ -9,9 +9,13 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Nếu đã đăng nhập rồi thì vào thẳng trang chủ
-  if (typeof window !== "undefined" && getToken()) {
-    router.replace("/");
+  // Đăng nhập xong quay lại trang đang định vào (?next=/kiem-ke-lab/xxx). Chỉ nhận đường dẫn nội bộ ("/..." không phải "//...").
+  const nextRaw = typeof router.query.next === "string" ? router.query.next : "";
+  const nextPath = nextRaw.startsWith("/") && !nextRaw.startsWith("//") && !nextRaw.startsWith("/login") ? nextRaw : "/";
+
+  // Nếu đã đăng nhập rồi thì vào thẳng trang chủ (hoặc trang định vào)
+  if (typeof window !== "undefined" && getToken() && router.isReady) {
+    router.replace(nextPath);
     return null;
   }
 
@@ -21,7 +25,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const data = await login(email, password);
-      router.push(data.must_change_password ? "/doi-mat-khau" : "/");
+      router.push(data.must_change_password ? "/doi-mat-khau" : nextPath);
     } catch (err) {
       setError(err.message || "Đăng nhập thất bại");
     } finally {

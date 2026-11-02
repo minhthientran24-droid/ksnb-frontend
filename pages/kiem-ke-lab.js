@@ -8,7 +8,7 @@ import {
 
 // Menu "Kiểm kê LAB" (chốt 02/11) — dành cho TẤT CẢ role. Kiểm kê tay (nhập số lượng) cho sản phẩm không có barcode để quét.
 // NV nội bộ import file "Tồn kho cần kiểm" (Mã hàng / Tên hàng / Đơn vị / Số lượng tồn / Phân loại tài sản) -> sinh 1 phiếu + link
-// công khai /kiem-ke-lab/{token} (không cần đăng nhập). Người kiểm vào link tìm sản phẩm theo mã/tên rồi nhập số lượng kiểm kê.
+// kiểm kê /kiem-ke-lab/{token} (người kiểm phải đăng nhập, mỗi lượt kiểm ghi lại người kiểm). Người kiểm vào link tìm sản phẩm theo mã/tên rồi nhập số lượng kiểm kê.
 // Xuất Excel đối chiếu được bất kỳ lúc nào, kể cả phiếu chưa hoàn tất. Xem backend/app/routers/kiem_ke_lab.py.
 function fmtDateTime(s) {
   if (!s) return "-";
@@ -147,14 +147,14 @@ export default function KiemKeLabPage() {
     if (filter === "chua" && it.da_kiem) return false;
     if (filter === "lech" && !(it.da_kiem && (it.sl_kiem || 0) !== (it.ton_kho || 0))) return false;
     const q = dq.trim().toLowerCase();
-    return !q || `${it.ma_hang} ${it.ten_hang || ""} ${it.vi_tri || ""} ${it.ghi_chu || ""}`.toLowerCase().includes(q);
+    return !q || `${it.ma_hang} ${it.ten_hang || ""} ${it.vi_tri || ""} ${it.kiem_by || ""} ${it.ghi_chu || ""}`.toLowerCase().includes(q);
   });
 
   return (
     <Layout crumb="Kiểm kê LAB">
       <div className="page-head">
         <h1>🧪 Kiểm kê LAB</h1>
-        <p>Kiểm kê tay (nhập số lượng) cho sản phẩm không có barcode. Bấm “Tạo phiếu kiểm kê”, đặt tên phiếu và đính kèm file tồn kho cần kiểm — hệ thống sinh link công khai (không cần đăng nhập) gửi cho người kiểm.</p>
+        <p>Kiểm kê tay (nhập số lượng) cho sản phẩm không có barcode. Bấm “Tạo phiếu kiểm kê”, đặt tên phiếu và đính kèm file tồn kho cần kiểm — hệ thống sinh link kiểm kê gửi cho người kiểm (người kiểm cần đăng nhập tài khoản KSNB để kiểm).</p>
       </div>
 
       <div className="card">
@@ -239,7 +239,7 @@ export default function KiemKeLabPage() {
                   <button className="fbtn" disabled={exportingId === detail.id} onClick={() => handleExport(detail.id)}>{exportingId === detail.id ? "Đang xuất..." : "📥 Xuất Excel"}</button>
                 </div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10, alignItems: "center" }}>
-                  <input className="finput" placeholder="Tìm mã / tên / vị trí / ghi chú..." value={dq} onChange={(e) => setDq(e.target.value)} style={{ width: 240 }} />
+                  <input className="finput" placeholder="Tìm mã / tên / vị trí / người kiểm / ghi chú..." value={dq} onChange={(e) => setDq(e.target.value)} style={{ width: 240 }} />
                   {[["all", "Tất cả"], ["da", "Đã kiểm"], ["chua", "Chưa kiểm"], ["lech", "Có chênh lệch"]].map(([k, l]) => (
                     <button key={k} className="fbtn" style={filter === k ? { background: "#EAF1FC", borderColor: "#1F4E79", fontWeight: 700 } : {}} onClick={() => setFilter(k)}>{l}</button>
                   ))}
@@ -257,6 +257,7 @@ export default function KiemKeLabPage() {
                         <th style={{ padding: "6px 10px", textAlign: "right" }}>SL kiểm kê</th>
                         <th style={{ padding: "6px 10px", textAlign: "right" }}>Chênh lệch</th>
                         <th style={{ padding: "6px 10px", textAlign: "left" }}>Vị trí kiểm kê</th>
+                        <th style={{ padding: "6px 10px", textAlign: "left" }}>Người kiểm</th>
                         <th style={{ padding: "6px 10px", textAlign: "left" }}>Ghi chú</th>
                       </tr>
                     </thead>
@@ -275,11 +276,12 @@ export default function KiemKeLabPage() {
                               {chenh === null ? "-" : `${chenh > 0 ? "+" : ""}${fmtNum(chenh)}`}
                             </td>
                             <td style={{ padding: "5px 10px", textAlign: "left", maxWidth: 200 }}>{it.vi_tri || ""}</td>
+                            <td style={{ padding: "5px 10px", textAlign: "left", whiteSpace: "nowrap" }}>{it.kiem_by || ""}</td>
                             <td style={{ padding: "5px 10px", textAlign: "left", maxWidth: 260 }}>{it.ghi_chu || ""}</td>
                           </tr>
                         );
                       })}
-                      {shown.length === 0 && <tr><td colSpan={9} style={{ textAlign: "center", padding: 14, color: "var(--text-400)" }}>Không có dòng nào</td></tr>}
+                      {shown.length === 0 && <tr><td colSpan={10} style={{ textAlign: "center", padding: 14, color: "var(--text-400)" }}>Không có dòng nào</td></tr>}
                     </tbody>
                   </table>
                 </div>
@@ -325,7 +327,7 @@ export default function KiemKeLabPage() {
           <div style={{ ...modalStyle, width: 560 }} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ fontSize: 16, fontWeight: 800, color: "#3E7A2A", marginBottom: 6 }}>✅ Đã tạo phiếu {created.ma_phieu}</h3>
             <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 12 }}>
-              {created.ten_phieu} · {created.so_sp} sản phẩm. Gửi link này cho người kiểm (không cần đăng nhập):
+              {created.ten_phieu} · {created.so_sp} sản phẩm. Gửi link này cho người kiểm (cần đăng nhập mới kiểm được):
             </p>
             <div style={{ display: "flex", gap: 8 }}>
               <input readOnly className="finput" style={{ flex: 1, fontSize: 11.5 }} value={publicLink(created.token)} onFocus={(e) => e.target.select()} />
