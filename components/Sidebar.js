@@ -11,6 +11,8 @@ const NAV_ITEMS = [
   // Chốt 09/09 — menu mới, nhiều tab hỗ trợ xử lý cho shop, dành cho TẤT
   // CẢ role (không có hideForRoles), tab đầu tiên "Hỗ trợ check lệch tồn VX".
   { href: "/ho-tro-shop", icon: "🛟", label: "Hỗ trợ shop" },
+  // Chốt 02/11 — kiểm kê tay sản phẩm LAB (không barcode), link công khai không cần đăng nhập; dành cho TẤT CẢ role.
+  { href: "/kiem-ke-lab", icon: "🧪", label: "Kiểm kê LAB" },
   { href: "/gui-mail-bcks", icon: "📧", label: "Gửi mail BCKS" },
   // Chốt 08/10 — tra cứu thông tin shop theo Mã shop, dành cho TẤT CẢ role
   // (không hideForRoles, menu_permissions mặc định cho phép mọi role).
