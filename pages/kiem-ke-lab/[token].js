@@ -24,6 +24,7 @@ export default function KiemKeLabPublicPage() {
   const [item, setItem] = useState(null);
   const [qty, setQty] = useState("");
   const [note, setNote] = useState("");
+  const [ghiDe, setGhiDe] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const [toast, setToast] = useState("");
@@ -49,8 +50,9 @@ export default function KiemKeLabPublicPage() {
     getKiemKeLabPublicItem(token, id)
       .then((it) => {
         setItem(it);
-        setQty(it.da_kiem && it.sl_kiem !== null ? String(it.sl_kiem) : "");
-        setNote(it.ghi_chu || "");
+        setQty(""); // lần kiểm mới: nhập số đếm thêm, hệ thống cộng dồn vào số đã kiểm trước đó
+        setNote("");
+        setGhiDe(false);
         setView("detail");
         setDaKiem(null);
       })
@@ -85,9 +87,9 @@ export default function KiemKeLabPublicPage() {
     setSaving(true);
     setErr("");
     try {
-      const r = await saveKiemKeLabPublicItem(token, item.id, n, note);
+      const r = await saveKiemKeLabPublicItem(token, item.id, n, note, ghiDe);
       setPhieu(r.phieu);
-      setToast(`✅ Đã lưu: ${item.ten_hang || item.ma_hang} — ${fmtNum(r.item.sl_kiem)} ${item.don_vi || ""}`);
+      setToast(`✅ Đã lưu: ${item.ten_hang || item.ma_hang} — ${item.da_kiem && !ghiDe ? `+${fmtNum(n)}, tổng đã kiểm ${fmtNum(r.item.sl_kiem)}` : fmtNum(r.item.sl_kiem)} ${item.don_vi || ""}`);
       setItem(null);
       setResult(null);
       setQ("");
@@ -173,8 +175,9 @@ export default function KiemKeLabPublicPage() {
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                       {result.items.map((it) => (
                         <button key={it.id} style={resultBtn} onClick={() => openItem(it.id)}>
-                          <div style={{ fontSize: 12, color: "#667085" }}>{it.ma_hang}{it.da_kiem ? "  ·  ✅ đã kiểm" : ""}</div>
+                          <div style={{ fontSize: 12, color: "#667085" }}>{it.ma_hang}</div>
                           <div style={{ fontSize: 15, fontWeight: 600, color: "#16365C" }}>{it.ten_hang || "(không có tên)"}</div>
+                          {it.da_kiem && <div style={{ fontSize: 12.5, fontWeight: 700, color: "#8A5A00", marginTop: 2 }}>✅ Đã kiểm trước đó: {fmtNum(it.sl_kiem)} {it.don_vi || ""}</div>}
                         </button>
                       ))}
                     </div>
@@ -195,7 +198,15 @@ export default function KiemKeLabPublicPage() {
                   <div style={{ ...infoBox, gridColumn: "1 / -1" }}><div style={infoLbl}>Phân loại hàng hóa</div><div style={infoVal}>{item.phan_loai || "-"}</div></div>
                 </div>
 
-                <label style={lbl}>Số lượng kiểm kê{item.don_vi ? ` (${item.don_vi})` : ""}</label>
+                {item.da_kiem && (
+                  <div style={{ marginBottom: 12, padding: "10px 12px", background: "#FFF4D6", border: "1px solid #F0D58A", borderRadius: 10, color: "#6B4700" }}>
+                    <div style={{ fontSize: 13 }}>Đã kiểm trước đó</div>
+                    <div style={{ fontSize: 22, fontWeight: 800 }}>{fmtNum(item.sl_kiem)} <span style={{ fontSize: 13, fontWeight: 600 }}>{item.don_vi}</span></div>
+                    {item.ghi_chu && <div style={{ fontSize: 13, marginTop: 2 }}>📝 {item.ghi_chu}</div>}
+                    <div style={{ fontSize: 12.5, marginTop: 4 }}>Nhập số lượng kiểm <b>thêm</b> lần này — hệ thống sẽ <b>cộng dồn</b> vào số trên.</div>
+                  </div>
+                )}
+                <label style={lbl}>{item.da_kiem && !ghiDe ? "Số lượng kiểm thêm lần này" : "Số lượng kiểm kê"}{item.don_vi ? ` (${item.don_vi})` : ""}</label>
                 <input
                   ref={qtyRef} value={qty} onChange={(e) => setQty(e.target.value)} disabled={done}
                   onKeyDown={(e) => { if (e.key === "Enter" && !done) doSave(); }}
@@ -207,7 +218,20 @@ export default function KiemKeLabPublicPage() {
                   value={note} onChange={(e) => setNote(e.target.value)} disabled={done} rows={3} maxLength={1000}
                   placeholder="VD: hộp móp, hết hạn, thiếu nắp..." style={{ ...inputStyle, fontSize: 15, resize: "vertical", fontFamily: "inherit" }}
                 />
-                {item.da_kiem && <div style={{ fontSize: 12.5, color: "#8A5A00", marginTop: 6 }}>Sản phẩm này đã kiểm: {fmtNum(item.sl_kiem)}. Lưu lại sẽ ghi đè số cũ.</div>}
+                {item.da_kiem && !done && (() => {
+                  const n = Number(qty.trim().replace(",", "."));
+                  const ok = qty.trim() !== "" && Number.isFinite(n) && n >= 0;
+                  return (
+                    <>
+                      <div style={{ fontSize: 14, marginTop: 8, fontWeight: 700, color: "#16365C" }}>
+                        {ghiDe ? "Số lượng sau khi lưu (đặt lại)" : "Tổng sau khi lưu"}: {ok ? fmtNum(ghiDe ? n : Math.round((item.sl_kiem + n) * 1000) / 1000) : "..."} {item.don_vi}
+                      </div>
+                      <label style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8, fontSize: 13, color: "#667085" }}>
+                        <input type="checkbox" checked={ghiDe} onChange={(e) => setGhiDe(e.target.checked)} /> Nhập nhầm — đặt lại số lượng (không cộng dồn)
+                      </label>
+                    </>
+                  );
+                })()}
                 {err && <div style={errStyle}>{err}</div>}
                 <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
                   <button style={{ ...btnGhost, flex: 1, padding: "13px 10px", fontSize: 15 }} onClick={backToSearch}>← Quay lại</button>
