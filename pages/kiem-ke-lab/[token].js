@@ -232,21 +232,23 @@ export default function KiemKeLabPublicPage() {
     try { setPhieu(await hoanTatKiemKeLabPublic(token)); } catch (e) { setErr(e.message); } finally { setCompleting(false); }
   }
 
+  // Màn tìm kiếm: khung cố định theo chiều cao màn hình — phần đầu + ô tìm kiếm luôn treo trên cùng, chỉ "Lịch sử kiểm kê" có thanh cuộn riêng
+  const fixedView = !!phieu && view === "search";
   const pct = phieu && phieu.so_sp ? Math.round((phieu.so_da_kiem / phieu.so_sp) * 100) : 0;
 
   return (
-    <div style={pageStyle}>
+    <div style={fixedView ? { ...pageStyle, height: "100dvh", minHeight: 0, boxSizing: "border-box", overflow: "hidden", paddingBottom: 14 } : pageStyle}>
       <Head>
         <title>Kiểm kê LAB</title>
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </Head>
-      <div style={wrapStyle}>
+      <div style={fixedView ? { ...wrapStyle, height: "100%" } : wrapStyle}>
         {loadError && <div style={{ ...card, color: "#B42318", textAlign: "center" }}>{loadError}</div>}
         {!loadError && !phieu && <div style={{ ...card, textAlign: "center", color: "#667085" }}>Đang tải...</div>}
 
         {phieu && (
           <>
-            <div style={card}>
+            <div style={{ ...card, flexShrink: 0 }}>
               <div style={{ fontSize: 12, color: "#667085", fontWeight: 600 }}>🧪 KIỂM KÊ LAB</div>
               <div style={{ fontSize: 17, fontWeight: 800, color: "#16365C", margin: "2px 0 8px" }}>{phieu.ten_phieu}</div>
               <div style={{ height: 8, background: "#E6EBF2", borderRadius: 99, overflow: "hidden" }}>
@@ -262,14 +264,14 @@ export default function KiemKeLabPublicPage() {
             </div>
 
             {view === "search" && (
-              <div style={card}>
+              <div style={{ ...card, flexShrink: 0 }}>
                 {toast && <div style={{ marginBottom: 10, padding: "8px 10px", background: "#E6F6E1", color: "#2f6b1a", borderRadius: 8, fontSize: 13.5, fontWeight: 600 }}>{toast}</div>}
                 <label style={lbl}>Tìm sản phẩm (mã hoặc tên)</label>
                 <div style={{ display: "flex", gap: 8 }}>
                   <input
                     ref={searchRef} value={q} onChange={(e) => { setQ(e.target.value); setToast(""); }}
                     onKeyDown={(e) => { if (e.key === "Enter") doSearch(); }}
-                    placeholder="Gõ mã hoặc tên + Enter" enterKeyHint="search" autoComplete="off" autoCapitalize="none"
+                    placeholder="Gõ mã hoặc tên..." enterKeyHint="search" autoComplete="off" autoCapitalize="none"
                     style={inputStyle}
                   />
                   <button style={btnScan} disabled={done} onClick={startScan} title="Quét barcode bằng camera" aria-label="Quét barcode bằng camera">📷</button>
@@ -286,7 +288,7 @@ export default function KiemKeLabPublicPage() {
                       {result.gan_dung ? "Không có kết quả khớp đúng — gợi ý gần giống" : `Có ${result.tong} kết quả`}
                       {result.tong > result.items.length ? ` (hiện ${result.items.length} đầu tiên — gõ thêm để lọc)` : ""}. Chọn đúng sản phẩm:
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: "38dvh", overflowY: "auto" }}>
                       {result.items.map((it) => (
                         <button key={it.id} style={resultBtn} onClick={() => openItem(it.id)}>
                           <div style={{ fontSize: 12, color: "#667085" }}>{it.ma_hang}</div>
@@ -301,11 +303,11 @@ export default function KiemKeLabPublicPage() {
             )}
 
             {view === "search" && (
-              <div style={card}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: "#16365C", marginBottom: 10 }}>🕘 Lịch sử kiểm kê{history ? ` (${history.length})` : ""}</div>
+              <div style={{ ...card, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "#16365C", marginBottom: 10, flexShrink: 0 }}>🕘 Lịch sử kiểm kê{history ? ` (${history.length})` : ""}</div>
                 {history === null && <div style={{ color: "#667085", fontSize: 14 }}>Đang tải...</div>}
                 {history && history.length === 0 && <div style={{ color: "#667085", fontSize: 14 }}>Chưa kiểm sản phẩm nào — bấm 📷 để quét mã hoặc gõ mã/tên để tìm sản phẩm.</div>}
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1, minHeight: 0, overflowY: "auto", overscrollBehavior: "contain", paddingRight: 2 }}>
                   {(history || []).map((it) => (
                     <div key={it.id} style={{ ...resultBtn, display: "flex", gap: 8, alignItems: "center", cursor: "default" }}>
                       <div style={{ minWidth: 0, flex: 1, cursor: done ? "default" : "pointer" }} onClick={() => { if (!done) openItem(it.id); }}>
