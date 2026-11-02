@@ -32,6 +32,7 @@ function beep() {
     setTimeout(() => { o.stop(); ctx.close(); }, 130);
   } catch {}
 }
+const normVi = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/g, "d");
 const fmtNum = (n) => (n === null || n === undefined ? "-" : Number(n).toLocaleString("vi-VN", { maximumFractionDigits: 3 }));
 
 export default function KiemKeLabPublicPage() {
@@ -53,6 +54,7 @@ export default function KiemKeLabPublicPage() {
   const [toast, setToast] = useState("");
   const [history, setHistory] = useState(null); // lịch sử kiểm kê (mới nhất trước) | null (đang tải)
   const [deletingId, setDeletingId] = useState(null);
+  const [hq, setHq] = useState(""); // ô tìm trong lịch sử kiểm kê (mã / tên)
   const [scanOpen, setScanOpen] = useState(false);
   const [camError, setCamError] = useState("");
   const videoRef = useRef(null);
@@ -233,6 +235,8 @@ export default function KiemKeLabPublicPage() {
   }
 
   // Màn tìm kiếm: khung cố định theo chiều cao màn hình — phần đầu + ô tìm kiếm luôn treo trên cùng, chỉ "Lịch sử kiểm kê" có thanh cuộn riêng
+  const hqn = normVi(hq).trim();
+  const histShown = (history || []).filter((it) => !hqn || normVi(`${it.ma_hang} ${it.ten_hang || ""}`).includes(hqn));
   const fixedView = !!phieu && view === "search";
   const pct = phieu && phieu.so_sp ? Math.round((phieu.so_da_kiem / phieu.so_sp) * 100) : 0;
 
@@ -304,11 +308,18 @@ export default function KiemKeLabPublicPage() {
 
             {view === "search" && (
               <div style={{ ...card, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: "#16365C", marginBottom: 10, flexShrink: 0 }}>🕘 Lịch sử kiểm kê{history ? ` (${history.length})` : ""}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexShrink: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#16365C", whiteSpace: "nowrap" }}>🕘 Lịch sử kiểm kê{history ? ` (${hq.trim() ? `${histShown.length}/` : ""}${history.length})` : ""}</div>
+                  <input
+                    value={hq} onChange={(e) => setHq(e.target.value)} placeholder="🔍 Tìm mã / tên..." autoComplete="off" autoCapitalize="none"
+                    style={{ ...inputStyle, flex: 1, minWidth: 0, padding: "6px 10px", fontSize: 16, borderRadius: 8 }}
+                  />
+                </div>
                 {history === null && <div style={{ color: "#667085", fontSize: 14 }}>Đang tải...</div>}
+                {history && history.length > 0 && histShown.length === 0 && <div style={{ color: "#667085", fontSize: 14 }}>Không có dòng nào khớp “{hq.trim()}”.</div>}
                 {history && history.length === 0 && <div style={{ color: "#667085", fontSize: 14 }}>Chưa kiểm sản phẩm nào — bấm 📷 để quét mã hoặc gõ mã/tên để tìm sản phẩm.</div>}
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1, minHeight: 0, overflowY: "auto", overscrollBehavior: "contain", paddingRight: 2 }}>
-                  {(history || []).map((it) => (
+                  {histShown.map((it) => (
                     <div key={it.id} style={{ ...resultBtn, display: "flex", gap: 8, alignItems: "center", cursor: "default" }}>
                       <div style={{ minWidth: 0, flex: 1, cursor: done ? "default" : "pointer" }} onClick={() => { if (!done) openItem(it.id); }}>
                         <div style={{ fontSize: 12, color: "#667085" }}>{it.ma_hang} · {fmtTime(it.kiem_at)}</div>
