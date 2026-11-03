@@ -38,6 +38,8 @@ const normVi = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/\p
 const VI_TRI_GOI_Y = [
   "Phòng kho", "Tủ lạnh hóa chất", "Tủ âm sâu", "Tủ lạnh vắc xin có vách băng HBC-260",
   "Tủ lạnh hóa chất miễn dịch", "Tủ lạnh HC sinh hóa + elisa + blot",
+  "Phòng nhập mẫu", "Phòng lưu mẫu", "Phòng vi sinh", "Phòng tra mẫu", "Phòng PCR",
+  "Phòng pha hóa chất", "Phòng sinh hóa huyết học", "Sảnh lầu 2",
 ];
 const fmtNum = (n) => (n === null || n === undefined ? "-" : Number(n).toLocaleString("vi-VN", { maximumFractionDigits: 3 }));
 
