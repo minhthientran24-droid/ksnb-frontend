@@ -143,6 +143,7 @@ export default function KiemKeLabPage() {
     getKiemKeLabPhieu(id).then(setDetail).catch((err) => setViewError(err.message));
   }
   const shown = (detail?.items || []).filter((it) => {
+    if (filter === "ngoai") return !!it.ngoai_ds;
     if (filter === "da" && !it.da_kiem) return false;
     if (filter === "chua" && it.da_kiem) return false;
     if (filter === "lech" && !(it.da_kiem && (it.sl_kiem || 0) !== (it.ton_kho || 0))) return false;
@@ -231,7 +232,7 @@ export default function KiemKeLabPage() {
                   Tạo lúc {fmtDateTime(detail.created_at)} bởi {detail.created_by_name || "-"} {" · "}
                   <span className={`pill ${detail.trang_thai === "hoan_tat" ? "ok" : "warn"}`}>{detail.trang_thai === "hoan_tat" ? "Đã hoàn tất" : "Đang kiểm"}</span>
                   {detail.completed_at ? ` · lúc ${fmtDateTime(detail.completed_at)}` : ""} {" · "}
-                  <b>{detail.so_da_kiem}/{detail.so_sp}</b> sản phẩm đã kiểm
+                  <b>{detail.so_da_kiem}/{detail.so_sp}</b> sản phẩm đã kiểm{detail.so_ngoai_ds ? ` · ${detail.so_ngoai_ds} sản phẩm ngoài danh sách` : ""}
                 </div>
                 <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                   <input readOnly className="finput" style={{ flex: 1, fontSize: 11.5 }} value={publicLink(detail.token)} onFocus={(e) => e.target.select()} />
@@ -240,7 +241,7 @@ export default function KiemKeLabPage() {
                 </div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10, alignItems: "center" }}>
                   <input className="finput" placeholder="Tìm mã / tên / vị trí / người kiểm / ghi chú..." value={dq} onChange={(e) => setDq(e.target.value)} style={{ width: 240 }} />
-                  {[["all", "Tất cả"], ["da", "Đã kiểm"], ["chua", "Chưa kiểm"], ["lech", "Có chênh lệch"]].map(([k, l]) => (
+                  {[["all", "Tất cả"], ["da", "Đã kiểm"], ["chua", "Chưa kiểm"], ["lech", "Có chênh lệch"], ["ngoai", "Ngoài danh sách"]].map(([k, l]) => (
                     <button key={k} className="fbtn" style={filter === k ? { background: "#EAF1FC", borderColor: "#1F4E79", fontWeight: 700 } : {}} onClick={() => setFilter(k)}>{l}</button>
                   ))}
                   <span style={{ fontSize: 12.5, color: "var(--text-600)" }}>{shown.length} dòng</span>
@@ -267,10 +268,10 @@ export default function KiemKeLabPage() {
                         return (
                           <tr key={it.id}>
                             <td style={{ padding: "5px 10px", textAlign: "center" }}>{it.ma_hang}</td>
-                            <td style={{ padding: "5px 10px", textAlign: "left" }}>{it.ten_hang || "-"}</td>
+                            <td style={{ padding: "5px 10px", textAlign: "left" }}>{it.ten_hang || "-"}{it.ngoai_ds ? <span style={{ marginLeft: 6, fontSize: 10.5, fontWeight: 700, color: "#1F6FD6", background: "#E8F1FD", borderRadius: 99, padding: "1px 7px", whiteSpace: "nowrap" }}>Ngoài DS</span> : null}</td>
                             <td style={{ padding: "5px 10px", textAlign: "center" }}>{it.don_vi || "-"}</td>
                             <td style={{ padding: "5px 10px", textAlign: "center" }}>{it.phan_loai || "-"}</td>
-                            <td style={{ padding: "5px 10px", textAlign: "right" }}>{fmtNum(it.ton_kho)}</td>
+                            <td style={{ padding: "5px 10px", textAlign: "right" }}>{it.ngoai_ds ? "-" : fmtNum(it.ton_kho)}</td>
                             <td style={{ padding: "5px 10px", textAlign: "right", fontWeight: it.da_kiem ? 700 : 400, color: it.da_kiem ? "inherit" : "var(--text-400)" }}>{it.da_kiem ? fmtNum(it.sl_kiem) : "chưa kiểm"}</td>
                             <td style={{ padding: "5px 10px", textAlign: "right", fontWeight: 700, color: chenh === null ? "var(--text-400)" : chenh === 0 ? "#3E7A2A" : "var(--danger)" }}>
                               {chenh === null ? "-" : `${chenh > 0 ? "+" : ""}${fmtNum(chenh)}`}

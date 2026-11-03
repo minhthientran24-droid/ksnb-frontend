@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import Head from "next/head";
 import {
   getToken, getUser, getKiemKeLabPublic, searchKiemKeLabPublic, getKiemKeLabPublicItem, saveKiemKeLabPublicItem,
-  listKiemKeLabPublicDaKiem, listKiemKeLabPublicChuaKiem, hoanTatKiemKeLabPublic, xoaKiemKeLabPublicItem,
+  listKiemKeLabPublicDaKiem, listKiemKeLabPublicChuaKiem, hoanTatKiemKeLabPublic, xoaKiemKeLabPublicItem, themKiemKeLabNgoaiDs,
 } from "../../lib/api";
 
 // Trang kiểm kê cho người kiểm — KHÔNG dùng Layout/Sidebar. Từ 03/11 YÊU CẦU ĐĂNG NHẬP (trước đó là link công khai không cần login);
@@ -47,7 +47,7 @@ export default function KiemKeLabPublicPage() {
 
   const [phieu, setPhieu] = useState(null);
   const [loadError, setLoadError] = useState("");
-  const [view, setView] = useState("search"); // search | detail
+  const [view, setView] = useState("search"); // search | detail | add (thêm sản phẩm ngoài danh sách)
   const [q, setQ] = useState("");
   const [searching, setSearching] = useState(false);
   const [result, setResult] = useState(null); // {items, tong, gan_dung, q} | null (chưa tìm)
@@ -56,6 +56,8 @@ export default function KiemKeLabPublicPage() {
   const [note, setNote] = useState("");
   const [viTri, setViTri] = useState("");
   const [viTriOpen, setViTriOpen] = useState(false); // mở danh sách gợi ý vị trí
+  const ADD0 = { ma_hang: "", ten_hang: "", don_vi: "", so_luong: "", phan_loai: "", ghi_chu: "" };
+  const [addForm, setAddForm] = useState(ADD0); // form thêm sản phẩm ngoài danh sách (vị trí dùng chung state viTri)
   const [ghiDe, setGhiDe] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -235,6 +237,73 @@ export default function KiemKeLabPublicPage() {
     }
   }
 
+  function renderViTri() {
+    return (
+      <>
+                    <label style={lbl}>Vị trí kiểm kê <span style={{ fontWeight: 500, color: "#667085" }}>(không bắt buộc)</span></label>
+                    <div style={{ position: "relative", marginBottom: 14 }}>
+                      <input
+                        value={viTri} onChange={(e) => setViTri(e.target.value)} onFocus={() => setViTriOpen(false)} disabled={done} maxLength={200}
+                        placeholder="Nhập hoặc chọn vị trí..." autoComplete="off" style={{ ...inputStyle, fontSize: 16, paddingRight: 54 }}
+                      />
+                      <button
+                        type="button" disabled={done} aria-label="Chọn vị trí gợi ý" onClick={() => setViTriOpen((o) => !o)}
+                        style={{ position: "absolute", right: 6, top: 6, bottom: 6, width: 40, border: "none", borderRadius: 8, background: viTriOpen ? "#CFE3FB" : "#E8F1FD", color: "#1F6FD6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                      >
+                        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: viTriOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}><path d="M5 8l5 5 5-5" /></svg>
+                      </button>
+                      {viTriOpen && (
+                        <>
+                          <div style={{ position: "fixed", inset: 0, zIndex: 19 }} onClick={() => setViTriOpen(false)} />
+                          <div style={{ position: "absolute", left: 0, right: 0, top: "calc(100% + 4px)", zIndex: 20, background: "#fff", border: "1.5px solid #C5D0E0", borderRadius: 10, boxShadow: "0 10px 24px rgba(15,40,80,0.18)", maxHeight: 280, overflowY: "auto" }}>
+                            {VI_TRI_GOI_Y.map((g) => {
+                              const on = viTri.trim().toLowerCase() === g.toLowerCase();
+                              return (
+                                <button
+                                  key={g} type="button" onClick={() => { setViTri(on ? "" : g); setViTriOpen(false); }}
+                                  style={{ display: "block", width: "100%", textAlign: "left", padding: "12px 14px", fontSize: 15, border: "none", borderBottom: "1px solid #EEF2F8", background: on ? "#E8F1FD" : "#fff", color: on ? "#1F6FD6" : "#16365C", fontWeight: on ? 700 : 500, cursor: "pointer" }}
+                                >{on ? "✓ " : ""}{g}</button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </div>
+      </>
+    );
+  }
+
+  function openAdd() {
+    setErr("");
+    setToast("");
+    setAddForm(ADD0);
+    setViTri("");
+    setViTriOpen(false);
+    setResult(null);
+    setView("add");
+  }
+
+  async function doAdd() {
+    const f = addForm;
+    const raw = f.so_luong.trim().replace(",", ".");
+    const n = raw === "" ? null : Number(raw);
+    if (n !== null && (!Number.isFinite(n) || n < 0)) { setErr("Số lượng phải là số ≥ 0."); return; }
+    if (![f.ma_hang, f.ten_hang, f.don_vi, f.phan_loai, f.ghi_chu, viTri].some((x) => x.trim()) && n === null) { setErr("Nhập ít nhất 1 thông tin để lưu."); return; }
+    setSaving(true);
+    setErr("");
+    try {
+      const r = await themKiemKeLabNgoaiDs(token, { ma_hang: f.ma_hang, ten_hang: f.ten_hang, don_vi: f.don_vi, so_luong: n, phan_loai: f.phan_loai, vi_tri: viTri, ghi_chu: f.ghi_chu });
+      setPhieu(r.phieu);
+      setToast(`✅ Đã thêm ngoài danh sách: ${r.item.ten_hang || r.item.ma_hang || "(sản phẩm)"}${n !== null ? ` — ${fmtNum(n)} ${r.item.don_vi || ""}` : ""}`);
+      setView("search");
+      loadHistory();
+    } catch (e) {
+      setErr(e.message || "Lưu thất bại");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function backToSearch() {
     setErr("");
     setItem(null);
@@ -242,7 +311,11 @@ export default function KiemKeLabPublicPage() {
   }
 
   async function doXoaDong(it) {
-    if (!confirm(`Xoá dòng kiểm kê “${it.ten_hang || it.ma_hang}” (${fmtNum(it.sl_kiem)} ${it.don_vi || ""})? Số lượng và ghi chú đã nhập sẽ bị xoá, sản phẩm quay về trạng thái chưa kiểm.`)) return;
+    const ten = it.ten_hang || it.ma_hang || "sản phẩm ngoài danh sách";
+    const msg = it.ngoai_ds
+      ? `Xoá sản phẩm ngoài danh sách “${ten}” (${fmtNum(it.sl_kiem)} ${it.don_vi || ""})? Dòng này sẽ bị xoá hẳn.`
+      : `Xoá dòng kiểm kê “${ten}” (${fmtNum(it.sl_kiem)} ${it.don_vi || ""})? Số lượng và ghi chú đã nhập sẽ bị xoá, sản phẩm quay về trạng thái chưa kiểm.`;
+    if (!confirm(msg)) return;
     setDeletingId(it.id);
     try {
       const r = await xoaKiemKeLabPublicItem(token, it.id);
@@ -300,6 +373,7 @@ export default function KiemKeLabPublicPage() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, fontSize: 13, gap: 8, flexWrap: "wrap" }}>
                 <span>Đã kiểm <b>{phieu.so_da_kiem}</b>/{phieu.so_sp} sản phẩm ({pct}%)</span>
                 <span style={{ display: "flex", gap: 6 }}>
+                  {!done && view !== "add" && <button style={{ ...btnGhost, fontSize: 20, fontWeight: 700, lineHeight: 1, padding: "4px 14px" }} onClick={openAdd} title="Thêm sản phẩm không có trong danh sách" aria-label="Thêm sản phẩm ngoài danh sách">+</button>}
                   {!done && <button style={btnGhost} disabled={completing} onClick={doHoanTat}>{completing ? "..." : "🏁 Hoàn tất"}</button>}
                 </span>
               </div>
@@ -384,18 +458,18 @@ export default function KiemKeLabPublicPage() {
                     return (
                       <div key={it.id} style={{ ...resultBtn, ...bg, display: "flex", gap: 8, alignItems: "center", cursor: "default" }}>
                         <div style={{ minWidth: 0, flex: 1, cursor: done ? "default" : "pointer" }} onClick={() => { if (!done) openItem(it.id); }}>
-                          <div style={{ fontSize: 12, color: "#667085" }}>{it.ma_hang}{it.da_kiem ? ` · ${fmtTime(it.kiem_at)}` : ""}{it.da_kiem && it.kiem_by ? ` · ${it.kiem_by}` : ""}</div>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: "#16365C" }}>{it.ten_hang || "(không có tên)"}</div>
+                          <div style={{ fontSize: 12, color: "#667085" }}>{it.ma_hang}{it.da_kiem ? ` · ${fmtTime(it.kiem_at)}` : ""}{it.da_kiem && it.kiem_by ? ` · ${it.kiem_by}` : ""}{it.ngoai_ds ? " · Ngoài danh sách" : ""}</div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: "#16365C" }}>{it.ten_hang || (it.ngoai_ds ? "(chưa nhập tên)" : "(không có tên)")}</div>
                           {it.vi_tri && <div style={{ fontSize: 12, color: "#1F4E79", marginTop: 2, wordBreak: "break-word" }}>📍 {it.vi_tri}</div>}
                           {it.ghi_chu && <div style={{ fontSize: 12, color: "#8A5A00", marginTop: 2, wordBreak: "break-word" }}>📝 {it.ghi_chu}</div>}
                         </div>
                         {it.da_kiem ? (
                           <div style={{ flexShrink: 0, textAlign: "right", lineHeight: 1.3 }}>
                             <div style={{ fontSize: 17, fontWeight: 800 }}>{fmtNum(it.sl_kiem)} <span style={{ fontSize: 11.5, fontWeight: 500, color: "#667085" }}>{it.don_vi}</span></div>
-                            <div style={{ fontSize: 11.5, color: "#667085" }}>Tồn: {fmtNum(it.ton_kho)}</div>
-                            <div style={{ fontSize: 12.5, fontWeight: 800, color: lech === 0 ? "#3E7A2A" : lech > 0 ? "#1F6FD6" : "#C0392B" }}>
+                            {!it.ngoai_ds && <div style={{ fontSize: 11.5, color: "#667085" }}>Tồn: {fmtNum(it.ton_kho)}</div>}
+                            {!(it.ngoai_ds && it.sl_kiem === null) && <div style={{ fontSize: 12.5, fontWeight: 800, color: lech === 0 ? "#3E7A2A" : lech > 0 ? "#1F6FD6" : "#C0392B" }}>
                               {lech === 0 ? "Khớp" : `Lệch ${lech > 0 ? "+" : ""}${fmtNum(lech)}`}
-                            </div>
+                            </div>}
                           </div>
                         ) : (
                           <div style={{ flexShrink: 0, textAlign: "right", lineHeight: 1.3 }}>
@@ -413,15 +487,46 @@ export default function KiemKeLabPublicPage() {
               </div>
             )}
 
+            {view === "add" && (
+              <div style={card}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: "#16365C" }}>Thêm sản phẩm ngoài danh sách</div>
+                <div style={{ fontSize: 12.5, color: "#667085", margin: "2px 0 14px" }}>Sản phẩm không có trong danh sách tồn cần kiểm. Các trường đều không bắt buộc — chỉ cần nhập ít nhất 1 trường là lưu được.</div>
+                <label style={lbl}>Mã sản phẩm</label>
+                <input value={addForm.ma_hang} onChange={(e) => setAddForm({ ...addForm, ma_hang: e.target.value })} maxLength={100} autoComplete="off" autoCapitalize="none" style={{ ...inputStyle, marginBottom: 12 }} />
+                <label style={lbl}>Tên sản phẩm</label>
+                <input value={addForm.ten_hang} onChange={(e) => setAddForm({ ...addForm, ten_hang: e.target.value })} maxLength={300} autoComplete="off" style={{ ...inputStyle, marginBottom: 12 }} />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+                  <div>
+                    <label style={lbl}>Đơn vị tính</label>
+                    <input value={addForm.don_vi} onChange={(e) => setAddForm({ ...addForm, don_vi: e.target.value })} maxLength={50} autoComplete="off" style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={lbl}>Số lượng</label>
+                    <input value={addForm.so_luong} onChange={(e) => setAddForm({ ...addForm, so_luong: e.target.value })} inputMode="decimal" autoComplete="off" style={{ ...inputStyle, fontWeight: 700, textAlign: "center" }} />
+                  </div>
+                </div>
+                <label style={lbl}>Phân loại hàng</label>
+                <input value={addForm.phan_loai} onChange={(e) => setAddForm({ ...addForm, phan_loai: e.target.value })} maxLength={100} autoComplete="off" style={{ ...inputStyle, marginBottom: 12 }} />
+                {renderViTri()}
+                <label style={lbl}>Ghi chú</label>
+                <textarea value={addForm.ghi_chu} onChange={(e) => setAddForm({ ...addForm, ghi_chu: e.target.value })} rows={3} maxLength={1000} style={{ ...inputStyle, fontSize: 15, resize: "vertical", fontFamily: "inherit" }} />
+                {err && <div style={errStyle}>{err}</div>}
+                <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+                  <button style={{ ...btnGhost, flex: 1, padding: "13px 10px", fontSize: 15 }} onClick={backToSearch}>← Quay lại</button>
+                  <button style={{ ...btnPrimary, flex: 2, padding: "13px 10px", fontSize: 16 }} disabled={saving || done} onClick={doAdd}>{saving ? "Đang lưu..." : "💾 Lưu"}</button>
+                </div>
+              </div>
+            )}
+
             {view === "detail" && item && (
               <div style={card}>
                 <div style={{ fontSize: 12.5, color: "#667085" }}>Mã sản phẩm</div>
-                <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 10 }}>{item.ma_hang}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 10 }}>{item.ma_hang || "-"}{item.ngoai_ds ? <span style={{ marginLeft: 8, fontSize: 12, fontWeight: 700, color: "#1F6FD6", background: "#E8F1FD", borderRadius: 99, padding: "2px 9px" }}>Ngoài danh sách</span> : null}</div>
                 <div style={{ fontSize: 12.5, color: "#667085" }}>Tên sản phẩm</div>
                 <div style={{ fontSize: 17, fontWeight: 800, color: "#16365C", marginBottom: 12 }}>{item.ten_hang || "-"}</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
                   <div style={infoBox}><div style={infoLbl}>Đơn vị tính</div><div style={infoVal}>{item.don_vi || "-"}</div></div>
-                  <div style={infoBox}><div style={infoLbl}>Số lượng tồn kho</div><div style={infoVal}>{fmtNum(item.ton_kho)}</div></div>
+                  <div style={infoBox}><div style={infoLbl}>Số lượng tồn kho</div><div style={infoVal}>{item.ngoai_ds ? "-" : fmtNum(item.ton_kho)}</div></div>
                   <div style={{ ...infoBox, gridColumn: "1 / -1" }}><div style={infoLbl}>Phân loại hàng hóa</div><div style={infoVal}>{item.phan_loai || "-"}</div></div>
                 </div>
 
@@ -435,35 +540,7 @@ export default function KiemKeLabPublicPage() {
                     <div style={{ fontSize: 12.5, marginTop: 4 }}>Nhập số lượng kiểm <b>thêm</b> lần này — hệ thống sẽ <b>cộng dồn</b> vào số trên.</div>
                   </div>
                 )}
-                <label style={lbl}>Vị trí kiểm kê <span style={{ fontWeight: 500, color: "#667085" }}>(không bắt buộc)</span></label>
-                <div style={{ position: "relative", marginBottom: 14 }}>
-                  <input
-                    value={viTri} onChange={(e) => setViTri(e.target.value)} onFocus={() => setViTriOpen(false)} disabled={done} maxLength={200}
-                    placeholder="Nhập hoặc chọn vị trí..." autoComplete="off" style={{ ...inputStyle, fontSize: 16, paddingRight: 54 }}
-                  />
-                  <button
-                    type="button" disabled={done} aria-label="Chọn vị trí gợi ý" onClick={() => setViTriOpen((o) => !o)}
-                    style={{ position: "absolute", right: 6, top: 6, bottom: 6, width: 40, border: "none", borderRadius: 8, background: viTriOpen ? "#CFE3FB" : "#E8F1FD", color: "#1F6FD6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: viTriOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}><path d="M5 8l5 5 5-5" /></svg>
-                  </button>
-                  {viTriOpen && (
-                    <>
-                      <div style={{ position: "fixed", inset: 0, zIndex: 19 }} onClick={() => setViTriOpen(false)} />
-                      <div style={{ position: "absolute", left: 0, right: 0, top: "calc(100% + 4px)", zIndex: 20, background: "#fff", border: "1.5px solid #C5D0E0", borderRadius: 10, boxShadow: "0 10px 24px rgba(15,40,80,0.18)", maxHeight: 280, overflowY: "auto" }}>
-                        {VI_TRI_GOI_Y.map((g) => {
-                          const on = viTri.trim().toLowerCase() === g.toLowerCase();
-                          return (
-                            <button
-                              key={g} type="button" onClick={() => { setViTri(on ? "" : g); setViTriOpen(false); }}
-                              style={{ display: "block", width: "100%", textAlign: "left", padding: "12px 14px", fontSize: 15, border: "none", borderBottom: "1px solid #EEF2F8", background: on ? "#E8F1FD" : "#fff", color: on ? "#1F6FD6" : "#16365C", fontWeight: on ? 700 : 500, cursor: "pointer" }}
-                            >{on ? "✓ " : ""}{g}</button>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
-                </div>
+                {renderViTri()}
                 <label style={lbl}>{item.da_kiem && !ghiDe ? "Số lượng kiểm thêm lần này" : "Số lượng kiểm kê"}{item.don_vi ? ` (${item.don_vi})` : ""}</label>
                 <input
                   ref={qtyRef} value={qty} onChange={(e) => setQty(e.target.value)} disabled={done}
