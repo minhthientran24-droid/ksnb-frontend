@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import Head from "next/head";
 import {
   getToken, getUser, getKiemKeLabPublic, searchKiemKeLabPublic, getKiemKeLabPublicItem, saveKiemKeLabPublicItem,
-  listKiemKeLabPublicDaKiem, listKiemKeLabPublicChuaKiem, hoanTatKiemKeLabPublic, xoaKiemKeLabPublicItem, themKiemKeLabNgoaiDs,
+  listKiemKeLabPublicDaKiem, listKiemKeLabPublicChuaKiem, listKiemKeLabPublicMaHang, hoanTatKiemKeLabPublic, xoaKiemKeLabPublicItem, themKiemKeLabNgoaiDs,
 } from "../../lib/api";
 
 // Trang kiểm kê cho người kiểm — KHÔNG dùng Layout/Sidebar. Từ 03/11 YÊU CẦU ĐĂNG NHẬP (trước đó là link công khai không cần login);
@@ -73,6 +73,8 @@ export default function KiemKeLabPublicPage() {
   const [camError, setCamError] = useState("");
   const videoRef = useRef(null);
   const handledRef = useRef(false);
+  const codesRef = useRef(new Set()); // mã hàng của phiếu (viết hoa) — đối chiếu kết quả quét
+  const [lastRead, setLastRead] = useState(""); // dòng báo trong khung camera: mã vừa đọc nhưng bị bỏ qua
   const camModeRef = useRef(false); // đang kiểm bằng camera -> lưu xong tự mở lại camera cho sản phẩm kế
   const runSearchRef = useRef(null);
   const [completing, setCompleting] = useState(false);
@@ -98,6 +100,7 @@ export default function KiemKeLabPublicPage() {
   useEffect(() => {
     if (!authed || !token) return;
     getKiemKeLabPublic(token).then(setPhieu).catch((e) => setLoadError(e.message || "Không tải được phiếu kiểm kê"));
+    listKiemKeLabPublicMaHang(token).then((r) => { codesRef.current = new Set((r.codes || []).map((c) => String(c).trim().toUpperCase())); }).catch(() => {});
     loadHistory();
   }, [authed, token]);
 
@@ -143,6 +146,27 @@ export default function KiemKeLabPublicPage() {
           runSearchRef.current?.(text);
         };
 
+        // Lọc kết quả đọc nhầm (chốt 03/11: máy quét hay "bắn ra toàn số" lạ do đọc nhầm vạch của Code128 thành EAN/UPC):
+        //  - mã TRÙNG mã hàng trong phiếu -> nhận ngay (kể cả EAN/UPC/số);
+        //  - mã Code128 / Code39 / QR (có checksum, ít đọc nhầm) không có trong phiếu -> phải đọc ra GIỐNG NHAU 2 lần liên tiếp mới nhận;
+        //  - EAN/UPC không có trong phiếu -> bỏ qua (báo "bỏ qua" trong khung camera), tiếp tục quét.
+        const STRONG = ["CODE_128", "CODE_39", "QR_CODE"];
+        const pend = { text: "", n: 0 };
+        let shown = "";
+        const accept = (res) => {
+          if (!res || !res.text) return null;
+          const t = String(res.text).trim();
+          if (!t) return null;
+          if (codesRef.current.has(t.toUpperCase())) return t;
+          const fmt = String(res.fmt || "").toUpperCase().replace(/-/g, "_");
+          if (!STRONG.includes(fmt)) {
+            if (shown !== t) { shown = t; setLastRead(`Đọc được “${t}” (${fmt || "?"}) nhưng không có trong danh sách — bỏ qua, đang quét tiếp…`); }
+            return null;
+          }
+          if (pend.text === t) pend.n += 1; else { pend.text = t; pend.n = 1; }
+          return pend.n >= 2 ? t : null;
+        };
+
         // 1) BarcodeDetector gốc (nếu có)
         let native = null;
         try {
@@ -173,7 +197,8 @@ export default function KiemKeLabPublicPage() {
           if (rotate) { canvas.width = ch; canvas.height = cw; ctx.setTransform(0, 1, -1, 0, ch, 0); } else { canvas.width = cw; canvas.height = ch; ctx.setTransform(1, 0, 0, 1, 0, 0); }
           ctx.drawImage(video, sx, sy, sw, sh, 0, 0, cw, ch);
           try {
-            return reader.decodeWithState(new BinaryBitmap(new HybridBinarizer(new HTMLCanvasElementLuminanceSource(canvas)))).getText();
+            const r = reader.decodeWithState(new BinaryBitmap(new HybridBinarizer(new HTMLCanvasElementLuminanceSource(canvas))));
+            return { text: r.getText(), fmt: BarcodeFormat[r.getBarcodeFormat()] };
           } catch { return null; }
         };
 
@@ -184,11 +209,13 @@ export default function KiemKeLabPublicPage() {
           const vh = video.videoHeight;
           if (video.readyState >= 2 && vw && vh) {
             n += 1;
-            let text = null;
+            let res = null;
             if (native) {
-              try { const r = await native.detect(video); if (r && r.length) text = r[0].rawValue; } catch { native = null; }
+              try { const r = await native.detect(video); if (r && r.length) res = { text: r[0].rawValue, fmt: r[0].format }; } catch { native = null; }
             }
+            let text = accept(res);
             if (!text && !native) {
+              res = null;
               // Vòng nhanh: dải giữa khung hình (tem thường đặt giữa) 94% ngang x 32% dọc, thu nhỏ còn <= 800px ngang (~10-30ms/khung).
               // Mã vạch 1D chỉ cần vài dòng quét nên dải mỏng là đủ. Các vòng "đào sâu" xen kẽ để không sót:
               //  - mỗi 3 vòng: dải giữa độ phân giải cao (<= 1280px) cho tem nhỏ/mã dài;
@@ -197,10 +224,11 @@ export default function KiemKeLabPublicPage() {
               const bh = Math.round(vh * 0.32);
               const bx = Math.round((vw - bw) / 2);
               const by = Math.round((vh - bh) / 2);
-              text = tryZxing(bx, by, bw, bh, 800, false);
-              if (!text && n % 3 === 0) text = tryZxing(bx, by, bw, bh, 1280, false);
-              if (!text && n % 5 === 0) text = tryZxing(0, 0, vw, vh, 960, false);
-              if (!text && n % 10 === 0) text = tryZxing(0, 0, vw, vh, 960, true);
+              res = tryZxing(bx, by, bw, bh, 800, false);
+              if (!res && n % 3 === 0) res = tryZxing(bx, by, bw, bh, 1280, false);
+              if (!res && n % 5 === 0) res = tryZxing(0, 0, vw, vh, 960, false);
+              if (!res && n % 10 === 0) res = tryZxing(0, 0, vw, vh, 960, true);
+              text = accept(res);
             }
             if (text) { onOk(text); return; }
           }
@@ -229,6 +257,7 @@ export default function KiemKeLabPublicPage() {
     setErr("");
     setToast("");
     setCamError("");
+    setLastRead("");
     setResult(null);
     handledRef.current = false;
     camModeRef.current = true;
@@ -662,7 +691,7 @@ export default function KiemKeLabPublicPage() {
             </div>
             {camError
               ? <div style={{ color: "#FFB4AB", fontSize: 13.5, marginTop: 12 }}>⚠️ {camError}</div>
-              : <div style={{ color: "#C9D6EA", fontSize: 13, marginTop: 12, lineHeight: 1.5 }}>Đưa mã vạch trên tem vào khung, giữ máy ổn định cách tem khoảng 15–25cm. Quét được sẽ tự rung/bíp và mở sản phẩm.</div>}
+              : <div style={{ color: "#C9D6EA", fontSize: 13, marginTop: 12, lineHeight: 1.5 }}>{lastRead && <div style={{ color: "#FFD58A", fontWeight: 600, marginBottom: 6 }}>{lastRead}</div>}Đưa mã vạch trên tem vào khung, giữ máy ổn định cách tem khoảng 15–25cm. Quét được sẽ tự rung/bíp và mở sản phẩm.</div>}
             <button style={{ ...btnGhost, width: "100%", marginTop: 14, padding: "12px" }} onClick={closeScan}>⌨️ Nhập mã bằng tay</button>
           </div>
         </div>
