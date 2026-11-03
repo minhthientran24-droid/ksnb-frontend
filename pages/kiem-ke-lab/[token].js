@@ -90,6 +90,11 @@ export default function KiemKeLabPublicPage() {
     setAuthed(true);
   }, [router.isReady]);
 
+  // tải sẵn thư viện quét mã vạch ngay khi vào trang -> bấm 📷 là mở camera + quét luôn, không phải chờ tải thư viện
+  useEffect(() => {
+    if (authed) { import("@zxing/browser").catch(() => {}); import("@zxing/library").catch(() => {}); }
+  }, [authed]);
+
   useEffect(() => {
     if (!authed || !token) return;
     getKiemKeLabPublic(token).then(setPhieu).catch((e) => setLoadError(e.message || "Không tải được phiếu kiểm kê"));
@@ -109,40 +114,99 @@ export default function KiemKeLabPublicPage() {
   }, [panel, chuaKiem, token]);
 
   // ---- Camera quét barcode ----
-  // Dùng @zxing/browser + TRY_HARDER (html5-qrcode đọc mã vạch 1D khi quét trực tiếp rất kém — đã thử, không ra mã Code128).
+  // Chốt 03/11 (tăng tốc): tự chạy vòng quét thay vì để thư viện giải mã NGUYÊN khung hình 1600x900 (rất nặng trên điện thoại ->
+  // chỉ vài khung/giây). Mỗi vòng: ưu tiên BarcodeDetector gốc của máy (Android/Chrome, phần cứng, rất nhanh); không có (iPhone/Safari) thì
+  // cắt đúng DẢI GIỮA khung hình (nơi người kiểm đặt tem) rồi giải mã bằng ZXing — ít điểm ảnh hơn nên nhanh hơn nhiều lần; cứ vài vòng
+  // lại thử thêm nguyên khung hình + ảnh xoay 90° để không sót mã nằm lệch/dọc. Chỉ bật các loại mã vạch cần dùng (Code128/39, EAN, QR).
   useEffect(() => {
     if (!scanOpen) return undefined;
     let cancelled = false;
-    let controls = null;
+    let stream = null;
+    let timer = null;
     (async () => {
       try {
-        const [{ BrowserMultiFormatReader }, { DecodeHintType, BarcodeFormat }] = await Promise.all([import("@zxing/browser"), import("@zxing/library")]);
-        if (cancelled) return;
-        const hints = new Map();
-        hints.set(DecodeHintType.TRY_HARDER, true);
-        hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-          BarcodeFormat.CODE_128, BarcodeFormat.CODE_39, BarcodeFormat.CODE_93, BarcodeFormat.EAN_13, BarcodeFormat.EAN_8,
-          BarcodeFormat.UPC_A, BarcodeFormat.UPC_E, BarcodeFormat.ITF, BarcodeFormat.CODABAR, BarcodeFormat.QR_CODE, BarcodeFormat.DATA_MATRIX,
-        ]);
-        const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 80 });
-        const onResult = (res, _err, ctl) => {
-          if (!res || handledRef.current) return;
+        const video = videoRef.current;
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+        const track = stream.getVideoTracks()[0];
+        try { await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] }); } catch {} // lấy nét liên tục nếu máy hỗ trợ
+        video.srcObject = stream;
+        video.setAttribute("playsinline", "true");
+        await video.play();
+
+        const onOk = (text) => {
+          if (handledRef.current || !text) return;
           handledRef.current = true;
-          const text = res.getText();
-          try { ctl.stop(); } catch {}
           beep();
           setScanOpen(false);
           setQ(text);
           runSearchRef.current?.(text);
         };
-        const video = videoRef.current;
+
+        // 1) BarcodeDetector gốc (nếu có)
+        let native = null;
         try {
-          controls = await reader.decodeFromConstraints({ video: { facingMode: "environment", width: { ideal: 1600 }, height: { ideal: 900 } } }, video, onResult);
-        } catch (e1) {
-          if (String(e1?.name || e1).includes("NotAllowed")) throw e1;
-          controls = await reader.decodeFromConstraints({ video: { facingMode: "environment" } }, video, onResult); // máy từ chối cấu hình nâng cao -> lùi về mặc định
-        }
-        if (cancelled) { try { controls.stop(); } catch {} }
+          if (typeof window !== "undefined" && "BarcodeDetector" in window) {
+            const want = ["code_128", "code_39", "ean_13", "ean_8", "upc_a", "qr_code"];
+            const sup = await window.BarcodeDetector.getSupportedFormats();
+            const formats = want.filter((f) => sup.includes(f));
+            if (formats.length) native = new window.BarcodeDetector({ formats });
+          }
+        } catch { native = null; }
+
+        // 2) ZXing (dự phòng / iPhone)
+        const [{ HTMLCanvasElementLuminanceSource }, Z] = await Promise.all([import("@zxing/browser"), import("@zxing/library")]);
+        if (cancelled) return;
+        const { MultiFormatReader, BinaryBitmap, HybridBinarizer, DecodeHintType, BarcodeFormat } = Z;
+        const hints = new Map();
+        hints.set(DecodeHintType.TRY_HARDER, true);
+        hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.CODE_128, BarcodeFormat.CODE_39, BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.QR_CODE]);
+        const reader = new MultiFormatReader();
+        reader.setHints(hints);
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+        const tryZxing = (sx, sy, sw, sh, maxW, rotate) => {
+          const k = Math.min(1, maxW / sw);
+          const cw = Math.max(1, Math.round(sw * k));
+          const ch = Math.max(1, Math.round(sh * k));
+          if (rotate) { canvas.width = ch; canvas.height = cw; ctx.setTransform(0, 1, -1, 0, ch, 0); } else { canvas.width = cw; canvas.height = ch; ctx.setTransform(1, 0, 0, 1, 0, 0); }
+          ctx.drawImage(video, sx, sy, sw, sh, 0, 0, cw, ch);
+          try {
+            return reader.decodeWithState(new BinaryBitmap(new HybridBinarizer(new HTMLCanvasElementLuminanceSource(canvas)))).getText();
+          } catch { return null; }
+        };
+
+        let n = 0;
+        const tick = async () => {
+          if (cancelled || handledRef.current) return;
+          const vw = video.videoWidth;
+          const vh = video.videoHeight;
+          if (video.readyState >= 2 && vw && vh) {
+            n += 1;
+            let text = null;
+            if (native) {
+              try { const r = await native.detect(video); if (r && r.length) text = r[0].rawValue; } catch { native = null; }
+            }
+            if (!text && !native) {
+              // Vòng nhanh: dải giữa khung hình (tem thường đặt giữa) 94% ngang x 32% dọc, thu nhỏ còn <= 800px ngang (~10-30ms/khung).
+              // Mã vạch 1D chỉ cần vài dòng quét nên dải mỏng là đủ. Các vòng "đào sâu" xen kẽ để không sót:
+              //  - mỗi 3 vòng: dải giữa độ phân giải cao (<= 1280px) cho tem nhỏ/mã dài;
+              //  - mỗi 5 vòng: nguyên khung hình (mã nằm lệch khỏi giữa); mỗi 10 vòng: nguyên khung hình xoay 90° (mã đặt dọc).
+              const bw = Math.round(vw * 0.94);
+              const bh = Math.round(vh * 0.32);
+              const bx = Math.round((vw - bw) / 2);
+              const by = Math.round((vh - bh) / 2);
+              text = tryZxing(bx, by, bw, bh, 800, false);
+              if (!text && n % 3 === 0) text = tryZxing(bx, by, bw, bh, 1280, false);
+              if (!text && n % 5 === 0) text = tryZxing(0, 0, vw, vh, 960, false);
+              if (!text && n % 10 === 0) text = tryZxing(0, 0, vw, vh, 960, true);
+            }
+            if (text) { onOk(text); return; }
+          }
+          timer = setTimeout(tick, 0);
+        };
+        tick();
       } catch (e) {
         if (cancelled) return;
         camModeRef.current = false;
@@ -154,7 +218,9 @@ export default function KiemKeLabPublicPage() {
     })();
     return () => {
       cancelled = true;
-      try { controls?.stop(); } catch {}
+      if (timer) clearTimeout(timer);
+      try { stream?.getTracks().forEach((t) => t.stop()); } catch {}
+      try { if (videoRef.current) videoRef.current.srcObject = null; } catch {}
     };
   }, [scanOpen]);
 
