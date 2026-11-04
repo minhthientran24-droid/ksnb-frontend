@@ -45,16 +45,20 @@ async function agentCall(path, { method = "GET", body, timeoutMs = 15000 } = {})
 }
 
 const pad = (n) => String(n).padStart(2, "0");
-const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 function monthRange(ym) {
   const [y, m] = ym.split("-").map(Number);
   return { from: `${y}-${pad(m)}-01`, to: `${y}-${pad(m)}-${pad(new Date(y, m, 0).getDate())}` };
 }
 const currentYm = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; };
-// Mặc định (chốt 27/10): Từ ngày = hôm nay - 5 ngày, Đến ngày = cuối tháng hiện tại
+// Mặc định (chốt 04/11, thay cho "hôm nay - 5 ngày" của 27/10): Từ ngày = NGÀY ĐẦU THÁNG của lần đồng bộ gần nhất (vd đồng bộ lần cuối
+// 15:53 03/11/2026 -> Từ ngày 01/11/2026), Đến ngày = cuối tháng hiện tại. Chưa từng đồng bộ thì lấy đầu tháng hiện tại.
 function defaultRange() {
-  const now = new Date();
-  return { from: ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 5)), to: monthRange(currentYm()).to };
+  return { from: monthRange(currentYm()).from, to: monthRange(currentYm()).to };
+}
+function firstDayOfMonthOf(iso) {
+  const d = iso ? new Date(iso) : null;
+  if (!d || Number.isNaN(d.getTime())) return null;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`;
 }
 const fmtMs = (sec) => `${pad(Math.floor(sec / 60))}:${pad(sec % 60)}`;
 function fmtDateTime(iso) {
@@ -84,6 +88,7 @@ export default function EhoSyncModal({ onClose }) {
   const alive = useRef(true);
   const triedLaunch = useRef(false);
   const cancelRef = useRef(false);
+  const appliedDefault = useRef(false); // Từ ngày mặc định (theo lần đồng bộ gần nhất) chỉ áp 1 lần khi mở popup, không đè khi người dùng đã chỉnh
 
   const srcIds = Object.keys(srcNames).map(Number).sort((a, b) => a - b);
   const srcLabel = (id) => srcNames[id] || `Loại yêu cầu ${id}`;
@@ -92,6 +97,7 @@ export default function EhoSyncModal({ onClose }) {
   const toggleSrc = (id) => setSrcSel((o) => { const n = new Set(o); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   function pickMonth(v) {
     setYm(v);
+    appliedDefault.current = true;
     if (v) { const r = monthRange(v); setFrom(r.from); setTo(r.to); }
   }
 
@@ -103,7 +109,15 @@ export default function EhoSyncModal({ onClose }) {
   }
 
   function loadInfo() {
-    getEhoStatus().then((r) => alive.current && setInfo(r)).catch(() => {});
+    getEhoStatus().then((r) => {
+      if (!alive.current) return;
+      setInfo(r);
+      if (!appliedDefault.current) {
+        appliedDefault.current = true;
+        const f = firstDayOfMonthOf(r && r.dong_bo_lan_cuoi);
+        if (f) setFrom(f);
+      }
+    }).catch(() => {});
   }
 
   useEffect(() => {
@@ -352,7 +366,7 @@ export default function EhoSyncModal({ onClose }) {
               </div>
               <div>
                 <label style={lbl}>Từ ngày</label>
-                <input type="date" className="finput" value={from} onChange={(e) => setFrom(e.target.value)} disabled={syncing} />
+                <input type="date" className="finput" value={from} onChange={(e) => { appliedDefault.current = true; setFrom(e.target.value); }} disabled={syncing} />
               </div>
               <div>
                 <label style={lbl}>Đến ngày</label>
