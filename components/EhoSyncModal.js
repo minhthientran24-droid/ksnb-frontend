@@ -50,15 +50,15 @@ function monthRange(ym) {
   return { from: `${y}-${pad(m)}-01`, to: `${y}-${pad(m)}-${pad(new Date(y, m, 0).getDate())}` };
 }
 const currentYm = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; };
-// Mặc định (chốt 04/11, thay cho "hôm nay - 5 ngày" của 27/10): Từ ngày = NGÀY ĐẦU THÁNG của lần đồng bộ gần nhất (vd đồng bộ lần cuối
-// 15:53 03/11/2026 -> Từ ngày 01/11/2026), Đến ngày = cuối tháng hiện tại. Chưa từng đồng bộ thì lấy đầu tháng hiện tại.
+// Mặc định (chốt 04/11, thay cho "hôm nay - 5 ngày" của 27/10): Từ ngày = NGÀY của lần đồng bộ gần nhất (vd đồng bộ lần cuối
+// 15:53 03/11/2026 -> Từ ngày 03/11/2026), Đến ngày = cuối tháng hiện tại. Chưa từng đồng bộ thì lấy đầu tháng hiện tại.
 function defaultRange() {
   return { from: monthRange(currentYm()).from, to: monthRange(currentYm()).to };
 }
-function firstDayOfMonthOf(iso) {
+function dateOf(iso) {
   const d = iso ? new Date(iso) : null;
   if (!d || Number.isNaN(d.getTime())) return null;
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 const fmtMs = (sec) => `${pad(Math.floor(sec / 60))}:${pad(sec % 60)}`;
 function fmtDateTime(iso) {
@@ -114,7 +114,7 @@ export default function EhoSyncModal({ onClose }) {
       setInfo(r);
       if (!appliedDefault.current) {
         appliedDefault.current = true;
-        const f = firstDayOfMonthOf(r && r.dong_bo_lan_cuoi);
+        const f = dateOf(r && r.dong_bo_lan_cuoi);
         if (f) setFrom(f);
       }
     }).catch(() => {});
