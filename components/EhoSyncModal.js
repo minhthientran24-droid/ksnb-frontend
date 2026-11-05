@@ -45,6 +45,11 @@ async function agentCall(path, { method = "GET", body, timeoutMs = 15000 } = {})
 }
 
 const pad = (n) => String(n).padStart(2, "0");
+const ymdLocal = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+// Bước Kiểm kê quét LÙI tối thiểu 35 ngày (chốt 05/11): khoảng ngày gửi cho EHO tính theo ngày TẠO/kỳ kiểm kê của phiếu chứ không phải Ngày
+// duyệt — số liệu thật: trung vị phiếu được duyệt sau ngày tạo 4,2 ngày, 34% phiếu trễ hơn 5 ngày, có phiếu tới 34 ngày. Khoảng ngắn
+// (5 ngày, hoặc từ ngày đồng bộ cuối) sẽ bỏ sót phiếu tạo trước đó nhưng mới được duyệt -> shop mất "Ngày chốt". Phiếu đã có luôn giữ nguyên.
+const KIEM_KE_LOOKBACK_DAYS = 35;
 function monthRange(ym) {
   const [y, m] = ym.split("-").map(Number);
   return { from: `${y}-${pad(m)}-01`, to: `${y}-${pad(m)}-${pad(new Date(y, m, 0).getDate())}` };
@@ -171,6 +176,8 @@ export default function EhoSyncModal({ onClose }) {
 
   // ---- Từng phần của 1 lần đồng bộ; mỗi phần trả về {type, text}, ném lỗi "login" khi phiên EHO hết hạn ----
   async function stepKiemKe(fromIso, toIso) {
+    const lb = ymdLocal(new Date(Date.now() - KIEM_KE_LOOKBACK_DAYS * 86400000));
+    if (fromIso.slice(0, 10) > lb) fromIso = `${lb}T00:00:00`;
     const res = await agentCall("/sync", { method: "POST", body: { from_date: fromIso, to_date: toIso }, timeoutMs: 15 * 60 * 1000 });
     if (!res || !res.ok) {
       const e = res && res.error;
@@ -181,13 +188,13 @@ export default function EhoSyncModal({ onClose }) {
     let nhan = 0, moi = 0;
     const shops = new Set();
     for (let i = 0; i < rows.length || i === 0; i += 4000) { // luôn gọi ít nhất 1 lần (kể cả 0 phiếu) để ghi nhận thời điểm + người đồng bộ
-      const r = await ehoIngest(rows.slice(i, i + 4000));
+      const r = await ehoIngest(rows.slice(i, i + 4000), i === 0 ? { fetched: res.fetched, tu_ngay: fromIso.slice(0, 10), den_ngay: toIso.slice(0, 10) } : undefined);
       nhan += r.nhan;
       moi += r.moi || 0;
     }
     rows.forEach((x) => shops.add(x.shopCode));
     loadInfo();
-    return { type: "ok", text: `Kiểm kê: lấy ${vn(res.fetched)} phiếu Hoàn tất, có ${vn(nhan)} phiếu "Kho hàng thường" của ${vn(shops.size)} shop: thêm mới ${vn(moi)} phiếu, ${vn(nhan - moi)} phiếu đã có từ trước được giữ nguyên (không ghi đè).` };
+    return { type: "ok", text: `Kiểm kê (quét ${fromIso.slice(8, 10)}/${fromIso.slice(5, 7)} → ${toIso.slice(8, 10)}/${toIso.slice(5, 7)}): lấy ${vn(res.fetched)} phiếu Hoàn tất, có ${vn(nhan)} phiếu "Kho hàng thường" của ${vn(shops.size)} shop: thêm mới ${vn(moi)} phiếu, ${vn(nhan - moi)} phiếu đã có từ trước được giữ nguyên (không ghi đè).` };
   }
 
   async function stepCod(fromIso, toIso) {
