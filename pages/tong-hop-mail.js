@@ -53,7 +53,7 @@ export default function TongHopMailPage() {
   return (
     <Layout crumb="Tổng hợp mail AI">
       <div className="page-head">
-        <h1>🤖 Tổng hợp mail AI</h1>
+        <h1>🤖 Tổng hợp mail AI <span style={{ fontSize: 12, fontWeight: 700, color: "#B54708", background: "#FFF4D6", borderRadius: 99, padding: "2px 10px", verticalAlign: "middle" }}>Thử nghiệm</span></h1>
         <p>AI đọc mail hôm nay ({today}) trong hộp thư của anh/chị và tóm tắt: việc cần xử lý, mail quan trọng, mail chỉ để biết.</p>
       </div>
 

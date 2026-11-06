@@ -14,7 +14,7 @@ const NAV_ITEMS = [
   // Chốt 02/11 — kiểm kê tay sản phẩm LAB (không barcode), link công khai không cần đăng nhập; dành cho TẤT CẢ role.
   { href: "/kiem-ke-lab", icon: "🧪", label: "Kiểm kê LAB" },
   { href: "/gui-mail-bcks", icon: "📧", label: "Gửi mail BCKS" },
-  { href: "/tong-hop-mail", icon: "🤖", label: "Tổng hợp mail AI" },
+  { href: "/tong-hop-mail", icon: "🤖", label: "Tổng hợp mail AI" }, // menu thử nghiệm: chỉ super_admin (backend menu_permissions DEFAULT_DENY)
   // Chốt 08/10 — tra cứu thông tin shop theo Mã shop, dành cho TẤT CẢ role
   // (không hideForRoles, menu_permissions mặc định cho phép mọi role).
   { href: "/tra-cuu-thong-tin", icon: "🔎", label: "Tra cứu thông tin" },
