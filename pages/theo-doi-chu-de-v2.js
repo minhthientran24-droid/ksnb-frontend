@@ -1255,6 +1255,12 @@ export default function TheoDoiChuDeV2Page() {
         </div>
       </div>
 
+      {activeTab === "Chưa nhận" && (
+        <div style={{ fontSize: 12.5, color: "var(--text-600)", margin: "-4px 0 10px" }}>
+          Tab “Chủ Đề Mới - Chưa nhận” hiển thị <b>tất cả các tháng</b> (không phụ thuộc bộ lọc tháng) để không bỏ sót chủ đề chưa ai nhận.
+        </div>
+      )}
+
       {error && <div className="placeholder-box">Không tải được dữ liệu: {error}</div>}
       {!error && !loading && jobs.length === 0 && (
         <div className="placeholder-box">Chưa có task chủ đề nào được đăng.</div>
