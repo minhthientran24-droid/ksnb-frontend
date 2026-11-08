@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import { fmtDate, fmtMoney, moneyStyle, TruyThuShopCard, TruyThuNhanVienCard } from "../components/TruyThuCards";
-import { getUser, traCuuThongTinShop, traCuuTruyThuNhanVien, timShopTheoTen } from "../lib/api";
+import { getUser, traCuuThongTinShop, traCuuTruyThuNhanVien, timShopTheoTen, timAsm, shopCuaAsm } from "../lib/api";
 
 function InfoItem({ label, children }) {
   return (
@@ -21,6 +21,69 @@ function TenEmailList({ items }) {
       {items.map((p, i) => (
         <div key={`${p.ten}-${i}`}>{p.email ? `${p.ten} - ${p.email}` : p.ten}</div>
       ))}
+    </div>
+  );
+}
+
+const NHOM_SHOP = [
+  { loai: "vaccine", label: "Shop Vaccine", bg: "#EAF1FB" },
+  { loai: "long_chau", label: "Shop Long Châu", bg: "#EAF6EC" },
+];
+
+// Các shop 1 ASM quản lý — Shop Vaccine trước, rồi Shop Long Châu; trong cùng loại đã xếp sẵn theo tỉnh (backend).
+function AsmShopsCard({ data }) {
+  const { asm, shops } = data;
+  let stt = 0;
+  return (
+    <div className="card">
+      <div className="card-head">
+        <h3>ASM {asm.ten}{asm.email ? ` - ${asm.email}` : ""}</h3>
+        <span className="note" style={{ fontWeight: 700 }}>
+          Quản lý {asm.so_shop} shop đang hoạt động ({asm.so_vaccine} Vaccine, {asm.so_long_chau} Long Châu) — xếp Shop Vaccine trước, rồi Shop Long Châu; cùng loại xếp theo tỉnh
+        </span>
+      </div>
+      <div className="card-body" style={{ overflowX: "auto" }}>
+        <table>
+          <thead>
+            <tr>
+              <th>STT</th>
+              <th>Mã shop</th>
+              <th style={{ textAlign: "left" }}>Tên shop</th>
+              <th style={{ textAlign: "left" }}>Tỉnh thành</th>
+              <th style={{ textAlign: "left" }}>Quản lý</th>
+              <th style={{ textAlign: "left" }}>Trưởng ca</th>
+              <th>Ngày mở bán</th>
+              <th>Kiểm kê gần nhất</th>
+            </tr>
+          </thead>
+          <tbody>
+            {NHOM_SHOP.map((g) => {
+              const list = shops.filter((x) => x.loai === g.loai);
+              if (list.length === 0) return null;
+              return [
+                <tr key={`h-${g.loai}`}>
+                  <td colSpan={8} style={{ background: g.bg, fontWeight: 700, textAlign: "left" }}>{g.label} ({list.length})</td>
+                </tr>,
+                ...list.map((x) => {
+                  stt += 1;
+                  return (
+                    <tr key={x.ma_shop}>
+                      <td>{stt}</td>
+                      <td>{x.ma_shop}</td>
+                      <td style={{ textAlign: "left" }}>{x.ten_shop}</td>
+                      <td style={{ textAlign: "left" }}>{x.tinh_thanh || "—"}</td>
+                      <td style={{ textAlign: "left" }}><TenEmailList items={x.quan_ly} />{(!x.quan_ly || x.quan_ly.length === 0) && "—"}</td>
+                      <td style={{ textAlign: "left" }}><TenEmailList items={x.truong_ca} />{(!x.truong_ca || x.truong_ca.length === 0) && "—"}</td>
+                      <td>{x.ngay_mo_ban ? fmtDate(x.ngay_mo_ban) : "—"}</td>
+                      <td>{x.ngay_kiem_ke_gan_nhat ? fmtDate(x.ngay_kiem_ke_gan_nhat) : "—"}</td>
+                    </tr>
+                  );
+                }),
+              ];
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -45,6 +108,65 @@ export default function TraCuuThongTinPage() {
   const [nvResult, setNvResult] = useState(null);
   const [nvSearched, setNvSearched] = useState("");
 
+  // Ô tìm ASM (chốt 08/11): trùng tên -> hiện danh sách ASM (tên + email) để chọn -> hiện các shop ASM đó quản lý
+  const [asmInput, setAsmInput] = useState("");
+  const [asmLoading, setAsmLoading] = useState(false);
+  const [asmError, setAsmError] = useState("");
+  const [asmCands, setAsmCands] = useState(null); // {q, total, matches:[{key, ten, email, so_shop, so_vaccine, so_long_chau}]}
+  const [asmResult, setAsmResult] = useState(null); // {asm, shops}
+  const [asmSearched, setAsmSearched] = useState("");
+
+  function clearAsm() {
+    setAsmCands(null);
+    setAsmResult(null);
+    setAsmError("");
+    setAsmSearched("");
+  }
+
+  async function openAsm(key) {
+    setAsmLoading(true);
+    setAsmError("");
+    setAsmCands(null);
+    try {
+      setAsmResult(await shopCuaAsm(key));
+    } catch (err) {
+      setAsmResult(null);
+      setAsmError(err.message || "Tra cứu thất bại");
+    } finally {
+      setAsmLoading(false);
+    }
+  }
+
+  async function handleLookupAsm() {
+    const q = asmInput.trim();
+    if (!q || q === asmSearched) return;
+    setAsmSearched(q);
+    setAsmLoading(true);
+    setAsmError("");
+    setAsmCands(null);
+    setAsmResult(null);
+    // đang xem theo ASM thì ẩn kết quả theo shop / nhân viên cho gọn
+    setResult(null); setSearched(""); setError(""); setCandidates(null);
+    setNvResult(null); setNvSearched(""); setNvError("");
+    try {
+      const r = await timAsm(q);
+      if (r.matches.length === 0) {
+        setAsmSearched("");
+        setAsmError(`Không tìm thấy ASM nào có tên (hoặc email) "${q}".`);
+      } else if (r.matches.length === 1) {
+        await openAsm(r.matches[0].key);
+        return;
+      } else {
+        setAsmCands(r);
+      }
+    } catch (err) {
+      setAsmSearched("");
+      setAsmError(err.message || "Tra cứu thất bại");
+    } finally {
+      setAsmLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (!getUser()) {
       window.location.replace("/");
@@ -62,6 +184,7 @@ export default function TraCuuThongTinPage() {
     setCandidates(null);
     setNvResult(null); // đang xem theo shop thì ẩn kết quả theo nhân viên cho gọn
     setNvSearched("");
+    clearAsm();
     try {
       setResult(await traCuuThongTinShop(code));
     } catch (err) {
@@ -88,6 +211,7 @@ export default function TraCuuThongTinPage() {
     setCandidates(null);
     setNvResult(null);
     setNvSearched("");
+    clearAsm();
     try {
       const r = await timShopTheoTen(q);
       if (r.matches.length === 1) {
@@ -123,6 +247,7 @@ export default function TraCuuThongTinPage() {
     setResult(null); // đang xem theo nhân viên thì ẩn kết quả theo shop
     setSearched("");
     setError("");
+    clearAsm();
     try {
       setNvResult(await traCuuTruyThuNhanVien(q));
     } catch (err) {
@@ -142,7 +267,7 @@ export default function TraCuuThongTinPage() {
         <h1>🔎 Tra cứu thông tin</h1>
         <p>
           Nhập Mã shop để xem thông tin shop, 3 kỳ kiểm kê gần nhất và truy thu thực tế (tối đa 12 tháng) — hoặc tìm theo
-          tên nhân viên để xem truy thu của từng người. Bấm Tab hoặc Enter để tra cứu.
+          tên nhân viên để xem truy thu của từng người — hoặc tìm theo tên ASM để xem các shop ASM đó quản lý. Bấm Tab hoặc Enter để tra cứu.
         </p>
       </div>
 
@@ -173,9 +298,47 @@ export default function TraCuuThongTinPage() {
               style={inputStyle}
             />
           </div>
-          {(loading || nvLoading) && <span style={{ fontSize: 13, color: "var(--text-400)", paddingBottom: 10 }}>Đang tra cứu...</span>}
+          <div style={{ flex: "1 1 280px", maxWidth: 380 }}>
+            <label style={labelStyle}>Tên ASM (hoặc email ASM)</label>
+            <input
+              type="text"
+              placeholder="VD: Nguyễn Thị Diễm Hằng"
+              value={asmInput}
+              onChange={(e) => setAsmInput(e.target.value)}
+              onBlur={handleLookupAsm}
+              onKeyDown={(e) => { if (e.key === "Enter") handleLookupAsm(); }}
+              style={inputStyle}
+            />
+          </div>
+          {(loading || nvLoading || asmLoading) && <span style={{ fontSize: 13, color: "var(--text-400)", paddingBottom: 10 }}>Đang tra cứu...</span>}
         </div>
       </div>
+
+      {asmCands && (
+        <div className="card">
+          <div className="card-head">
+            <h3>Chọn ASM</h3>
+            <span className="note">
+              Có {asmCands.total} ASM khớp "{asmCands.q}"{asmCands.total > asmCands.matches.length ? ` (hiện ${asmCands.matches.length} người đầu — gõ cụ thể hơn để thu hẹp)` : ""}. Bấm vào tên để xem các shop ASM đó quản lý.
+            </span>
+          </div>
+          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {asmCands.matches.map((m) => (
+              <div
+                key={m.key}
+                onClick={() => openAsm(m.key)}
+                style={{ cursor: "pointer", padding: "8px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}
+              >
+                <strong>{m.ten}</strong>{m.email ? ` - ${m.email}` : ""}
+                <span style={{ color: "var(--text-600)", fontSize: 12.5 }}> · {m.so_shop} shop ({m.so_vaccine} Vaccine, {m.so_long_chau} Long Châu)</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {asmError && <div className="placeholder-box">{asmError}</div>}
+      {asmResult && <AsmShopsCard data={asmResult} />}
 
       {candidates && (
         <div className="card">
