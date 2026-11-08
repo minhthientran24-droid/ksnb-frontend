@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import { fmtDate, fmtMoney, moneyStyle, TruyThuShopCard, TruyThuNhanVienCard } from "../components/TruyThuCards";
-import { getUser, traCuuThongTinShop, traCuuTruyThuNhanVien, timShopTheoTen, timNguoi, shopCuaAsm } from "../lib/api";
+import { getUser, traCuuThongTinShop, traCuuTruyThuNhanVien, timShopTheoTen, timNguoi, shopCuaAsm, shopTheoTinh } from "../lib/api";
 
 function InfoItem({ label, children }) {
   return (
@@ -88,6 +88,71 @@ function AsmShopsCard({ data }) {
   );
 }
 
+// Toàn bộ shop đang hoạt động của 1 tỉnh — nhóm theo ASM phụ trách (A→Z), trong cùng ASM Shop Vaccine lên trên (backend đã xếp sẵn).
+function TinhShopsCard({ data }) {
+  const groups = [];
+  for (const x of data.shops) {
+    const key = x.ten_asm ? `${x.ten_asm}|${(x.email_asm || "").toLowerCase()}` : "";
+    let g = groups[groups.length - 1];
+    if (!g || g.key !== key) {
+      g = { key, ten: x.ten_asm, email: x.email_asm, list: [] };
+      groups.push(g);
+    }
+    g.list.push(x);
+  }
+  let stt = 0;
+  return (
+    <div className="card">
+      <div className="card-head">
+        <h3>{data.tinh} - {data.tong_shop} shop</h3>
+        <span className="note" style={{ fontWeight: 700 }}>
+          {data.so_vaccine} Shop Vaccine, {data.tong_shop - data.so_vaccine} Shop Long Châu · {data.so_asm} ASM phụ trách (chỉ tính shop đang hoạt động) — xếp theo tên ASM, trong cùng ASM Shop Vaccine lên trên
+        </span>
+      </div>
+      <div className="card-body" style={{ overflowX: "auto" }}>
+        <table>
+          <thead>
+            <tr>
+              <th>STT</th>
+              <th>Mã shop</th>
+              <th style={{ textAlign: "left" }}>Tên shop</th>
+              <th>Loại</th>
+              <th style={{ textAlign: "left" }}>Quản lý</th>
+              <th style={{ textAlign: "left" }}>Trưởng ca</th>
+              <th>Ngày mở bán</th>
+              <th>Kiểm kê gần nhất</th>
+            </tr>
+          </thead>
+          <tbody>
+            {groups.map((g, gi) => [
+              <tr key={`g-${gi}`}>
+                <td colSpan={8} style={{ background: "#EAF1FB", fontWeight: 700, textAlign: "left" }}>
+                  {g.ten ? `ASM ${g.ten}${g.email ? ` - ${g.email}` : ""}` : "Chưa có ASM"} ({g.list.length} shop)
+                </td>
+              </tr>,
+              ...g.list.map((x) => {
+                stt += 1;
+                return (
+                  <tr key={x.ma_shop}>
+                    <td>{stt}</td>
+                    <td>{x.ma_shop}</td>
+                    <td style={{ textAlign: "left" }}>{x.ten_shop}</td>
+                    <td style={x.loai === "vaccine" ? { fontWeight: 700, color: "#1F4E79" } : undefined}>{x.loai === "vaccine" ? "Vaccine" : "Long Châu"}</td>
+                    <td style={{ textAlign: "left" }}><TenEmailList items={x.quan_ly} />{(!x.quan_ly || x.quan_ly.length === 0) && "—"}</td>
+                    <td style={{ textAlign: "left" }}><TenEmailList items={x.truong_ca} />{(!x.truong_ca || x.truong_ca.length === 0) && "—"}</td>
+                    <td>{x.ngay_mo_ban ? fmtDate(x.ngay_mo_ban) : "—"}</td>
+                    <td>{x.ngay_kiem_ke_gan_nhat ? fmtDate(x.ngay_kiem_ke_gan_nhat) : "—"}</td>
+                  </tr>
+                );
+              }),
+            ])}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 const labelStyle = { fontSize: 12, fontWeight: 600, color: "var(--text-600)", display: "block", marginBottom: 6 };
 const inputStyle = { width: "100%", padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 14, boxSizing: "border-box" };
 
@@ -115,7 +180,10 @@ export default function TraCuuThongTinPage() {
   const [asmResult, setAsmResult] = useState(null); // {asm, shops}
   const [asmSearched, setAsmSearched] = useState("");
 
+  const [tinhResult, setTinhResult] = useState(null); // {tinh, tong_shop, so_vaccine, so_asm, shops}
+
   function clearAsm() {
+    setTinhResult(null);
     setAsmCands(null);
     setAsmResult(null);
     setAsmError("");
@@ -163,6 +231,7 @@ export default function TraCuuThongTinPage() {
     setAsmError("");
     setAsmCands(null);
     setAsmResult(null);
+    setTinhResult(null);
     // đang xem theo ASM thì ẩn kết quả theo shop / nhân viên cho gọn
     setResult(null); setSearched(""); setError(""); setCandidates(null);
     setNvResult(null); setNvSearched(""); setNvError("");
@@ -236,6 +305,12 @@ export default function TraCuuThongTinPage() {
     setNvSearched("");
     clearAsm();
     try {
+      // Gõ đúng tên tỉnh -> hiện toàn bộ shop của tỉnh (xếp theo ASM); không phải tên tỉnh thì tìm theo tên shop như cũ
+      const t = await shopTheoTinh(q);
+      if (t.found) {
+        setTinhResult(t);
+        return;
+      }
       const r = await timShopTheoTen(q);
       if (r.matches.length === 1) {
         setInput(r.matches[0].ma_shop);
@@ -268,7 +343,7 @@ export default function TraCuuThongTinPage() {
       <div className="page-head">
         <h1>🔎 Tra cứu thông tin</h1>
         <p>
-          Nhập Mã shop để xem thông tin shop, 3 kỳ kiểm kê gần nhất và truy thu thực tế (tối đa 12 tháng) — hoặc tìm theo
+          Nhập Mã shop (hoặc tên shop; gõ tên tỉnh để xem toàn bộ shop của tỉnh, xếp theo ASM) để xem thông tin shop, 3 kỳ kiểm kê gần nhất và truy thu thực tế (tối đa 12 tháng) — hoặc tìm theo
           tên nhân viên để xem truy thu của từng người — hoặc tìm theo tên ASM để xem các shop ASM đó quản lý (cùng 1 ô tìm; trùng tên thì chọn trong danh sách, ASM xếp trên). Bấm Tab hoặc Enter để tra cứu.
         </p>
       </div>
@@ -276,11 +351,11 @@ export default function TraCuuThongTinPage() {
       <div className="card">
         <div className="card-body" style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
           <div style={{ flex: "1 1 280px", maxWidth: 380 }}>
-            <label style={labelStyle}>Mã shop hoặc tên shop</label>
+            <label style={labelStyle}>Mã shop, tên shop hoặc tên tỉnh</label>
             <input
               type="text"
               autoFocus
-              placeholder="VD: 80834 hoặc Nguyễn Văn Cừ"
+              placeholder="VD: 80834, Nguyễn Văn Cừ hoặc tên tỉnh (Hải Phòng)"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onBlur={handleLookup}
@@ -343,6 +418,8 @@ export default function TraCuuThongTinPage() {
           </div>
         </div>
       )}
+
+      {tinhResult && <TinhShopsCard data={tinhResult} />}
 
       {asmError && <div className="placeholder-box">{asmError}</div>}
       {asmResult && <AsmShopsCard data={asmResult} />}
