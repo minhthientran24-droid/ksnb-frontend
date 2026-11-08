@@ -342,10 +342,6 @@ export default function TraCuuThongTinPage() {
     <Layout crumb="Tra cứu thông tin">
       <div className="page-head">
         <h1>🔎 Tra cứu thông tin</h1>
-        <p>
-          Nhập Mã shop (hoặc tên shop; gõ tên tỉnh để xem toàn bộ shop của tỉnh, xếp theo ASM) để xem thông tin shop, 3 kỳ kiểm kê gần nhất và truy thu thực tế (tối đa 12 tháng) — hoặc tìm theo
-          tên nhân viên để xem truy thu của từng người — hoặc tìm theo tên ASM để xem các shop ASM đó quản lý (cùng 1 ô tìm; trùng tên thì chọn trong danh sách, ASM xếp trên). Bấm Tab hoặc Enter để tra cứu.
-        </p>
       </div>
 
       <div className="card">
