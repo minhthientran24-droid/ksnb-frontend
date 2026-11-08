@@ -428,7 +428,7 @@ function CompleteJobModal({ job, onDone, onCancel }) {
         ma_shop: job.ma_shop || "",
         ten_shop: job.ten_shop || "",
         vung: job.vung || "",
-        nhan_vien_vi_pham: job.nhan_vien_phu_trach || "",
+        // NV vi phạm KHÔNG điền sẵn: "Nhân viên phụ trách" (NV Check) là người KSNB nhận job, không phải nhân viên vi phạm (sửa 08/11)
         ma_phieu: job.ma_phieu || "",
       });
       router.push(`/ghi-nhan-case-v2?${params.toString()}`);
@@ -1139,7 +1139,6 @@ export default function TheoDoiChuDeV2Page() {
       ma_shop: job.ma_shop || "",
       ten_shop: job.ten_shop || "",
       vung: job.vung || "",
-      nhan_vien_vi_pham: job.nhan_vien_phu_trach || "",
       ma_phieu: job.ma_phieu || "",
     });
     router.push(`/ghi-nhan-case-v2?${params.toString()}`);
