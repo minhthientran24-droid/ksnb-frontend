@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import { fmtDate, fmtMoney, moneyStyle, TruyThuShopCard, TruyThuNhanVienCard } from "../components/TruyThuCards";
-import { getUser, traCuuThongTinShop, traCuuTruyThuNhanVien, timShopTheoTen, timAsm, shopCuaAsm } from "../lib/api";
+import { getUser, traCuuThongTinShop, traCuuTruyThuNhanVien, timShopTheoTen, timNguoi, shopCuaAsm } from "../lib/api";
 
 function InfoItem({ label, children }) {
   return (
@@ -102,17 +102,16 @@ export default function TraCuuThongTinPage() {
   const [candidates, setCandidates] = useState(null); // {q, mode, total, matches:[{ma_shop, ten_shop}]}
 
   // Ô tìm theo tên nhân viên (truy thu thực tế)
-  const [nvInput, setNvInput] = useState("");
   const [nvLoading, setNvLoading] = useState(false);
   const [nvError, setNvError] = useState("");
   const [nvResult, setNvResult] = useState(null);
   const [nvSearched, setNvSearched] = useState("");
 
-  // Ô tìm ASM (chốt 08/11): trùng tên -> hiện danh sách ASM (tên + email) để chọn -> hiện các shop ASM đó quản lý
+  // Ô tìm CHUNG ASM + nhân viên (chốt 08/11): 1 kết quả -> mở luôn; nhiều (trùng tên) -> danh sách để chọn, ASM xếp trên, nhân viên dưới.
   const [asmInput, setAsmInput] = useState("");
   const [asmLoading, setAsmLoading] = useState(false);
   const [asmError, setAsmError] = useState("");
-  const [asmCands, setAsmCands] = useState(null); // {q, total, matches:[{key, ten, email, so_shop, so_vaccine, so_long_chau}]}
+  const [asmCands, setAsmCands] = useState(null); // {q, asm:[{key, ten, email, so_shop, so_vaccine, so_long_chau}], nhan_vien:[{ma_nv, ten, shop_gan_nhat}]|null, ...}
   const [asmResult, setAsmResult] = useState(null); // {asm, shops}
   const [asmSearched, setAsmSearched] = useState("");
 
@@ -127,11 +126,30 @@ export default function TraCuuThongTinPage() {
     setAsmLoading(true);
     setAsmError("");
     setAsmCands(null);
+    setNvResult(null); setNvError("");
     try {
       setAsmResult(await shopCuaAsm(key));
     } catch (err) {
       setAsmResult(null);
       setAsmError(err.message || "Tra cứu thất bại");
+    } finally {
+      setAsmLoading(false);
+    }
+  }
+
+  // Chọn 1 nhân viên trong danh sách (đúng Mã NV) -> hiện truy thu thực tế của người đó
+  async function openNv(maNv, ten) {
+    setAsmLoading(true);
+    setAsmError("");
+    setAsmCands(null);
+    setAsmResult(null);
+    setNvError("");
+    setNvSearched(ten);
+    try {
+      setNvResult(await traCuuTruyThuNhanVien(ten, maNv));
+    } catch (err) {
+      setNvResult(null);
+      setNvError(err.message || "Tra cứu thất bại");
     } finally {
       setAsmLoading(false);
     }
@@ -149,12 +167,17 @@ export default function TraCuuThongTinPage() {
     setResult(null); setSearched(""); setError(""); setCandidates(null);
     setNvResult(null); setNvSearched(""); setNvError("");
     try {
-      const r = await timAsm(q);
-      if (r.matches.length === 0) {
+      const r = await timNguoi(q);
+      const nAsm = r.asm.length;
+      const nNv = (r.nhan_vien || []).length;
+      if (nAsm + nNv === 0) {
         setAsmSearched("");
-        setAsmError(`Không tìm thấy ASM nào có tên (hoặc email) "${q}".`);
-      } else if (r.matches.length === 1) {
-        await openAsm(r.matches[0].key);
+        setAsmError(`Không tìm thấy ASM hay nhân viên nào có tên (hoặc mã/email) "${q}".`);
+      } else if (nAsm === 1 && nNv === 0) {
+        await openAsm(r.asm[0].key);
+        return;
+      } else if (nAsm === 0 && nNv === 1) {
+        await openNv(r.nhan_vien[0].ma_nv, r.nhan_vien[0].ten);
         return;
       } else {
         setAsmCands(r);
@@ -238,27 +261,6 @@ export default function TraCuuThongTinPage() {
     loadShopByCode(ma);
   }
 
-  async function handleLookupNv() {
-    const q = nvInput.trim();
-    if (!q || q === nvSearched) return;
-    setNvSearched(q);
-    setNvLoading(true);
-    setNvError("");
-    setResult(null); // đang xem theo nhân viên thì ẩn kết quả theo shop
-    setSearched("");
-    setError("");
-    clearAsm();
-    try {
-      setNvResult(await traCuuTruyThuNhanVien(q));
-    } catch (err) {
-      setNvResult(null);
-      setNvSearched("");
-      setNvError(err.message || "Tra cứu thất bại");
-    } finally {
-      setNvLoading(false);
-    }
-  }
-
   if (!checked) return null;
 
   return (
@@ -267,7 +269,7 @@ export default function TraCuuThongTinPage() {
         <h1>🔎 Tra cứu thông tin</h1>
         <p>
           Nhập Mã shop để xem thông tin shop, 3 kỳ kiểm kê gần nhất và truy thu thực tế (tối đa 12 tháng) — hoặc tìm theo
-          tên nhân viên để xem truy thu của từng người — hoặc tìm theo tên ASM để xem các shop ASM đó quản lý. Bấm Tab hoặc Enter để tra cứu.
+          tên nhân viên để xem truy thu của từng người — hoặc tìm theo tên ASM để xem các shop ASM đó quản lý (cùng 1 ô tìm; trùng tên thì chọn trong danh sách, ASM xếp trên). Bấm Tab hoặc Enter để tra cứu.
         </p>
       </div>
 
@@ -287,22 +289,10 @@ export default function TraCuuThongTinPage() {
             />
           </div>
           <div style={{ flex: "1 1 280px", maxWidth: 380 }}>
-            <label style={labelStyle}>Tên nhân viên (hoặc Mã nhân viên)</label>
+            <label style={labelStyle}>Tên ASM hoặc tên nhân viên</label>
             <input
               type="text"
-              placeholder="VD: Nguyễn Thị Hương"
-              value={nvInput}
-              onChange={(e) => setNvInput(e.target.value)}
-              onBlur={handleLookupNv}
-              onKeyDown={(e) => { if (e.key === "Enter") handleLookupNv(); }}
-              style={inputStyle}
-            />
-          </div>
-          <div style={{ flex: "1 1 280px", maxWidth: 380 }}>
-            <label style={labelStyle}>Tên ASM (hoặc email ASM)</label>
-            <input
-              type="text"
-              placeholder="VD: Nguyễn Thị Diễm Hằng"
+              placeholder="VD: Nguyễn Thị Hương (hoặc Mã NV, email ASM)"
               value={asmInput}
               onChange={(e) => setAsmInput(e.target.value)}
               onBlur={handleLookupAsm}
@@ -310,27 +300,44 @@ export default function TraCuuThongTinPage() {
               style={inputStyle}
             />
           </div>
-          {(loading || nvLoading || asmLoading) && <span style={{ fontSize: 13, color: "var(--text-400)", paddingBottom: 10 }}>Đang tra cứu...</span>}
+          {(loading || asmLoading) && <span style={{ fontSize: 13, color: "var(--text-400)", paddingBottom: 10 }}>Đang tra cứu...</span>}
         </div>
       </div>
 
       {asmCands && (
         <div className="card">
           <div className="card-head">
-            <h3>Chọn ASM</h3>
+            <h3>Chọn ASM / nhân viên</h3>
             <span className="note">
-              Có {asmCands.total} ASM khớp "{asmCands.q}"{asmCands.total > asmCands.matches.length ? ` (hiện ${asmCands.matches.length} người đầu — gõ cụ thể hơn để thu hẹp)` : ""}. Bấm vào tên để xem các shop ASM đó quản lý.
+              Có {asmCands.asm_total} ASM{asmCands.nhan_vien ? ` và ${asmCands.nv_total} nhân viên` : ""} khớp "{asmCands.q}"
+              {asmCands.asm_total > asmCands.asm.length || asmCands.nv_truncated ? " (chỉ hiện những người đầu — gõ cụ thể hơn để thu hẹp)" : ""}. Bấm vào một dòng để xem.
             </span>
           </div>
           <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {asmCands.matches.map((m) => (
+            {asmCands.asm.length > 0 && <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-600)" }}>ASM ({asmCands.asm.length})</div>}
+            {asmCands.asm.map((m) => (
               <div
-                key={m.key}
+                key={`asm-${m.key}`}
                 onClick={() => openAsm(m.key)}
+                style={{ cursor: "pointer", padding: "8px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, background: "#EAF1FB" }}
+              >
+                <strong>{m.ten}</strong> <span style={{ fontSize: 12, fontWeight: 700, color: "#1F4E79" }}>ASM</span>{m.email ? ` - ${m.email}` : ""}
+                <span style={{ color: "var(--text-600)", fontSize: 12.5 }}> · {m.so_shop} shop ({m.so_vaccine} Vaccine, {m.so_long_chau} Long Châu)</span>
+              </div>
+            ))}
+            {(asmCands.nhan_vien || []).length > 0 && (
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-600)", marginTop: asmCands.asm.length ? 8 : 0 }}>Nhân viên ({asmCands.nhan_vien.length})</div>
+            )}
+            {(asmCands.nhan_vien || []).map((m) => (
+              <div
+                key={`nv-${m.ma_nv}`}
+                onClick={() => openNv(m.ma_nv, m.ten)}
                 style={{ cursor: "pointer", padding: "8px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}
               >
-                <strong>{m.ten}</strong>{m.email ? ` - ${m.email}` : ""}
-                <span style={{ color: "var(--text-600)", fontSize: 12.5 }}> · {m.so_shop} shop ({m.so_vaccine} Vaccine, {m.so_long_chau} Long Châu)</span>
+                <strong>{m.ten}</strong> - Mã NV {m.ma_nv}
+                {m.shop_gan_nhat && (
+                  <span style={{ color: "var(--text-600)", fontSize: 12.5 }}> · gần nhất: {m.shop_gan_nhat.ma_shop} - {m.shop_gan_nhat.ten_shop} (tháng {m.shop_gan_nhat.thang})</span>
+                )}
               </div>
             ))}
           </div>
@@ -450,7 +457,7 @@ export default function TraCuuThongTinPage() {
         <>
           <div style={{ fontSize: 13, color: "var(--text-600)", margin: "4px 2px 12px" }}>
             {nvResult.mode === "exact"
-              ? <>Có <strong>{nvResult.total_matches}</strong> nhân viên tên "{nvSearched}"{nvResult.total_matches > 1 ? " — tách riêng theo Mã nhân viên bên dưới." : "."}</>
+              ? <>Nhân viên <strong>{nvSearched}</strong>{nvResult.total_matches > 1 ? " — tách riêng theo Mã nhân viên bên dưới." : "."}</>
               : <>Không có nhân viên tên đúng "{nvSearched}" — hiện <strong>{nvResult.total_matches}</strong> nhân viên có tên chứa cụm này, tách riêng theo Mã nhân viên.</>}
             {nvResult.truncated && <span style={{ color: "var(--danger)" }}> (chỉ hiện 50 người đầu — hãy nhập tên đầy đủ hơn)</span>}
           </div>
