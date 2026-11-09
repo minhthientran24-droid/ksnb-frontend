@@ -452,7 +452,7 @@ export default function TraCuuThongTinPage() {
       {result && result.found && (
         <>
           <div className="card">
-            <div className="card-head"><h3>{result.ma_shop} - {result.ten_shop || "—"}</h3></div>
+            <div className="card-head"><h3>{result.ma_shop} - {result.ten_shop || "—"}{result.vung ? ` - Vùng ${result.vung}` : ""}</h3></div>
             <div className="card-body">
               {result.thieu_shopinfo && (
                 <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 12 }}>
@@ -460,11 +460,11 @@ export default function TraCuuThongTinPage() {
                 </div>
               )}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 18 }}>
-                <InfoItem label="Mã shop">{result.ma_shop}</InfoItem>
-                <InfoItem label="Tên shop">{result.ten_shop}</InfoItem>
                 <InfoItem label="ASM">
                   <TenEmailList items={result.ten_asm ? [{ ten: result.ten_asm, email: result.email_asm }] : []} />
                 </InfoItem>
+                <InfoItem label="RSM"><TenEmailList items={result.rsm} /></InfoItem>
+                <InfoItem label="PRSM"><TenEmailList items={result.prsm} /></InfoItem>
                 <InfoItem label={result.quan_ly_chuc_danh && result.quan_ly_chuc_danh !== "Trưởng Quản lý Nhà Thuốc" && result.quan_ly_chuc_danh !== "Bác sĩ trưởng"
                   ? `Quản lý (${result.quan_ly_chuc_danh})` : "Quản lý"}>
                   <TenEmailList items={result.quan_ly} />
