@@ -153,6 +153,21 @@ function TinhShopsCard({ data }) {
   );
 }
 
+// RSM / PRSM / ASM: tên in đậm, email ở dòng dưới (không in đậm)
+function NguoiList({ items }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {items.map((p, i) => (
+        <div key={`${p.ten}-${p.email}-${i}`}>
+          <div style={{ fontWeight: 700 }}>{p.ten || p.email}</div>
+          {p.ten && p.email ? <div>{p.email}</div> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const labelStyle = { fontSize: 12, fontWeight: 600, color: "var(--text-600)", display: "block", marginBottom: 6 };
 const inputStyle = { width: "100%", padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 14, boxSizing: "border-box" };
 
@@ -460,11 +475,11 @@ export default function TraCuuThongTinPage() {
                 </div>
               )}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 18 }}>
+                <InfoItem label="RSM"><NguoiList items={result.rsm} /></InfoItem>
+                <InfoItem label="PRSM"><NguoiList items={result.prsm} /></InfoItem>
                 <InfoItem label="ASM">
-                  <TenEmailList items={result.ten_asm ? [{ ten: result.ten_asm, email: result.email_asm }] : []} />
+                  <NguoiList items={result.ten_asm ? [{ ten: result.ten_asm, email: result.email_asm }] : []} />
                 </InfoItem>
-                <InfoItem label="RSM"><TenEmailList items={result.rsm} /></InfoItem>
-                <InfoItem label="PRSM"><TenEmailList items={result.prsm} /></InfoItem>
                 <InfoItem label={result.quan_ly_chuc_danh && result.quan_ly_chuc_danh !== "Trưởng Quản lý Nhà Thuốc" && result.quan_ly_chuc_danh !== "Bác sĩ trưởng"
                   ? `Quản lý (${result.quan_ly_chuc_danh})` : "Quản lý"}>
                   <TenEmailList items={result.quan_ly} />
