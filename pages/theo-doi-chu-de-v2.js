@@ -202,7 +202,7 @@ function ClaimJobModal({ job, meId, onDone, onCancel }) {
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         {step === "confirm" && (
           <>
-            <h3 style={{ marginBottom: 4 }}>📌 Nhận Task</h3>
+            <h3 style={{ marginBottom: 4 }}>Nhận Task</h3>
             <p style={{ fontSize: 13, color: "var(--text-600)", marginBottom: 18 }}>
               Xác nhận nhận xử lý task <strong>"{job.ten_chu_de}"</strong>
               {job.ten_shop ? ` — shop ${job.ten_shop}` : ""}?
@@ -210,10 +210,10 @@ function ClaimJobModal({ job, meId, onDone, onCancel }) {
             {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14 }}>{error}</div>}
             <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-start" }}>
               <button disabled={saving} className="login-btn" style={{ width: "auto", padding: "9px 22px", margin: 0 }} onClick={() => submit([])}>
-                {saving ? "Đang nhận..." : "✅ Xác nhận Nhận Task"}
+                {saving ? "Đang nhận..." : "Xác nhận Nhận Task"}
               </button>
               <button type="button" disabled={saving} className="upload-btn" onClick={openPickSupporters}>
-                ➕ Nhận + thêm người hỗ trợ
+                Nhận + thêm người hỗ trợ
               </button>
               <button type="button" onClick={onCancel} style={deleteBtnStyle}>Hủy</button>
             </div>
@@ -221,7 +221,7 @@ function ClaimJobModal({ job, meId, onDone, onCancel }) {
         )}
         {step === "pick-supporters" && (
           <>
-            <h3 style={{ marginBottom: 4 }}>👥 Chọn người hỗ trợ</h3>
+            <h3 style={{ marginBottom: 4 }}>Chọn người hỗ trợ</h3>
             <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 14 }}>
               Task <strong>"{job.ten_chu_de}"</strong> — chọn 1 hoặc nhiều KSNB cùng hỗ trợ xử lý (anh/chị vẫn là người phụ trách chính).
             </p>
@@ -292,7 +292,7 @@ function AddSupportersModal({ job, onDone, onCancel }) {
   return (
     <div style={overlayStyle} onClick={onCancel}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ marginBottom: 4 }}>➕ Thêm người hỗ trợ</h3>
+        <h3 style={{ marginBottom: 4 }}>Thêm người hỗ trợ</h3>
         <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 14 }}>
           Task <strong>"{job.ten_chu_de}"</strong> — chọn thêm 1 hoặc nhiều KSNB cùng hỗ trợ xử lý.
         </p>
@@ -360,7 +360,7 @@ function AdjustToKoViPhamModal({ job, onDone, onCancel }) {
   return (
     <div style={overlayStyle} onClick={onCancel}>
       <div style={{ ...modalStyle, border: "2px solid #D6362F" }} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ marginBottom: 4, color: "#D6362F" }}>⚠️ Đổi thành "Không vi phạm"</h3>
+        <h3 style={{ marginBottom: 4, color: "#D6362F" }}>Đổi thành "Không vi phạm"</h3>
         <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 14 }}>
           {job.ma_phieu && <strong>Mã phiếu {job.ma_phieu} · </strong>}{job.ten_chu_de}
         </p>
@@ -431,7 +431,7 @@ function TienDoModal({ job, onDone, onCancel }) {
   return (
     <div style={overlayStyle} onClick={onCancel}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ marginBottom: 4 }}>📝 Cập nhật tiến độ</h3>
+        <h3 style={{ marginBottom: 4 }}>Cập nhật tiến độ</h3>
         <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 16 }}>
           {job.ma_phieu && <strong>Mã phiếu {job.ma_phieu} · </strong>}{job.ten_chu_de}
         </p>
@@ -499,7 +499,7 @@ function CompleteJobModal({ job, onDone, onCancel }) {
   return (
     <div style={overlayStyle} onClick={onCancel}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ marginBottom: 4 }}>✅ Cập nhật kết quả xử lý</h3>
+        <h3 style={{ marginBottom: 4 }}>Cập nhật kết quả xử lý</h3>
         <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 16 }}>
           {job.ma_phieu && <strong>Mã phiếu {job.ma_phieu} · </strong>}{job.ten_chu_de}
         </p>
@@ -564,7 +564,7 @@ function TopicPickerModal({ stats, loading, thang, setThang, months, selectedTop
     <div style={overlayStyle} onClick={onClose}>
       <div style={{ ...modalStyle, width: 806 }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, gap: 10, flexWrap: "wrap" }}>
-          <h3 style={{ margin: 0 }}>🏷️ Chọn Tên chủ đề</h3>
+          <h3 style={{ margin: 0 }}>Chọn Tên chủ đề</h3>
           <MonthSelect thang={thang} setThang={setThang} months={months} />
         </div>
 
@@ -588,7 +588,7 @@ function TopicPickerModal({ stats, loading, thang, setThang, months, selectedTop
                   onClick={() => onSelect("")}
                   style={{ fontWeight: 700, background: !selectedTopic ? "#E8EFFC" : undefined }}
                 >
-                  <td style={{ textAlign: "left" }}>🔷 Tất cả chủ đề</td>
+                  <td style={{ textAlign: "left" }}>Tất cả chủ đề</td>
                   <td>{grandTotal["Chưa nhận"]}</td>
                   <td>{grandTotal["Đang xử lý"]}</td>
                   <td>{grandTotal["Hoàn tất"]}</td>
@@ -647,7 +647,7 @@ function TopicManagementModal({ topics, onClose, onChanged }) {
       setNewName("");
       onChanged();
     } catch (err) {
-      setMsg("❌ " + (err.message || "Thêm thất bại"));
+      setMsg("" + (err.message || "Thêm thất bại"));
     } finally {
       setBusy(false);
     }
@@ -661,7 +661,7 @@ function TopicManagementModal({ topics, onClose, onChanged }) {
       await deleteChuDeTopicV2(topic.id);
       onChanged();
     } catch (err) {
-      setMsg("❌ " + (err.message || "Xóa thất bại"));
+      setMsg("" + (err.message || "Xóa thất bại"));
     } finally {
       setBusy(false);
     }
@@ -670,7 +670,7 @@ function TopicManagementModal({ topics, onClose, onChanged }) {
   return (
     <div style={overlayStyle} onClick={onClose}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ marginBottom: 4 }}>🏷️ Quản lý chủ đề</h3>
+        <h3 style={{ marginBottom: 4 }}>Quản lý chủ đề</h3>
         <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 14 }}>
           Danh sách "Tên chủ đề" cho phép chọn khi đăng/sửa chủ đề hoặc upload Excel — chỉ super_admin sửa được.
         </p>
@@ -691,7 +691,7 @@ function TopicManagementModal({ topics, onClose, onChanged }) {
           {topics.map((t) => (
             <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderBottom: "1px solid var(--border)", fontSize: 13 }}>
               <span>{t.ten_chu_de}</span>
-              <button onClick={() => handleDelete(t)} disabled={busy} style={deleteBtnStyle}>🗑️ Xóa</button>
+              <button onClick={() => handleDelete(t)} disabled={busy} style={deleteBtnStyle}>Xóa</button>
             </div>
           ))}
         </div>
@@ -722,12 +722,12 @@ function JobFormCard({ editingJob, onDone, onCancel, topics }) {
       const res = await lookupChuDeShop(q);
       if (res.found) {
         setForm((f) => ({ ...f, ma_shop: res.ma_shop || "", ten_shop: res.ten_shop || "", vung: res.vung || f.vung }));
-        setLookupMsg("✅ Đã tìm thấy shop, tự điền Tên Shop/Vùng.");
+        setLookupMsg("Đã tìm thấy shop, tự điền Tên Shop/Vùng.");
       } else {
-        setLookupMsg("⚠️ Không khớp shop nào trong hệ thống — có thể tự nhập tay Tên Shop.");
+        setLookupMsg("Không khớp shop nào trong hệ thống — có thể tự nhập tay Tên Shop.");
       }
     } catch (err) {
-      setLookupMsg("❌ " + err.message);
+      setLookupMsg("" + err.message);
     } finally {
       setLooking(false);
     }
@@ -759,7 +759,7 @@ function JobFormCard({ editingJob, onDone, onCancel, topics }) {
     <div style={overlayStyle} onClick={onCancel}>
       <div style={{ ...modalStyle, width: 640, maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
       <div className="card-head" style={{ marginBottom: 4 }}>
-        <h3>{editingJob ? `✏️ Sửa task: ${editingJob.ten_chu_de}` : "Thêm chủ đề mới"}</h3>
+        <h3>{editingJob ? `Sửa task: ${editingJob.ten_chu_de}` : "Thêm chủ đề mới"}</h3>
       </div>
       <form onSubmit={handleSubmit} className="form-grid-2" style={{ paddingTop: 12 }}>
         {(looking || lookupMsg) && (
@@ -812,7 +812,7 @@ function JobFormCard({ editingJob, onDone, onCancel, topics }) {
             onChange={(e) => setFile(e.target.files?.[0] || null)}
           />
           <button type="button" className="upload-btn" onClick={() => fileInputRef.current?.click()}>
-            📤 {file ? "Đổi file khác" : editingJob?.has_data_file ? "Thay file mới" : "Chọn file"}
+            {file ? "Đổi file khác" : editingJob?.has_data_file ? "Thay file mới" : "Chọn file"}
           </button>
           <span style={{ fontSize: 11, color: "var(--text-400)", marginLeft: 10 }}>
             {file ? file.name : editingJob?.data_file_name || "Chưa có file"}
@@ -858,9 +858,9 @@ function BulkUploadCard({ onDone, onOpenForm, thang, setThang, months, exporting
     setResultMsg("");
     try {
       const r = await bulkUploadChuDeJobsV2(file);
-      let msg = `✅ Đã thêm ${r.count} task.`;
+      let msg = `Đã thêm ${r.count} task.`;
       if (r.skipped_count) {
-        msg += ` ⚠️ Bỏ qua ${r.skipped_count} dòng có Tên Chủ Đề không có trong danh sách: ${r.invalid_topic_names.join(", ")} — sửa lại tên rồi upload lại các dòng đó.`;
+        msg += ` Bỏ qua ${r.skipped_count} dòng có Tên Chủ Đề không có trong danh sách: ${r.invalid_topic_names.join(", ")} — sửa lại tên rồi upload lại các dòng đó.`;
       }
       setResultMsg(msg);
       onDone();
@@ -895,18 +895,18 @@ function BulkUploadCard({ onDone, onOpenForm, thang, setThang, months, exporting
             Thêm chủ đề mới
           </button>
           <button className="upload-btn" onClick={handleDownloadTemplate} disabled={downloadingTemplate}>
-            📥 {downloadingTemplate ? "Đang tải..." : "Tải template Excel"}
+            {downloadingTemplate ? "Đang tải..." : "Tải template Excel"}
           </button>
           <input
             ref={fileInputRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }}
             onChange={handleFile} disabled={uploading}
           />
           <button className="upload-btn" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-            📤 {uploading ? "Đang xử lý..." : "Chọn file Excel"}
+            {uploading ? "Đang xử lý..." : "Chọn file Excel"}
           </button>
           {isSuperAdmin && (
             <button className="fbtn" onClick={onOpenTopicMgmt} style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-              🏷️ Quản lý chủ đề
+              Quản lý chủ đề
             </button>
           )}
 
@@ -916,7 +916,7 @@ function BulkUploadCard({ onDone, onOpenForm, thang, setThang, months, exporting
               className="fbtn" disabled={exporting} onClick={onExport}
               style={{ background: "#EAF6E5", borderColor: "#4C9A2A", color: "#3E7A2A" }}
             >
-              {exporting ? "Đang xuất..." : "📤 Xuất data"}
+              {exporting ? "Đang xuất..." : "Xuất data"}
             </button>
           </div>
         </div>
@@ -1242,7 +1242,7 @@ export default function TheoDoiChuDeV2Page() {
   return (
     <Layout crumb="Theo dõi chủ đề">
       <div className="page-head">
-        <h1>🎯 Theo dõi chủ đề</h1>
+        <h1>Theo dõi chủ đề</h1>
         <p>Menu thử nghiệm — chỉ admin/super_admin xem được, dữ liệu riêng biệt với "Theo dõi chủ đề" thật.</p>
       </div>
 
@@ -1263,7 +1263,7 @@ export default function TheoDoiChuDeV2Page() {
             className="fbtn" onClick={() => setTopicPickerOpen(true)}
             style={{ background: "#FCE4EC", border: "1px solid #F48FB1", color: "#AD1457", fontWeight: 700 }}
           >
-            🏷️ {selectedTopic || "Chọn chủ đề"}
+            {selectedTopic || "Chọn chủ đề"}
           </button>
           {selectedTopic && (
             <button className="fbtn" onClick={() => setSelectedTopic("")}>✕ Bỏ lọc</button>
@@ -1297,7 +1297,7 @@ export default function TheoDoiChuDeV2Page() {
             onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
             style={{ width: "5cm", padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13.5 }}
           />
-          <button onClick={handleSearch} style={searchBtnStyle}>🔍 Tìm kiếm</button>
+          <button onClick={handleSearch} style={searchBtnStyle}>Tìm kiếm</button>
           {colFilterActive && (
             <button onClick={() => setColFilters({})} style={{ ...searchBtnStyle, background: "#EEF4FF", color: "var(--navy-800)", border: "1px solid var(--blue-accent, #2F6FED)" }}>
               ✕ Bỏ lọc cột
@@ -1411,42 +1411,42 @@ export default function TheoDoiChuDeV2Page() {
                           )}
                           {job.has_data_file && canAccessFiles && (
                             <button className="fbtn" onClick={() => handleDownload(job)}>
-                              📥 Tải data check
+                              Tải data check
                             </button>
                           )}
                           {job.has_result_file && canAccessFiles && (
                             <button className="fbtn" onClick={() => handleDownloadResult(job)}>
-                              📥 Tải kết quả
+                              Tải kết quả
                             </button>
                           )}
                           {canUpdateTienDo && (
                             <button className="fbtn" onClick={() => setTienDoJob(job)}>
-                              📝 Cập nhật tiến độ
+                              Cập nhật tiến độ
                             </button>
                           )}
                           {canComplete && (
                             <button className="fbtn" onClick={() => setCompletingJob(job)}>
-                              ✅ Đánh dấu hoàn tất
+                              Đánh dấu hoàn tất
                             </button>
                           )}
                           {canAddSupporters && (
                             <button className="fbtn" onClick={() => setAddingSupportersJob(job)}>
-                              ➕ Thêm người hỗ trợ
+                              Thêm người hỗ trợ
                             </button>
                           )}
                           {ADMIN_ROLES.includes(me?.role) && job.trang_thai === "Hoàn tất" && job.ket_qua_vi_pham === "Có vi phạm" && (
                             <button className="fbtn" onClick={() => setAdjustingJob(job)}>
-                              🔁 Đổi thành Không vi phạm
+                              Đổi thành Không vi phạm
                             </button>
                           )}
                           {ADMIN_ROLES.includes(me?.role) && job.trang_thai === "Hoàn tất" && job.ket_qua_vi_pham === "Không vi phạm" && (
                             <button className="fbtn" onClick={() => handleAdjustToCoViPham(job)}>
-                              🔁 Đổi thành Có vi phạm
+                              Đổi thành Có vi phạm
                             </button>
                           )}
                           {canUnclaim && (
                             <button className="fbtn" disabled={busy} onClick={() => handleUnclaim(job)}>
-                              {busy ? "Đang trả..." : "↩️ Trả lại (chờ nhận)"}
+                              {busy ? "Đang trả..." : "Trả lại (chờ nhận)"}
                             </button>
                           )}
                           {/* Chốt 14/10 — Sửa/Xóa task CHỈ admin/super_admin làm được (khớp

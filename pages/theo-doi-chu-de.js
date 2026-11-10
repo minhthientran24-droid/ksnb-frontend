@@ -136,7 +136,7 @@ function ClaimJobModal({ job, meId, onDone, onCancel }) {
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         {step === "confirm" && (
           <>
-            <h3 style={{ marginBottom: 4 }}>📌 Nhận Task</h3>
+            <h3 style={{ marginBottom: 4 }}>Nhận Task</h3>
             <p style={{ fontSize: 13, color: "var(--text-600)", marginBottom: 18 }}>
               Xác nhận nhận xử lý task <strong>"{job.ten_chu_de}"</strong>
               {job.ten_shop ? ` — shop ${job.ten_shop}` : ""}?
@@ -144,10 +144,10 @@ function ClaimJobModal({ job, meId, onDone, onCancel }) {
             {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14 }}>{error}</div>}
             <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-start" }}>
               <button disabled={saving} className="login-btn" style={{ width: "auto", padding: "9px 22px", margin: 0 }} onClick={() => submit([])}>
-                {saving ? "Đang nhận..." : "✅ Xác nhận Nhận Task"}
+                {saving ? "Đang nhận..." : "Xác nhận Nhận Task"}
               </button>
               <button type="button" disabled={saving} className="upload-btn" onClick={openPickSupporters}>
-                ➕ Nhận + thêm người hỗ trợ
+                Nhận + thêm người hỗ trợ
               </button>
               <button type="button" onClick={onCancel} style={deleteBtnStyle}>Hủy</button>
             </div>
@@ -155,7 +155,7 @@ function ClaimJobModal({ job, meId, onDone, onCancel }) {
         )}
         {step === "pick-supporters" && (
           <>
-            <h3 style={{ marginBottom: 4 }}>👥 Chọn người hỗ trợ</h3>
+            <h3 style={{ marginBottom: 4 }}>Chọn người hỗ trợ</h3>
             <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 14 }}>
               Task <strong>"{job.ten_chu_de}"</strong> — chọn 1 hoặc nhiều KSNB cùng hỗ trợ xử lý (anh/chị vẫn là người phụ trách chính).
             </p>
@@ -227,7 +227,7 @@ function AddSupportersModal({ job, onDone, onCancel }) {
   return (
     <div style={overlayStyle} onClick={onCancel}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ marginBottom: 4 }}>➕ Thêm người hỗ trợ</h3>
+        <h3 style={{ marginBottom: 4 }}>Thêm người hỗ trợ</h3>
         <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 14 }}>
           Task <strong>"{job.ten_chu_de}"</strong> — chọn thêm 1 hoặc nhiều KSNB cùng hỗ trợ xử lý.
         </p>
@@ -300,7 +300,7 @@ function CompleteJobModal({ job, onDone, onCancel }) {
   return (
     <div style={overlayStyle} onClick={onCancel}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ marginBottom: 4 }}>✅ Cập nhật kết quả xử lý</h3>
+        <h3 style={{ marginBottom: 4 }}>Cập nhật kết quả xử lý</h3>
         <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 16 }}>{job.ten_chu_de}</p>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: 16 }}>
@@ -332,7 +332,7 @@ function CompleteJobModal({ job, onDone, onCancel }) {
                     onChange={(e) => setFile(e.target.files?.[0] || null)}
                   />
                   <button type="button" className="upload-btn" onClick={() => fileInputRef.current?.click()}>
-                    📤 {file ? "Đổi file khác" : "Chọn file kết quả"}
+                    {file ? "Đổi file khác" : "Chọn file kết quả"}
                   </button>
                   {file && <span style={{ fontSize: 11, color: "var(--text-400)", marginLeft: 10 }}>{file.name}</span>}
                 </div>
@@ -396,12 +396,12 @@ function JobFormCard({ editingJob, onDone, onCancel }) {
       const res = await lookupChuDeShop(q);
       if (res.found) {
         setForm((f) => ({ ...f, ma_shop: res.ma_shop || "", ten_shop: res.ten_shop || "", vung: res.vung || f.vung }));
-        setLookupMsg("✅ Đã tìm thấy shop, tự điền Tên Shop/Vùng.");
+        setLookupMsg("Đã tìm thấy shop, tự điền Tên Shop/Vùng.");
       } else {
-        setLookupMsg("⚠️ Không khớp shop nào trong hệ thống — có thể tự nhập tay Tên Shop.");
+        setLookupMsg("Không khớp shop nào trong hệ thống — có thể tự nhập tay Tên Shop.");
       }
     } catch (err) {
-      setLookupMsg("❌ " + err.message);
+      setLookupMsg("" + err.message);
     } finally {
       setLooking(false);
     }
@@ -433,7 +433,7 @@ function JobFormCard({ editingJob, onDone, onCancel }) {
     <div style={overlayStyle} onClick={onCancel}>
       <div style={{ ...modalStyle, width: 640, maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
       <div className="card-head" style={{ marginBottom: 4 }}>
-        <h3>{editingJob ? `✏️ Sửa task: ${editingJob.ten_chu_de}` : "Thêm chủ đề mới"}</h3>
+        <h3>{editingJob ? `Sửa task: ${editingJob.ten_chu_de}` : "Thêm chủ đề mới"}</h3>
       </div>
       <form onSubmit={handleSubmit} className="form-grid-2" style={{ paddingTop: 12 }}>
         {(looking || lookupMsg) && (
@@ -469,7 +469,7 @@ function JobFormCard({ editingJob, onDone, onCancel }) {
             onChange={(e) => setFiles([...(e.target.files || [])])}
           />
           <button type="button" className="upload-btn" onClick={() => fileInputRef.current?.click()}>
-            📤 {files.length > 0 ? `Đổi ${files.length} file khác` : existingDataFiles.length > 0 ? "Thêm file mới" : "Chọn file"}
+            {files.length > 0 ? `Đổi ${files.length} file khác` : existingDataFiles.length > 0 ? "Thêm file mới" : "Chọn file"}
           </button>
           {files.length > 0 && (
             <span style={{ fontSize: 11, color: "var(--text-400)", marginLeft: 10 }}>
@@ -483,7 +483,7 @@ function JobFormCard({ editingJob, onDone, onCancel }) {
             <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
               {existingDataFiles.map((ef) => (
                 <div key={ef.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, color: "var(--text-600)" }}>
-                  📎 {ef.file_name}
+                  {ef.file_name}
                   <button type="button" className="fbtn danger" style={{ padding: "1px 8px", fontSize: 10.5 }}
                     onClick={() => handleRemoveExistingDataFile(ef.id)}>
                     Xóa
@@ -535,7 +535,7 @@ function BulkUploadCard({ onDone, onOpenForm, thang, setThang, months, exporting
     setResultMsg("");
     try {
       const r = await bulkUploadChuDeJobs(file);
-      setResultMsg(`✅ Đã thêm ${r.count} task.`);
+      setResultMsg(`Đã thêm ${r.count} task.`);
       onDone();
     } catch (err) {
       setError(err.message || "Upload thất bại");
@@ -568,14 +568,14 @@ function BulkUploadCard({ onDone, onOpenForm, thang, setThang, months, exporting
             Thêm chủ đề mới
           </button>
           <button className="upload-btn" onClick={handleDownloadTemplate} disabled={downloadingTemplate}>
-            📥 {downloadingTemplate ? "Đang tải..." : "Tải template Excel"}
+            {downloadingTemplate ? "Đang tải..." : "Tải template Excel"}
           </button>
           <input
             ref={fileInputRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }}
             onChange={handleFile} disabled={uploading}
           />
           <button className="upload-btn" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-            📤 {uploading ? "Đang xử lý..." : "Chọn file Excel"}
+            {uploading ? "Đang xử lý..." : "Chọn file Excel"}
           </button>
 
           {/* Chọn tháng + Xuất data (chốt 27/08 lần 2) — dời sang cùng hàng
@@ -590,7 +590,7 @@ function BulkUploadCard({ onDone, onOpenForm, thang, setThang, months, exporting
                 className="fbtn" disabled={exporting} onClick={onExport}
                 style={{ background: "#EAF6E5", borderColor: "#4C9A2A", color: "#3E7A2A" }}
               >
-                {exporting ? "Đang xuất..." : "📤 Xuất data"}
+                {exporting ? "Đang xuất..." : "Xuất data"}
               </button>
             )}
           </div>
@@ -787,7 +787,7 @@ export default function TheoDoiChuDePage() {
   async function handleAdjustToKoViPham(job) {
     if (!confirm(
       `Đổi kết quả task "${job.ten_chu_de}" từ "Có vi phạm" thành "Không vi phạm"?\n\n` +
-      `⚠️ Hệ thống KHÔNG tự xóa case đã ghi nhận cho task này bên menu "Ghi nhận case vi phạm Ver1" — ` +
+      `Hệ thống KHÔNG tự xóa case đã ghi nhận cho task này bên menu "Ghi nhận case vi phạm Ver1" — ` +
       `anh/chị cần tự vào đó xóa case tương ứng, tránh còn sót case của 1 task đã đổi lại "Không vi phạm".`
     )) return;
     setBusyId(job.id);
@@ -916,7 +916,7 @@ export default function TheoDoiChuDePage() {
             onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
             style={{ width: "5cm", padding: "9px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13.5 }}
           />
-          <button onClick={handleSearch} style={searchBtnStyle}>🔍 Tìm kiếm</button>
+          <button onClick={handleSearch} style={searchBtnStyle}>Tìm kiếm</button>
           {searchQuery && (
             <button onClick={handleClearSearch} style={{ ...searchBtnStyle, background: "var(--border)", color: "var(--text-900)" }}>
               Xóa lọc
@@ -1007,37 +1007,37 @@ export default function TheoDoiChuDePage() {
                           )}
                           {canAccessFiles && (job.data_files || []).length > 0 && (
                             <button className="fbtn" onClick={() => handleDownloadAll(job)}>
-                              📥 Tải file
+                              Tải file
                             </button>
                           )}
                           {job.has_result_file && canAccessFiles && (
                             <button className="fbtn" onClick={() => handleDownloadResult(job)}>
-                              📥 Tải kết quả
+                              Tải kết quả
                             </button>
                           )}
                           {canComplete && (
                             <button className="fbtn" onClick={() => setCompletingJob(job)}>
-                              ✅ Đánh dấu hoàn tất
+                              Đánh dấu hoàn tất
                             </button>
                           )}
                           {canAdjustResult && job.ket_qua_vi_pham === "Có vi phạm" && (
                             <button className="fbtn" disabled={busy} onClick={() => handleAdjustToKoViPham(job)}>
-                              {busy ? "Đang đổi..." : "🔁 Đổi thành Không vi phạm"}
+                              {busy ? "Đang đổi..." : "Đổi thành Không vi phạm"}
                             </button>
                           )}
                           {canAdjustResult && job.ket_qua_vi_pham === "Không vi phạm" && (
                             <button className="fbtn" onClick={() => handleAdjustToCoViPham(job)}>
-                              🔁 Đổi thành Có vi phạm
+                              Đổi thành Có vi phạm
                             </button>
                           )}
                           {canAddSupporters && (
                             <button className="fbtn" onClick={() => setAddingSupportersJob(job)}>
-                              ➕ Thêm người hỗ trợ
+                              Thêm người hỗ trợ
                             </button>
                           )}
                           {canUnclaim && (
                             <button className="fbtn" disabled={busy} onClick={() => handleUnclaim(job)}>
-                              {busy ? "Đang trả..." : "↩️ Trả lại (chờ nhận)"}
+                              {busy ? "Đang trả..." : "Trả lại (chờ nhận)"}
                             </button>
                           )}
                           {isAdmin && (can("/theo-doi-chu-de::sua-job") || can("/theo-doi-chu-de::xoa-job")) && (
