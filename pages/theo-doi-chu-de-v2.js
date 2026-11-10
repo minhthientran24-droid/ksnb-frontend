@@ -1403,7 +1403,7 @@ export default function TheoDoiChuDeV2Page() {
                       </td>
                       <td style={{ textAlign: "left" }}>{job.nguoi_upload || "-"}</td>
                       <td>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "stretch" }}>
+                        <div className="nowrap-actions" style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "stretch" }}>
                           {job.trang_thai === "Chưa nhận" && (
                             <button className="fbtn" onClick={() => setClaimingJob(job)}>
                               Nhận Task
