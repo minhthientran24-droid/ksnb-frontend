@@ -157,6 +157,8 @@ export default function LichLamViecPage() {
   const [view, setView] = useState("schedule"); // thong_ke | list | schedule | today
   const [shops, setShops] = useState(null);
   const [candidates, setCandidates] = useState(null);
+  // Chốt 10/11 — tick "Gồm shop chưa tới hạn": {on, date} (mặc định không tick); date = Ngày kiểm đang chọn để quét đúng tháng
+  const [earlyScan, setEarlyScan] = useState({ on: false, date: "" });
   const [scheduledToday, setScheduledToday] = useState(null);
   const [thongKeMonth, setThongKeMonth] = useState(currentMonthStr());
   const [thongKeData, setThongKeData] = useState(null);
@@ -188,7 +190,7 @@ export default function LichLamViecPage() {
 
   useEffect(() => {
     if (checked) reload();
-  }, [checked, group, view, thongKeMonth]);
+  }, [checked, group, view, thongKeMonth, earlyScan.on, earlyScan.date]);
 
   function reload() {
     setLoading(true);
@@ -199,7 +201,7 @@ export default function LichLamViecPage() {
     } else if (view === "list") {
       llv2GetShops(group).then(setShops).catch((e) => setError(e.message)).finally(done);
     } else if (view === "schedule") {
-      llv2GetCandidates(group).then(setCandidates).catch((e) => setError(e.message)).finally(done);
+      llv2GetCandidates(group, earlyScan.on ? earlyScan.date : "", earlyScan.on).then(setCandidates).catch((e) => setError(e.message)).finally(done);
     } else if (view === "today") {
       llv2GetScheduledToday(group).then(setScheduledToday).catch((e) => setError(e.message)).finally(done);
     }
@@ -255,7 +257,7 @@ export default function LichLamViecPage() {
           <ThongKeThangView data={thongKeData} month={thongKeMonth} onMonthChange={setThongKeMonth} group={group} />
         )}
         {view === "list" && shops && can("/lich-lam-viec::list") && <ShopListView data={shops} onReload={reload} />}
-        {view === "schedule" && candidates && can("/lich-lam-viec::schedule") && <ScheduleView data={candidates} group={group} onDone={reload} />}
+        {view === "schedule" && candidates && can("/lich-lam-viec::schedule") && <ScheduleView data={candidates} group={group} onDone={reload} earlyScan={earlyScan} onEarlyScan={setEarlyScan} />}
         {view === "today" && scheduledToday && can("/lich-lam-viec::today") && <TodayScheduledView data={scheduledToday} group={group} onDone={reload} />}
 
         <style jsx global>{`
@@ -689,7 +691,7 @@ function ShopListView({ data, onReload }) {
   );
 }
 
-function ScheduleView({ data, group, onDone }) {
+function ScheduleView({ data, group, onDone, earlyScan, onEarlyScan }) {
   const mcf = useMultiColFilters();
   const [selected, setSelected] = useState(new Set());
   const [quotas, setQuotas] = useState([{ ksnb: "", so_luong: 1 }]);
@@ -706,6 +708,13 @@ function ScheduleView({ data, group, onDone }) {
   const [offNames, setOffNames] = useState([]);
 
   useEffect(() => {
+    // đang tick "Gồm shop chưa tới hạn" mà đổi Ngày kiểm sang tháng khác -> quét lại theo tháng của Ngày kiểm mới
+    if (earlyScan.on && ngayKiem && ngayKiem >= todayIso() && ngayKiem.slice(0, 7) !== (earlyScan.date || todayIso()).slice(0, 7)) {
+      onEarlyScan({ on: true, date: ngayKiem });
+    }
+  }, [ngayKiem]);
+
+  useEffect(() => {
     if (!ngayKiem) { setOffNames([]); return; }
     leaveDaysByDate(ngayKiem).then((r) => setOffNames(r.names || [])).catch(() => setOffNames([]));
   }, [ngayKiem]);
@@ -719,7 +728,7 @@ function ScheduleView({ data, group, onDone }) {
     { key: "ma_shop", get: (r) => r.ma_shop || "—" },
     { key: "ten_shop", get: (r) => r.ten_shop || "—", menu: 360 },
     { key: "phan_loai", get: (r) => r.phan_loai || "—" },
-    { key: "qua_han", get: (r) => (r.is_overdue ? "Quá hạn" : "Chưa quá hạn") },
+    { key: "qua_han", get: (r) => (r.is_overdue ? "Quá hạn" : r.chua_den_han ? "Chưa tới hạn" : "Chưa quá hạn") },
   ];
   const rows = mcf.filterRows(colDefs, data.rows || []);
   const fb = (key) => mcf.button(colDefs, data.rows || [], key);
@@ -787,6 +796,7 @@ function ScheduleView({ data, group, onDone }) {
         quotas: cleanQuotas,
         selected_shops: [...selected],
         manual_selection: selected.size > 0,
+        include_chua_den_han: earlyScan.on,
       });
       setResult(r);
       setSelected(new Set());
@@ -804,6 +814,22 @@ function ScheduleView({ data, group, onDone }) {
         <div className="card-head">
           <h3>Shop chờ chia ({rows.length}/{data.rows.length}) — ngày quét {data.scan_date}</h3>
           {mcf.active && <button className="fbtn" onClick={mcf.clear}>✕ Bỏ lọc cột</button>}
+        </div>
+        <div style={{ padding: "8px 16px", borderBottom: "1px solid var(--border)", fontSize: 13 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+            <input
+              type="checkbox" checked={earlyScan.on}
+              onChange={(e) => onEarlyScan({ on: e.target.checked, date: ngayKiem >= todayIso() ? ngayKiem : "" })}
+            />
+            <span>
+              <b>Gồm shop chưa tới hạn kiểm</b> — hiện và cho chia lịch cả shop chưa tới ngày cần kiểm nhưng vẫn có lịch kiểm trong tháng {(data.scan_date || "").slice(5, 7)}/{(data.scan_date || "").slice(0, 4)}
+            </span>
+          </label>
+          {earlyScan.on && (
+            <div style={{ fontSize: 11.5, color: "var(--text-600)", marginTop: 4 }}>
+              Đang bật: bảng bên dưới có thêm các shop “Chưa tới hạn” (đánh dấu riêng). Bỏ tick để quay lại danh sách như bình thường.
+            </div>
+          )}
         </div>
         <div className="card-body llv-scroll" style={{ padding: 0 }}>
           <table>
@@ -829,7 +855,7 @@ function ScheduleView({ data, group, onDone }) {
                   <td style={{ textAlign: "left" }}>{r.ma_shop}</td>
                   <td style={{ textAlign: "left" }}>{r.ten_shop}</td>
                   <td><Pill kind={PHAN_LOAI_PILL[r.phan_loai]}>{r.phan_loai}</Pill></td>
-                  <td>{r.is_overdue ? <Pill kind="warn">Quá hạn</Pill> : ""}</td>
+                  <td>{r.is_overdue ? <Pill kind="warn">Quá hạn</Pill> : r.chua_den_han ? <Pill kind="ok">Chưa tới hạn</Pill> : ""}</td>
                 </tr>
               ))}
             </tbody>
