@@ -6,7 +6,7 @@ import ColumnMultiFilter from "../components/ColumnMultiFilter";
 import {
   getUser, listChuDeJobsV2, createChuDeJobV2, updateChuDeJobV2, deleteChuDeJobV2,
   claimChuDeJobV2, unclaimChuDeJobV2, addChuDeJobV2Supporters, listKsnbForChuDeV2,
-  completeChuDeJobV2, downloadChuDeJobV2File, downloadChuDeJobV2ResultFile,
+  completeChuDeJobV2, updateChuDeJobV2TienDo, downloadChuDeJobV2File, downloadChuDeJobV2ResultFile,
   getChuDeJobV2LinkedCases, adjustChuDeJobV2ToKhongViPham, getChuDeV2StaffOverview,
   bulkUploadChuDeJobsV2, downloadChuDeJobV2BulkUploadTemplate, lookupChuDeShop,
   getChuDeJobV2Months, exportChuDeJobsV2,
@@ -403,6 +403,56 @@ function AdjustToKoViPhamModal({ job, onDone, onCancel }) {
           </button>
           <button type="button" onClick={onCancel} style={{ ...deleteBtnStyle, padding: "9px 18px" }}>Hủy</button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Popup cập nhật TIẾN ĐỘ task đang xử lý (chốt 10/11) — hiện ở ô "Kết quả" của bảng.
+function TienDoModal({ job, onDone, onCancel }) {
+  const [text, setText] = useState(job.tien_do || "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      await updateChuDeJobV2TienDo(job.id, text);
+      onDone();
+    } catch (err) {
+      setError(err.message || "Cập nhật thất bại");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={overlayStyle} onClick={onCancel}>
+      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+        <h3 style={{ marginBottom: 4 }}>📝 Cập nhật tiến độ</h3>
+        <p style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 16 }}>
+          {job.ma_phieu && <strong>Mã phiếu {job.ma_phieu} · </strong>}{job.ten_chu_de}
+        </p>
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={labelStyle}>Tiến độ xử lý</label>
+            <textarea
+              autoFocus value={text} onChange={(e) => setText(e.target.value)} maxLength={2000}
+              rows={5} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
+              placeholder="VD: Đã gửi yêu cầu giải trình cho shop, chờ phản hồi..."
+            />
+            <div style={{ fontSize: 11.5, color: "var(--text-400)", marginTop: 4 }}>Để trống rồi lưu = xoá tiến độ.</div>
+          </div>
+          {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14 }}>{error}</div>}
+          <div style={{ display: "flex", gap: 10 }}>
+            <button type="submit" disabled={saving} className="login-btn" style={{ width: "auto", padding: "9px 22px" }}>
+              {saving ? "Đang lưu..." : "Lưu tiến độ"}
+            </button>
+            <button type="button" onClick={onCancel} style={{ ...deleteBtnStyle, padding: "9px 18px" }}>Hủy</button>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -895,6 +945,7 @@ export default function TheoDoiChuDeV2Page() {
   const [editingJob, setEditingJob] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [completingJob, setCompletingJob] = useState(null);
+  const [tienDoJob, setTienDoJob] = useState(null);
   const [adjustingJob, setAdjustingJob] = useState(null);
   const [staffAlert, setStaffAlert] = useState(null); // dữ liệu popup cảnh báo phân việc (chỉ admin)
   const router = useRouter();
@@ -1046,6 +1097,7 @@ export default function TheoDoiChuDeV2Page() {
       ...(job.supporters || []).map((s) => s.full_name),
       fmtDateTime(job.ngay_bat_dau_check),
       job.ket_qua_vi_pham,
+      job.tien_do,
       job.ghi_chu,
       job.nguoi_upload,
     ].filter(Boolean).join(" ");
@@ -1146,6 +1198,11 @@ export default function TheoDoiChuDeV2Page() {
 
   function afterAdjust() {
     setAdjustingJob(null);
+    load();
+  }
+
+  function afterTienDo() {
+    setTienDoJob(null);
     load();
   }
 
@@ -1300,6 +1357,8 @@ export default function TheoDoiChuDeV2Page() {
                     || (me && job.claimed_by_user_id === me.id)
                     || (me && supporters.some((s) => s.user_id === me.id));
                   const canComplete = job.trang_thai === "Đang xử lý";
+                  // Chốt 10/11 — cập nhật Tiến độ: admin hoặc người đang xử lý task (chính / hỗ trợ), chỉ khi "Đang xử lý"
+                  const canUpdateTienDo = job.trang_thai === "Đang xử lý" && canAccessFiles;
                   const canUnclaim = job.trang_thai === "Đang xử lý";
                   const canAddSupporters = job.trang_thai === "Đang xử lý";
                   const busy = busyId === job.id;
@@ -1327,7 +1386,15 @@ export default function TheoDoiChuDeV2Page() {
                       <td>{fmtDateTime(job.ngay_bat_dau_check) || "-"}</td>
                       <td>{soNgay === null ? "-" : `${soNgay} ngày`}</td>
                       <td>
-                        {job.ket_qua_vi_pham || "-"}
+                        {job.trang_thai === "Đang xử lý" && job.tien_do ? (
+                          <div style={{ textAlign: "left", minWidth: 150 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: "#B54708" }}>Tiến độ</div>
+                            <div style={{ whiteSpace: "pre-line", fontSize: 12.5 }}>{job.tien_do}</div>
+                            <div style={{ fontSize: 11, color: "var(--text-400)", marginTop: 2 }}>
+                              {fmtDateTime(job.tien_do_cap_nhat_at)}{job.tien_do_cap_nhat_by ? ` · ${job.tien_do_cap_nhat_by}` : ""}
+                            </div>
+                          </div>
+                        ) : (job.ket_qua_vi_pham || "-")}
                         {job.ghi_chu && (
                           <div style={{ fontSize: 11, color: "var(--text-400)", marginTop: 2, fontWeight: 400, whiteSpace: "pre-line" }}>
                             {job.ghi_chu}
@@ -1350,6 +1417,11 @@ export default function TheoDoiChuDeV2Page() {
                           {job.has_result_file && canAccessFiles && (
                             <button className="fbtn" onClick={() => handleDownloadResult(job)}>
                               📥 Tải kết quả
+                            </button>
+                          )}
+                          {canUpdateTienDo && (
+                            <button className="fbtn" onClick={() => setTienDoJob(job)}>
+                              📝 Cập nhật tiến độ
                             </button>
                           )}
                           {canComplete && (
@@ -1401,6 +1473,9 @@ export default function TheoDoiChuDeV2Page() {
       )}
       {addingSupportersJob && (
         <AddSupportersModal job={addingSupportersJob} onDone={afterAddSupporters} onCancel={() => setAddingSupportersJob(null)} />
+      )}
+      {tienDoJob && (
+        <TienDoModal job={tienDoJob} onDone={afterTienDo} onCancel={() => setTienDoJob(null)} />
       )}
       {completingJob && (
         <CompleteJobModal job={completingJob} onDone={afterComplete} onCancel={() => setCompletingJob(null)} />
