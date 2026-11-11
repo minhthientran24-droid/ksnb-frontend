@@ -123,10 +123,26 @@ export function TruyThuNhanVienCard({ nv }) {
       <div className="card-head" style={{ flexWrap: "wrap", gap: 8 }}>
         <h3>{nv.ten_nv} <span style={{ fontWeight: 500, color: "var(--text-600)" }}>— Mã NV: {nv.ma_nv}</span></h3>
         <span className="note">
-          {nv.so_thang} tháng gần nhất · Truy thu: <strong>{fmtMoney(nv.tong_truy_thu)}</strong> · Sau điều chỉnh: <strong>{fmtMoney(nv.tong_sau_dieu_chinh)}</strong>
+          {nv.records.length === 0
+            ? "Không có truy thu"
+            : <>{nv.so_thang} tháng gần nhất · Truy thu: <strong>{fmtMoney(nv.tong_truy_thu)}</strong> · Sau điều chỉnh: <strong>{fmtMoney(nv.tong_sau_dieu_chinh)}</strong></>}
         </span>
       </div>
+      {nv.thong_tin && (
+        <div style={{ padding: "8px 16px 0", fontSize: 13, color: "var(--text-600)", lineHeight: 1.7 }}>
+          {[
+            nv.thong_tin.chuc_danh && `Chức danh: ${nv.thong_tin.chuc_danh}`,
+            (nv.thong_tin.cua_hang || nv.thong_tin.ma_shop) && `Shop hiện tại: ${[nv.thong_tin.ma_shop, nv.thong_tin.cua_hang].filter(Boolean).join(" - ")}`,
+            nv.thong_tin.vung && `Vùng: ${nv.thong_tin.vung}`,
+            nv.thong_tin.trang_thai && `Trạng thái: ${nv.thong_tin.trang_thai}`,
+            nv.thong_tin.email && `Email: ${nv.thong_tin.email}`,
+          ].filter(Boolean).join(" · ")}
+        </div>
+      )}
       <div className="card-body" style={{ overflowX: "auto" }}>
+        {nv.records.length === 0 ? (
+          <div style={{ fontSize: 13.5 }}>Nhân viên này chưa có dữ liệu truy thu thực tế (trong 12 tháng gần nhất) — chưa bị truy thu.</div>
+        ) : (
         <table>
           <thead>
             <tr>
@@ -157,6 +173,7 @@ export function TruyThuNhanVienCard({ nv }) {
             ))}
           </tbody>
         </table>
+        )}
       </div>
     </div>
   );

@@ -421,9 +421,13 @@ export default function TraCuuThongTinPage() {
                 style={{ cursor: "pointer", padding: "8px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}
               >
                 <strong>{m.ten}</strong> - Mã NV {m.ma_nv}
-                {m.shop_gan_nhat && (
-                  <span style={{ color: "var(--text-600)", fontSize: 12.5 }}> · gần nhất: {m.shop_gan_nhat.ma_shop} - {m.shop_gan_nhat.ten_shop} (tháng {m.shop_gan_nhat.thang})</span>
-                )}
+                {m.chuc_danh && <span style={{ color: "var(--text-600)", fontSize: 12.5 }}> · {m.chuc_danh}</span>}
+                {m.shop_gan_nhat ? (
+                  <span style={{ color: "var(--text-600)", fontSize: 12.5 }}> · truy thu gần nhất: {m.shop_gan_nhat.ma_shop} - {m.shop_gan_nhat.ten_shop} (tháng {m.shop_gan_nhat.thang})</span>
+                ) : m.cua_hang ? (
+                  <span style={{ color: "var(--text-600)", fontSize: 12.5 }}> · {m.cua_hang}</span>
+                ) : null}
+                {m.co_truy_thu === false && <span style={{ marginLeft: 8, fontSize: 11.5, fontWeight: 700, color: "#667085", background: "#F2F4F7", borderRadius: 99, padding: "1px 8px" }}>Không có truy thu</span>}
               </div>
             ))}
           </div>
