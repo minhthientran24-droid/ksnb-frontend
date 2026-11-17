@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
-import { getActivityLogSummary, getInactiveUsers, getGuestActivityStats, getUser } from "../lib/api";
+import { getActivityLogSummary, getInactiveUsers, getNoLoginUsers, getGuestActivityStats, getUser } from "../lib/api";
 import { useAllowedKeys } from "../lib/permissions";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
@@ -22,7 +22,7 @@ function formatDateTimeVn(iso) {
 export default function NhatKyHoatDongPage() {
   const router = useRouter();
   const [checked, setChecked] = useState(false);
-  const [tab, setTab] = useState("theo-ngay"); // "theo-ngay" | "khong-hoat-dong" | "guest" (chỉ super_admin)
+  const [tab, setTab] = useState("theo-ngay"); // "theo-ngay" | "khong-hoat-dong" | "khong-dang-nhap" | "guest" (chỉ super_admin)
   const [isSuper, setIsSuper] = useState(false);
   const { can, ready: permReady } = useAllowedKeys();
 
@@ -38,7 +38,7 @@ export default function NhatKyHoatDongPage() {
 
   useEffect(() => {
     if (!permReady || tab === "guest" || can(`/nhat-ky-hoat-dong::${tab}`)) return;
-    const first = ["theo-ngay", "khong-hoat-dong"].find((k) => can(`/nhat-ky-hoat-dong::${k}`));
+    const first = ["theo-ngay", "khong-hoat-dong", "khong-dang-nhap"].find((k) => can(`/nhat-ky-hoat-dong::${k}`));
     if (first) setTab(first);
   }, [permReady, tab]);
 
@@ -62,6 +62,11 @@ export default function NhatKyHoatDongPage() {
             🚨 Không hoạt động
           </div>
         )}
+        {can("/nhat-ky-hoat-dong::khong-dang-nhap") && (
+          <div className={`month-tab ${tab === "khong-dang-nhap" ? "active" : ""}`} onClick={() => setTab("khong-dang-nhap")}>
+            🔕 Không đăng nhập web
+          </div>
+        )}
         {isSuper && (
           <div className={`month-tab ${tab === "guest" ? "active" : ""}`} onClick={() => setTab("guest")}>
             👤 Nhật ký hoạt động user Guest
@@ -71,6 +76,7 @@ export default function NhatKyHoatDongPage() {
 
       {tab === "theo-ngay" && can("/nhat-ky-hoat-dong::theo-ngay") && <TheoNgayTab />}
       {tab === "khong-hoat-dong" && can("/nhat-ky-hoat-dong::khong-hoat-dong") && <KhongHoatDongTab />}
+      {tab === "khong-dang-nhap" && can("/nhat-ky-hoat-dong::khong-dang-nhap") && <KhongDangNhapTab />}
       {tab === "guest" && isSuper && <GuestLogTab />}
     </Layout>
   );
@@ -287,6 +293,125 @@ function TheoNgayTab() {
                       ))}
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// Tab "Không đăng nhập web" (chốt 17/11): mọi tài khoản đang hoạt động (trừ Guest) + lần đăng nhập gần nhất + SỐ NGÀY chưa đăng nhập;
+// người quá hạn (>= N ngày hoặc chưa từng đăng nhập) được tô nổi bật.
+function KhongDangNhapTab() {
+  const [days, setDays] = useState(3);
+  const [daysInput, setDaysInput] = useState("3");
+  const [onlyOver, setOnlyOver] = useState(false);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  function load(n) {
+    setLoading(true);
+    setError("");
+    getNoLoginUsers(n)
+      .then((res) => {
+        setData(res);
+        setDays(res.days);
+        setDaysInput(String(res.days));
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => { load(3); }, []);
+
+  const all = data?.users || [];
+  const users = onlyOver ? all.filter((u) => u.qua_han) : all;
+
+  return (
+    <>
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card-body" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <label style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-900)" }}>Làm nổi bật user không đăng nhập từ</label>
+          <input
+            type="number" min={1} className="finput" value={daysInput}
+            onChange={(e) => setDaysInput(e.target.value)} style={{ width: 70 }}
+          />
+          <span style={{ fontSize: 12.5, color: "var(--text-600)" }}>ngày trở lên</span>
+          <button className="fbtn" disabled={loading || !daysInput || Number(daysInput) < 1} onClick={() => load(Number(daysInput))}>
+            {loading ? "Đang tải..." : "🔍 Kiểm tra"}
+          </button>
+          <label style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6, cursor: "pointer", marginLeft: 8 }}>
+            <input type="checkbox" checked={onlyOver} onChange={(e) => setOnlyOver(e.target.checked)} />
+            Chỉ hiện user quá hạn
+          </label>
+          {data && !loading && (
+            <span style={{ fontSize: 12, color: "var(--text-600)" }}>
+              <b style={{ color: "var(--danger)" }}>{data.so_qua_han}</b> / {data.tong} tài khoản chưa đăng nhập từ {days} ngày trở lên
+              {data.so_chua_tung > 0 && <> (trong đó <b>{data.so_chua_tung}</b> chưa từng ghi nhận đăng nhập)</>}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div style={{ fontSize: 11.5, color: "var(--text-400)", marginBottom: 12 }}>
+        Số ngày tính theo lịch Việt Nam: đăng nhập hôm nay = 0 ngày. Gồm mọi tài khoản đang hoạt động (kể cả Viewer), không gồm
+        Guest (có tab riêng). "Chưa từng" nghĩa là hệ thống chưa ghi nhận lần đăng nhập nào của tài khoản đó.
+      </div>
+
+      {error && <div className="placeholder-box">Không tải được dữ liệu: {error}</div>}
+
+      {data && !error && (
+        <div className="card">
+          <div className="card-body" style={{ padding: 0, overflowX: "auto" }}>
+            {users.length === 0 ? (
+              <div className="placeholder-box">✅ Không có tài khoản nào quá {days} ngày chưa đăng nhập.</div>
+            ) : (
+              <table style={{ fontSize: 11.5 }}>
+                <thead>
+                  <tr>
+                    <th style={{ ...thStyle, textAlign: "left" }}>Người dùng</th>
+                    <th style={thStyle}>Khu vực</th>
+                    <th style={thStyle}>Vai trò</th>
+                    <th style={thStyle}>Đăng nhập gần nhất</th>
+                    <th style={thStyle}>Số ngày không đăng nhập</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((u) => {
+                    const never = u.so_ngay_khong_login === null;
+                    return (
+                      <tr key={u.user_id} style={u.qua_han ? { background: never ? "#FDEAEA" : "#FFF3E0" } : undefined}>
+                        <td style={{ ...tdStyle, textAlign: "left" }}>
+                          <div style={{ fontWeight: 700, color: "var(--text-900)", fontSize: 12 }}>{u.full_name || "(không tên)"}</div>
+                          <div style={{ fontSize: 10.5, color: "var(--text-400)" }}>{u.email}</div>
+                        </td>
+                        <td className="num" style={tdStyle}>{u.khu_vuc || "—"}</td>
+                        <td className="num" style={tdStyle}>{u.role_label}</td>
+                        <td className="num" style={{ ...tdStyle, color: u.last_login_at ? "var(--text-900)" : "var(--danger)", fontWeight: u.last_login_at ? 400 : 700 }}>
+                          {u.last_login_at ? formatDateTimeVn(u.last_login_at) : "Chưa từng"}
+                        </td>
+                        <td className="num" style={tdStyle}>
+                          {never ? (
+                            <span style={{ background: "var(--danger)", color: "#fff", fontWeight: 700, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap" }}>
+                              Chưa từng đăng nhập
+                            </span>
+                          ) : u.qua_han ? (
+                            <span style={{ background: "#E8590C", color: "#fff", fontWeight: 700, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap" }}>
+                              {u.so_ngay_khong_login} ngày
+                            </span>
+                          ) : (
+                            <span style={{ color: u.so_ngay_khong_login === 0 ? "#3E7A2A" : "var(--text-900)", fontWeight: u.so_ngay_khong_login === 0 ? 700 : 400 }}>
+                              {u.so_ngay_khong_login === 0 ? "Hôm nay" : `${u.so_ngay_khong_login} ngày`}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
