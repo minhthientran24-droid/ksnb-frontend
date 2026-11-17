@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
-import { getActivityLogSummary, getInactiveUsers, getNoLoginUsers, getGuestActivityStats, getUser } from "../lib/api";
+import { getActivityLogSummary, getInactiveUsers, getNoLoginUsers, getLoginDays, getGuestActivityStats, getUser } from "../lib/api";
 import { useAllowedKeys } from "../lib/permissions";
 
 const ADMIN_ROLES = ["admin", "super_admin"];
@@ -305,7 +305,117 @@ function TheoNgayTab() {
 
 // Tab "Không đăng nhập web" (chốt 17/11): mọi tài khoản đang hoạt động (trừ Guest) + lần đăng nhập gần nhất + SỐ NGÀY chưa đăng nhập;
 // người quá hạn (>= N ngày hoặc chưa từng đăng nhập) được tô nổi bật.
+// Chi tiết 1 tài khoản: từng ngày có / không đăng nhập, 30 ngày/trang (mới nhất trước), xem được nhiều trang.
+function LoginDaysModal({ user, onClose }) {
+  const [page, setPage] = useState(1);
+  const [pageInput, setPageInput] = useState("1");
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    setError("");
+    getLoginDays(user.user_id, page, 30)
+      .then((res) => {
+        setData(res);
+        setPageInput(String(res.page));
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [page]);
+
+  const totalPages = data?.total_pages || 1;
+  const goto = (p) => setPage(Math.max(1, Math.min(totalPages, p)));
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+      onClick={onClose}
+    >
+      <div
+        style={{ background: "var(--surface, #fff)", borderRadius: 12, width: "100%", maxWidth: 560, maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 12px 40px rgba(0,0,0,0.25)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "var(--text-900)" }}>{user.full_name || "(không tên)"}</div>
+            <div style={{ fontSize: 11.5, color: "var(--text-400)" }}>{user.email}</div>
+          </div>
+          <button className="fbtn" onClick={onClose}>Đóng</button>
+        </div>
+
+        <div style={{ padding: "12px 18px", overflowY: "auto" }}>
+          {error && <div style={{ color: "var(--danger)", fontSize: 12.5 }}>Không tải được dữ liệu: {error}</div>}
+          {data && (
+            <>
+              <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 12.5, marginBottom: 10 }}>
+                <span>Tổng <b>{data.total_days}</b> ngày ({formatDateVn(data.tu_ngay)} → {formatDateVn(data.den_ngay)})</span>
+                <span style={{ color: "#3E7A2A" }}>Có đăng nhập: <b>{data.so_ngay_co_dang_nhap}</b> ngày</span>
+                <span style={{ color: "var(--danger)" }}>Không đăng nhập: <b>{data.so_ngay_khong_dang_nhap}</b> ngày</span>
+              </div>
+              <div style={{ fontSize: 11, color: "var(--text-400)", marginBottom: 10 }}>
+                Mốc xa nhất là ngày muộn hơn giữa ngày tạo tài khoản và ngày hệ thống bắt đầu ghi nhật ký — trước mốc này không có dữ liệu.
+              </div>
+              <table style={{ fontSize: 12, width: "100%", opacity: loading ? 0.5 : 1 }}>
+                <thead>
+                  <tr>
+                    <th style={{ ...thStyle, textAlign: "left" }}>Ngày</th>
+                    <th style={thStyle}>Thứ</th>
+                    <th style={thStyle}>Trạng thái</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.days.map((d) => (
+                    <tr key={d.date} style={d.co_dang_nhap ? undefined : { background: d.cuoi_tuan ? "#F4F4F4" : "#FDEAEA" }}>
+                      <td style={{ ...tdStyle, textAlign: "left", fontWeight: 600 }}>{formatDateVn(d.date)}</td>
+                      <td className="num" style={{ ...tdStyle, color: d.cuoi_tuan ? "var(--text-400)" : undefined }}>{d.thu}</td>
+                      <td className="num" style={tdStyle}>
+                        {d.co_dang_nhap ? (
+                          <span style={{ color: "#3E7A2A", fontWeight: 700 }}>
+                            ✓ Có đăng nhập <span style={{ fontWeight: 400, color: "var(--text-600)" }}>({d.so_lan} lần, từ {d.gio_dau})</span>
+                          </span>
+                        ) : (
+                          <span style={{ color: d.cuoi_tuan ? "var(--text-400)" : "var(--danger)", fontWeight: 700 }}>
+                            ✗ Không đăng nhập
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+          {!data && !error && <div style={{ fontSize: 12.5, color: "var(--text-600)" }}>Đang tải...</div>}
+        </div>
+
+        {data && (
+          <div style={{ padding: "10px 18px", borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+            <button className="fbtn" disabled={loading || page <= 1} onClick={() => goto(1)}>«</button>
+            <button className="fbtn" disabled={loading || page <= 1} onClick={() => goto(page - 1)}>‹ Mới hơn</button>
+            <span style={{ fontSize: 12.5 }}>
+              Trang
+              <input
+                type="number" min={1} max={totalPages} className="finput" value={pageInput}
+                onChange={(e) => setPageInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") goto(Number(pageInput) || 1); }}
+                onBlur={() => goto(Number(pageInput) || 1)}
+                style={{ width: 56, margin: "0 6px", textAlign: "center" }}
+              />
+              / {totalPages}
+            </span>
+            <button className="fbtn" disabled={loading || page >= totalPages} onClick={() => goto(page + 1)}>Cũ hơn ›</button>
+            <button className="fbtn" disabled={loading || page >= totalPages} onClick={() => goto(totalPages)}>»</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function KhongDangNhapTab() {
+  const [detailUser, setDetailUser] = useState(null); // bấm vào 1 dòng -> xem từng ngày có / không đăng nhập
   const [days, setDays] = useState(3);
   const [daysInput, setDaysInput] = useState("3");
   const [onlyOver, setOnlyOver] = useState(false);
@@ -357,8 +467,10 @@ function KhongDangNhapTab() {
         </div>
       </div>
 
+      {detailUser && <LoginDaysModal user={detailUser} onClose={() => setDetailUser(null)} />}
+
       <div style={{ fontSize: 11.5, color: "var(--text-400)", marginBottom: 12 }}>
-        Số ngày tính theo lịch Việt Nam: đăng nhập hôm nay = 0 ngày. Gồm mọi tài khoản đang hoạt động (kể cả Viewer), không gồm
+        Bấm vào một dòng để xem chi tiết từng ngày có / không đăng nhập (30 ngày/trang). Số ngày tính theo lịch Việt Nam: đăng nhập hôm nay = 0 ngày. Gồm mọi tài khoản đang hoạt động (kể cả Viewer), không gồm
         Guest (có tab riêng). "Chưa từng" nghĩa là hệ thống chưa ghi nhận lần đăng nhập nào của tài khoản đó.
       </div>
 
@@ -384,7 +496,7 @@ function KhongDangNhapTab() {
                   {users.map((u) => {
                     const never = u.so_ngay_khong_login === null;
                     return (
-                      <tr key={u.user_id} style={u.qua_han ? { background: never ? "#FDEAEA" : "#FFF3E0" } : undefined}>
+                      <tr key={u.user_id} onClick={() => setDetailUser(u)} style={{ cursor: "pointer", ...(u.qua_han ? { background: never ? "#FDEAEA" : "#FFF3E0" } : {}) }} title="Bấm để xem chi tiết từng ngày">
                         <td style={{ ...tdStyle, textAlign: "left" }}>
                           <div style={{ fontWeight: 700, color: "var(--text-900)", fontSize: 12 }}>{u.full_name || "(không tên)"}</div>
                           <div style={{ fontSize: 10.5, color: "var(--text-400)" }}>{u.email}</div>
