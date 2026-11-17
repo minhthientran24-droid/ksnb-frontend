@@ -18,6 +18,14 @@ function whenText(daysLeft) {
   return `Còn ${daysLeft} ngày`;
 }
 
+// Tiêu đề theo các sinh nhật nổi bật (D-2..D): toàn bộ là hôm nay -> "hôm nay"; vừa hôm nay vừa sắp tới -> gộp; chưa ai hôm nay -> "sắp tới".
+function titleText(items) {
+  const hot = items.some((b) => b.noi_bat) ? items.filter((b) => b.noi_bat) : items;
+  const today = hot.filter((b) => b.days_left === 0).length;
+  if (today === 0) return "Sinh nhật sắp tới";
+  return today === hot.length ? "Sinh nhật hôm nay" : "Sinh nhật hôm nay & sắp tới";
+}
+
 function formatDdMm(iso) {
   const [, m, d] = iso.split("-");
   return `${d}/${m}`;
@@ -54,9 +62,9 @@ export default function BirthdayPopup() {
   if (!open) return null;
 
   return (
-    <div style={wrapStyle} role="dialog" aria-label="Sinh nhật sắp tới">
+    <div style={wrapStyle} role="dialog" aria-label={titleText(items)}>
       <div style={headStyle}>
-        <span>🎂 Sinh nhật sắp tới</span>
+        <span>🎂 {titleText(items)}</span>
         <button onClick={handleClose} style={closeStyle} aria-label="Đóng">×</button>
       </div>
       <div style={{ padding: "10px 14px 14px" }}>
