@@ -4,7 +4,8 @@ import Layout from "../components/Layout";
 import { getActivityLogSummary, getInactiveUsers, getNoLoginUsers, getLoginDays, getGuestActivityStats, getUser } from "../lib/api";
 import { useAllowedKeys } from "../lib/permissions";
 
-const ADMIN_ROLES = ["admin", "super_admin"];
+// Chốt 17/11: Nhật ký hoạt động CHỈ super_admin truy cập (trước đây cả admin).
+const ADMIN_ROLES = ["super_admin"];
 
 function formatDateVn(iso) {
   if (!iso) return "";
