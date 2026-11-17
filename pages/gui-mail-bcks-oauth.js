@@ -5,7 +5,7 @@ import SignatureEditor, { GREETING_FONT_SIZES } from "../components/SignatureEdi
 import { useAllowedKeys } from "../lib/permissions";
 import {
   getUser,
-  previewGuiMailBcksOauth, sendGuiMailBcksOauth, getMsOauthStatus, getMsOauthConnectUrl, disconnectMsOauth,
+  previewGuiMailBcksOauth, sendGuiMailBcksOauth, taoEmlGuiMailBcks, xacNhanDaGuiMailBcks, getMsOauthStatus, getMsOauthConnectUrl, disconnectMsOauth,
 } from "../lib/api";
 
 // Menu "Gửi mail BCKS (OAuth)" (chốt 16/11) — bản sao của "Gửi mail BCKS" nhưng KHÔNG nhập mật khẩu ứng dụng: người dùng bấm
@@ -103,6 +103,9 @@ function MicrosoftConnectPanel({ onConfigured }) {
     }
   }
 
+  // Chưa có app Microsoft (IT chưa đăng ký) -> ẩn hẳn khung này; người dùng gửi bằng "Tạo mail để gửi bằng Outlook" (.eml).
+  if (!loading && status && !status.app_configured && !error && !okMsg) return null;
+
   return (
     <div className="card">
       <div className="card-head">
@@ -168,6 +171,10 @@ function SelfServicePanel({ smtpConfigured }) {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState("");
   const [sent, setSent] = useState(false);
+  // Chốt 17/11 — gửi bằng Outlook của người dùng: tạo file .eml -> mở bằng Outlook -> bấm Gửi -> báo "đã gửi xong" để ghi nhận.
+  const [emlBusy, setEmlBusy] = useState(false);
+  const [emlMade, setEmlMade] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   // Chốt 08/09 — thiếu sheet "Kiểm kê Thanh Lý" không còn bị chặn cứng ở
   // backend, chỉ báo "missing_thanh_ly_sheet" — giữ preview đã nhận được
   // TẠM ở đây, chờ NV tự xác nhận qua popup đỏ (Hủy/Tiếp tục) rồi mới áp
@@ -239,7 +246,49 @@ function SelfServicePanel({ smtpConfigured }) {
     }
   }
 
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+
+  async function handleTaoEml() {
+    if (!file) return;
+    setEmlBusy(true);
+    setSendError("");
+    try {
+      const { blob, filename } = await taoEmlGuiMailBcks(file, { to: toText, cc: ccText, subject, greeting, signature });
+      downloadBlob(blob, filename);
+      setEmlMade(true);
+    } catch (err) {
+      setSendError(err.message || "Tạo mail thất bại");
+    } finally {
+      setEmlBusy(false);
+    }
+  }
+
+  async function handleXacNhan() {
+    if (!file) return;
+    setConfirming(true);
+    setSendError("");
+    try {
+      await xacNhanDaGuiMailBcks(file, { to: toText, cc: ccText, subject });
+      setSent(true);
+      setEmlMade(false);
+    } catch (err) {
+      setSendError(err.message || "Ghi nhận thất bại");
+    } finally {
+      setConfirming(false);
+    }
+  }
+
   function resetAll() {
+    setEmlMade(false);
     setFile(null);
     setPreview(null);
     setPreviewError("");
@@ -357,21 +406,43 @@ function SelfServicePanel({ smtpConfigured }) {
               📎 Đính kèm: {preview.attachment_name}
             </div>
 
-            {!smtpConfigured && (
-              <div style={{ fontSize: 12.5, color: "#8A6200", marginBottom: 14 }}>
-                ⚠️ Anh/chị chưa kết nối Microsoft ở mục phía trên — kết nối xong mới gửi được.
-              </div>
-            )}
             {sendError && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14, whiteSpace: "pre-line" }}>{sendError}</div>}
 
-            <button
-              className="login-btn"
-              style={{ width: "auto", padding: "10px 24px" }}
-              onClick={handleSend}
-              disabled={sending || !toText.trim() || !smtpConfigured}
-            >
-              {sending ? "Đang gửi..." : "Gửi mail"}
-            </button>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+              <button
+                className="login-btn"
+                style={{ width: "auto", padding: "10px 24px" }}
+                onClick={handleTaoEml}
+                disabled={emlBusy || confirming || !toText.trim()}
+              >
+                {emlBusy ? "Đang tạo mail..." : emlMade ? "Tải lại file mail" : "Tạo mail để gửi bằng Outlook"}
+              </button>
+              {smtpConfigured && (
+                <button className="fbtn" style={{ whiteSpace: "nowrap" }} onClick={handleSend} disabled={sending || !toText.trim()}>
+                  {sending ? "Đang gửi..." : "Gửi trực tiếp (đã kết nối Microsoft)"}
+                </button>
+              )}
+            </div>
+
+            {emlMade && (
+              <div style={{
+                background: "#F0F7FF", border: "1px solid #A9D6F5", borderRadius: 8, padding: "12px 14px",
+                marginTop: 14, fontSize: 12.5, color: "#0B5FA5", lineHeight: 1.7,
+              }}>
+                <div><strong>Bước tiếp theo:</strong></div>
+                <div>1. Mở file <strong>.eml</strong> vừa tải về (bấm đúp) — Outlook sẽ hiện mail đã điền sẵn người nhận, nội dung, ảnh và file đính kèm.</div>
+                <div>2. Kiểm tra lại rồi bấm <strong>Gửi</strong> trong Outlook.</div>
+                <div>3. Gửi xong thì bấm nút bên dưới để hệ thống ghi nhận <strong>Đã kiểm</strong>.</div>
+                <button
+                  className="login-btn"
+                  style={{ width: "auto", padding: "9px 22px", marginTop: 10 }}
+                  onClick={handleXacNhan}
+                  disabled={confirming}
+                >
+                  {confirming ? "Đang ghi nhận..." : "Tôi đã gửi xong"}
+                </button>
+              </div>
+            )}
           </>
         )}
 
@@ -381,7 +452,7 @@ function SelfServicePanel({ smtpConfigured }) {
             padding: "12px 14px", fontSize: 12.5, color: "#3E7A2A", display: "flex",
             alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap",
           }}>
-            <span>✅ Đã gửi mail báo cáo shop {preview?.ma_shop} - {preview?.ten_shop}.</span>
+            <span>✅ Đã ghi nhận gửi mail báo cáo shop {preview?.ma_shop} - {preview?.ten_shop}.</span>
             <button className="fbtn" onClick={resetAll}>Gửi báo cáo khác</button>
           </div>
         )}
@@ -428,9 +499,9 @@ export default function GuiMailBcksOauthPage() {
   const [smtpConfigured, setSmtpConfigured] = useState(false);
 
   return (
-    <Layout crumb="Gửi mail BCKS (OAuth)">
+    <Layout crumb="Gửi mail BCKS (Outlook)">
       <div className="page-head">
-        <h1>Gửi mail BCKS (OAuth)</h1>
+        <h1>Gửi mail BCKS (Outlook)</h1>
       </div>
 
       {can("/gui-mail-bcks-oauth::ket-noi") && (
