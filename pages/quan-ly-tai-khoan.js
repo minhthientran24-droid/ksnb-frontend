@@ -13,7 +13,7 @@ import { useAllowedKeys } from "../lib/permissions";
 
 const emptyForm = { email: "", full_name: "", position: "", password: "", role: "viewer", kiem_ke_permission: false, khu_vuc: "", ngay_sinh: "" };
 const ADMIN_ROLES = ["admin", "super_admin"];
-const ROLE_LABELS = { super_admin: "Super Admin", admin: "Admin", editor: "Editor", editor_base: "Editor Base", viewer: "Viewer", guest: "Guest Account" };
+const ROLE_LABELS = { super_admin: "Super Admin", admin: "Admin", editor: "Editor", editor_base: "Editor Base", viewer: "Viewer", guest: "Guest Account", lab: "LAB" };
 const KHU_VUC_OPTIONS = ["VP HCM", "VP HNI"];
 // 8 vùng làm việc + All — Vùng của tài khoản Guest (quyết định shop Guest được xem/tải ở Thống kê Kiểm Kê).
 const GUEST_VUNG_OPTIONS = ["Miền Tây", "Miền Đông", "Miền Trung", "Hồ Chí Minh 1", "Hồ Chí Minh 2", "Miền Bắc 1", "Miền Bắc 2", "Hà Nội", "All"];
@@ -40,7 +40,7 @@ const accDefs = [
   { key: "kiem_ke", get: (u) => (u.kiem_ke_permission ? "Đã cấp quyền" : "Chưa cấp quyền") },
 ];
 
-const ROLE_SORT_ORDER = { super_admin: 0, admin: 1, editor: 2, editor_base: 3, viewer: 4, guest: 5 };
+const ROLE_SORT_ORDER = { super_admin: 0, admin: 1, editor: 2, editor_base: 3, viewer: 4, guest: 5, lab: 6 };
 const KHU_VUC_SORT_ORDER = KHU_VUC_OPTIONS.reduce((acc, k, i) => ({ ...acc, [k]: i }), {});
 
 function sortAccounts(list) {
@@ -488,6 +488,7 @@ export default function QuanLyTaiKhoanPage() {
                 <option value="editor">Editor — sửa nội dung được giao</option>
                 <option value="editor_base">Editor Base — như Editor, không xem Báo cáo tháng</option>
                 <option value="admin">Admin — sửa mọi nội dung</option>
+                <option value="lab">LAB — chỉ dùng app Nhận hàng Long Châu LAB</option>
                 {me?.role === "super_admin" && <option value="super_admin">Super Admin — toàn quyền</option>}
               </select></div>
             <div><label style={labelStyle}>Khu vực làm việc</label>
@@ -578,6 +579,7 @@ export default function QuanLyTaiKhoanPage() {
                         <option value="editor">Editor</option>
                         <option value="editor_base">Editor Base</option>
                         <option value="admin">Admin</option>
+                        <option value="lab">LAB</option>
                         {me?.role === "super_admin" && <option value="super_admin">Super Admin</option>}
                       </select>
                     </td>

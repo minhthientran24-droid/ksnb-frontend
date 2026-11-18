@@ -44,6 +44,7 @@ const ADMIN_ITEMS = [
   { href: "/tai-len-du-lieu", icon: "⬆️", label: "Tải lên dữ liệu", hideForRoles: ["editor", "editor_base", "viewer"] },
   { href: "/quan-ly-tai-khoan", icon: "🔑", label: "Quản lý tài khoản", hideForRoles: ["editor", "editor_base", "viewer"] },
   { href: "/lab-house", icon: "🧪", label: "LAB HOUSE", hideForRoles: ["admin", "editor", "editor_base", "viewer"] }, // chốt 18/11: đổi tên từ "Giám sát GPS"; Giám sát GPS là tab con; chỉ super_admin
+  { href: "/nhan-hang-lab", icon: "📦", label: "Nhận hàng Long Châu LAB", hideForRoles: ["admin", "editor", "editor_base", "viewer"] }, // chốt 18/11: user loại LAB luôn thấy; admin quản lý (mặc định chỉ super_admin)
   { href: "/nhat-ky-hoat-dong", icon: "📊", label: "Nhật ký hoạt động", hideForRoles: ["admin", "editor", "editor_base", "viewer"] },
 ];
 // Chốt 16/10 — 2 menu bản cũ (Ver1) dời xuống CUỐI CÙNG của sidebar, chỉ super_admin thấy (từ 22/10; trước đó cả admin)
@@ -109,6 +110,7 @@ export default function Sidebar() {
   // sách đó. Chưa tải xong: tạm theo hideForRoles hardcode (không chớp menu).
   function isVisible(item) {
     if (myRole === "super_admin") return true;
+    if (myRole === "lab") return item.href === "/nhan-hang-lab"; // user LAB: chỉ thấy menu Nhận hàng Long Châu LAB (chốt 18/11)
     if (myRole === "guest") return item.guestMenu === true; // Guest Account: chỉ thấy menu riêng của Guest (chốt 26/10)
     if (allowedMenus) return allowedMenus.includes(item.href);
     return !item.hideForRoles?.includes(myRole);

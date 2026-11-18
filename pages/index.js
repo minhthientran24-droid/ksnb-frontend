@@ -338,7 +338,7 @@ const cancelBtnStyle = {
 // Guest Account (chốt 26/10): không gọi bất kỳ API nào ở trang chủ — Layout tự hiện khung thông báo tối giản.
 export default function HomePage() {
   const [isGuest, setIsGuest] = useState(null);
-  useEffect(() => { setIsGuest(getUser()?.role === "guest"); }, []);
+  useEffect(() => { setIsGuest(["guest", "lab"].includes(getUser()?.role)); }, []); // lab: Layout tự chuyển sang /nhan-hang-lab
   if (isGuest === null) return null;
   if (isGuest) return <Layout crumb="Trang chủ" />;
   return <HomePageInner />;

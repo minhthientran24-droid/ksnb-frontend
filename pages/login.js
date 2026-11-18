@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
-import { login, getToken } from "../lib/api";
+import { login, getToken, getUser } from "../lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,10 +12,12 @@ export default function LoginPage() {
   // Đăng nhập xong quay lại trang đang định vào (?next=/kiem-ke-lab/xxx). Chỉ nhận đường dẫn nội bộ ("/..." không phải "//...").
   const nextRaw = typeof router.query.next === "string" ? router.query.next : "";
   const nextPath = nextRaw.startsWith("/") && !nextRaw.startsWith("//") && !nextRaw.startsWith("/login") ? nextRaw : "/";
+  // User loại LAB (chốt 18/11): đăng nhập xong vào thẳng menu Nhận hàng Long Châu LAB, không qua trang chủ.
+  const homeFor = (u) => (u?.role === "lab" ? "/nhan-hang-lab" : nextPath);
 
   // Nếu đã đăng nhập rồi thì vào thẳng trang chủ (hoặc trang định vào)
   if (typeof window !== "undefined" && getToken() && router.isReady) {
-    router.replace(nextPath);
+    router.replace(homeFor(getUser()));
     return null;
   }
 
@@ -25,7 +27,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const data = await login(email, password);
-      router.push(data.must_change_password ? "/doi-mat-khau" : nextPath);
+      router.push(data.must_change_password ? "/doi-mat-khau" : homeFor(getUser()));
     } catch (err) {
       setError(err.message || "Đăng nhập thất bại");
     } finally {

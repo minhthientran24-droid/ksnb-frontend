@@ -72,6 +72,16 @@ export default function Layout({ crumb, children }) {
       return;
     }
 
+    // User loại LAB (chốt 18/11): chỉ được vào menu Nhận hàng Long Châu LAB (+ đổi mật khẩu), mọi đường dẫn khác chuyển về đó.
+    if (u?.role === "lab") {
+      if (!["/nhan-hang-lab", "/doi-mat-khau"].includes(router.pathname)) {
+        router.replace("/nhan-hang-lab");
+        return;
+      }
+      setChecked(true);
+      return;
+    }
+
     // Chặn vào thẳng URL nếu role không có quyền menu này (chốt 31/08, xem
     // "Quản lý phân quyền") — super_admin luôn qua, "/" (Trang chủ) luôn
     // cho qua (tránh vòng lặp chuyển hướng nếu lỡ tự khoá cả Trang chủ).

@@ -36,3 +36,36 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+
+// Thông báo đẩy của "Nhận hàng Long Châu LAB" (sắp đến hạn / trễ hạn lấy hàng) — server gửi JSON {title, body, url, tag}.
+self.addEventListener("push", (event) => {
+  let d = {};
+  try { d = event.data ? event.data.json() : {}; } catch (e) { d = { title: "Nhận hàng LAB", body: event.data ? event.data.text() : "" }; }
+  event.waitUntil(
+    self.registration.showNotification(d.title || "Nhận hàng Long Châu LAB", {
+      body: d.body || "",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      tag: d.tag || "nhan-hang-lab",
+      renotify: true,
+      requireInteraction: true,
+      data: { url: d.url || "/nhan-hang-lab" },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "/nhan-hang-lab";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const c of list) {
+        if ("focus" in c) {
+          c.navigate(url).catch(() => {});
+          return c.focus();
+        }
+      }
+      return self.clients.openWindow(url);
+    })
+  );
+});
