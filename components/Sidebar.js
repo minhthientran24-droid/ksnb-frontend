@@ -45,7 +45,7 @@ const NAV_ITEMS = [
 const ADMIN_ITEMS = [
   { href: "/tai-len-du-lieu", icon: "⬆️", label: "Tải lên dữ liệu", hideForRoles: ["editor", "editor_base", "viewer"] },
   { href: "/quan-ly-tai-khoan", icon: "🔑", label: "Quản lý tài khoản", hideForRoles: ["editor", "editor_base", "viewer"] },
-  { href: "/giam-sat-gps", icon: "🛰️", label: "Giám sát GPS", hideForRoles: ["admin", "editor", "editor_base", "viewer"] }, // chốt 17/11: chỉ super_admin
+  { href: "/lab-house", icon: "🧪", label: "LAB HOUSE", hideForRoles: ["admin", "editor", "editor_base", "viewer"] }, // chốt 18/11: đổi tên từ "Giám sát GPS"; Giám sát GPS là tab con; chỉ super_admin
   { href: "/nhat-ky-hoat-dong", icon: "📊", label: "Nhật ký hoạt động", hideForRoles: ["admin", "editor", "editor_base", "viewer"] },
 ];
 // Chốt 16/10 — 2 menu bản cũ (Ver1) dời xuống CUỐI CÙNG của sidebar, chỉ super_admin thấy (từ 22/10; trước đó cả admin)
