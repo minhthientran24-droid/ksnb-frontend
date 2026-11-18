@@ -10,6 +10,9 @@ const TZ = "Asia/Ho_Chi_Minh";
 const fmtHM = (iso) => new Date(iso).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TZ });
 const fmtDM = (iso) => new Date(iso).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", timeZone: TZ });
 const dayKey = (iso) => new Date(iso).toLocaleDateString("en-CA", { timeZone: TZ });
+// Khoảng cách xác nhận so với điểm nhận mẫu (ước lượng từ địa chỉ): màu theo mức lệch
+const fmtDist = (m) => (m < 1000 ? `${m} m` : `${(m / 1000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} km`);
+const distColor = (m) => (m <= 300 ? "#3E7A2A" : m <= 1000 ? "#E8590C" : "#C0392B");
 const fmtQty = (q, dv) => (q === null || q === undefined ? "—" : `${q.toLocaleString("vi-VN")}${dv ? ` ${dv}` : ""}`);
 
 function remainText(iso, now) {
@@ -330,6 +333,12 @@ function DetailSheet({ task: t, chip, onClose, onReceive }) {
                     {t.nhan_lat.toFixed(6)}, {t.nhan_lng.toFixed(6)}{t.nhan_do_chinh_xac != null ? ` · sai số ~${t.nhan_do_chinh_xac} m` : ""}{" · "}
                     <a href={`https://www.google.com/maps?q=${t.nhan_lat},${t.nhan_lng}`} target="_blank" rel="noreferrer">Mở bản đồ</a>
                   </div>
+                  {t.chenh_lech_m != null ? (
+                    <div style={{ marginTop: 4, fontWeight: 800, color: distColor(t.chenh_lech_m) }}>
+                      📏 Cách điểm nhận mẫu ~{fmtDist(t.chenh_lech_m)}
+                      <span style={{ fontWeight: 500, fontSize: 12, color: "var(--text-600)" }}> (ước tính so với {t.dich_ten || "địa chỉ ghi trên đơn"})</span>
+                    </div>
+                  ) : <div style={{ marginTop: 4, fontSize: 12.5, color: "var(--text-600)" }}>📏 Chưa tính được khoảng cách so với điểm nhận mẫu</div>}
                 </div>
               )}
               <PhotoThumbs ids={t.photo_ids} />

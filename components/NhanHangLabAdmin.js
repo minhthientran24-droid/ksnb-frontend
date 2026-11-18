@@ -11,6 +11,9 @@ import {
 const TZ = "Asia/Ho_Chi_Minh";
 const fmtDT = (iso) => new Date(iso).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TZ });
 const todayVN = () => new Date().toLocaleDateString("en-CA", { timeZone: TZ });
+const fmtDist = (m) => (m < 1000 ? `${m} m` : `${(m / 1000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} km`);
+const distColor = (m) => (m <= 300 ? "#3E7A2A" : m <= 1000 ? "#E8590C" : "#C0392B");
+const distBucket = (t) => (t.trang_thai === "cho_lay" ? "—" : t.nhan_lat == null ? "Không có định vị" : t.chenh_lech_m == null ? "Chưa xác định" : t.chenh_lech_m <= 300 ? "≤ 300 m" : t.chenh_lech_m <= 1000 ? "300 m – 1 km" : "> 1 km");
 const fmtQty = (q, dv) => (q === null || q === undefined ? "—" : `${q.toLocaleString("vi-VN")}${dv ? ` ${dv}` : ""}`);
 // <input type="datetime-local"> ("2026-11-18T14:30") <-> ISO có múi giờ Việt Nam
 const toIso = (local) => `${local}:00+07:00`;
@@ -197,6 +200,7 @@ export default function NhanHangLabAdmin() {
     { key: "slt", get: (t) => (t.trang_thai === "da_nhan" ? fmtQty(t.so_luong_thuc_te, t.don_vi) : "—"), rank: (t) => (t.trang_thai === "da_nhan" ? t.so_luong_thuc_te ?? -1 : -1), sortVal: (t) => (t.trang_thai === "da_nhan" ? t.so_luong_thuc_te : null), menu: 180 },
     { key: "ghichu", get: (t) => t.ghi_chu_nhan || "—", sortVal: (t) => t.ghi_chu_nhan || "", menu: 320 },
     { key: "vt", get: (t) => (t.trang_thai === "cho_lay" ? "—" : t.nhan_lat != null ? "Có định vị" : "Không có định vị"), sortVal: (t) => (t.nhan_lat != null ? 1 : 0), menu: 180 },
+    { key: "kc", get: distBucket, sortVal: (t) => t.chenh_lech_m, menu: 200 },
     { key: "anh", get: (t) => (t.photo_ids.length ? `${t.photo_ids.length} ảnh` : "—"), rank: (t) => t.photo_ids.length, sortVal: (t) => t.photo_ids.length, menu: 140 },
   ];
   const sortCol = colDefs.find((c) => c.key === sort.key);
@@ -270,7 +274,7 @@ export default function NhanHangLabAdmin() {
                 <tr>
                   {th("ma", "Mã đơn hàng")}{th("gio", "Giờ cần lấy")}{th("nguoi", "Người nhận")}{th("diem", "Điểm / địa chỉ", "left")}
                   {th("sl", "SL cần lấy")}{th("tt", "Trạng thái")}{th("slt", "SL thực nhận")}{th("ghichu", "Ghi chú nhận", "left")}
-                  {th("vt", "Vị trí xác nhận", "left")}{th("anh", "Ảnh")}<th style={thStyle}></th>
+                  {th("vt", "Vị trí xác nhận", "left")}{th("kc", "Chênh lệch vị trí")}{th("anh", "Ảnh")}<th style={thStyle}></th>
                 </tr>
               </thead>
               <tbody>
@@ -306,6 +310,11 @@ export default function NhanHangLabAdmin() {
                             </div>
                           </>
                         ) : t.trang_thai === "cho_lay" ? "—" : <span style={{ color: "var(--text-600)", fontSize: 12.5 }}>Không có định vị</span>}
+                      </td>
+                      <td style={tdStyle} title={t.dich_ten ? `So với: ${t.dich_ten}` : undefined}>
+                        {t.chenh_lech_m != null
+                          ? <b style={{ color: distColor(t.chenh_lech_m), whiteSpace: "nowrap" }}>~{fmtDist(t.chenh_lech_m)}</b>
+                          : <span style={{ color: "var(--text-600)", fontSize: 12.5 }}>{distBucket(t) === "—" ? "—" : distBucket(t)}</span>}
                       </td>
                       <td style={tdStyle}>{t.photo_ids.length ? <a href="#" onClick={(e) => { e.preventDefault(); setPhotoTask(t); }}>🖼 {t.photo_ids.length} ảnh</a> : "—"}</td>
                       <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>
