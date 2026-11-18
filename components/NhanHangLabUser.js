@@ -427,7 +427,7 @@ function ConfirmSheet({ task, onClose, onDone }) {
       const som = (new Date(task.han_lay).getTime() - Date.now()) / 60000;
       if (som >= CANH_BAO_SOM_PHUT) {
         const p = Math.round(som);
-        items.push({ icon: "⏰", pre: "Bạn đang nhận sớm hơn ngày hẹn khoảng ", strong: p >= 60 ? `${Math.floor(p / 60)} giờ${p % 60 ? ` ${p % 60} phút` : ""}` : `${p} phút`, post: ` (hẹn lúc ${fmtHM(task.han_lay)} ${fmtDM(task.han_lay)}).` });
+        items.push({ icon: "⏰", pre: "Bạn đang nhận sớm hơn giờ hẹn khoảng ", strong: p >= 60 ? `${Math.floor(p / 60)} giờ${p % 60 ? ` ${p % 60} phút` : ""}` : `${p} phút`, post: ` (hẹn lúc ${fmtHM(task.han_lay)} ${fmtDM(task.han_lay)}).` });
       }
       if (items.length && !(await askWarn(items))) { setBusy(""); return; }
     }
