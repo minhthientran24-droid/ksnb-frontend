@@ -1,0 +1,510 @@
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/router";
+import SignatureEditor, { GREETING_FONT_SIZES } from "../components/SignatureEditor";
+import { useAllowedKeys } from "../lib/permissions";
+import {
+  getUser,
+  previewGuiMailBcksOauth, sendGuiMailBcksOauth, taoEmlGuiMailBcks, xacNhanDaGuiMailBcks, getMsOauthStatus, getMsOauthConnectUrl, disconnectMsOauth,
+} from "../lib/api";
+
+// Tab "Outlook" trong menu "Gửi mail BCKS" (chốt 18/11: gộp từ menu riêng "Gửi mail BCKS (Outlook)"; mặc định chỉ super_admin). Gốc: menu "Gửi mail BCKS (OAuth)" (chốt 16/11) — bản sao của "Gửi mail BCKS" nhưng KHÔNG nhập mật khẩu ứng dụng: người dùng bấm
+// "Kết nối Microsoft", đăng nhập tài khoản FPT trên trang của Microsoft (như đăng nhập Outlook web, có OTP/MFA), rồi gửi mail qua
+// Microsoft Graph. Xem backend services/ms_oauth.py. Xem trước / gửi / rà soát dùng chung logic với menu cũ.
+
+// "Dữ liệu tham chiếu (Admin)" (ShopInfo/CC theo vùng) đã dời sang menu
+// "Tải lên dữ liệu" (chốt 27/08 lần 19) — xem components/ReferenceFilesPanel.js.
+
+// Chốt 07/09 — /preview trả về "attachment_base64" = ĐÚNG file sẽ gửi
+// (backend đã tự sửa lại "Ngày kiểm soát" ghi trong file cho khớp "Ngày
+// Kiểm" theo lịch chia lịch nếu bị lệch — xem gui_mail_bcks.py::
+// sync_ngay_kiem_soat_voi_lich). Đổi base64 này thành File rồi THAY THẾ
+// file gốc NV vừa chọn, để lúc bấm Gửi luôn gửi ĐÚNG file đã sửa — không
+// gửi nhầm lại file gốc (còn ngày cũ) đang nằm trong <input type="file">.
+function base64ToFile(base64, filename) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new File([bytes], filename, {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+}
+
+const fieldBoxStyle = {
+  border: "1px solid var(--border)", borderRadius: 8, padding: "12px 14px", marginBottom: 12,
+};
+const fieldLabelStyle = { fontSize: 11.5, fontWeight: 700, color: "var(--text-600)", display: "block", marginBottom: 6 };
+const textInputStyle = {
+  width: "100%", border: "1px solid var(--border)", borderRadius: 6, padding: "7px 10px",
+  fontSize: 12.5, fontFamily: "inherit", boxSizing: "border-box",
+};
+// Popup xác nhận "thiếu sheet Kiểm kê Thanh Lý" (chốt 08/09) — cùng quy
+// ước overlay/modal dùng chung ở các trang khác (theo-doi-chu-de.js...).
+const overlayStyle = {
+  position: "fixed", inset: 0, background: "rgba(10,20,40,0.45)",
+  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20,
+};
+const modalStyle = {
+  background: "#fff", borderRadius: 12, padding: "24px 26px", width: 440, maxWidth: "100%",
+  boxShadow: "0 24px 60px rgba(0,0,0,0.3)",
+};
+
+function MicrosoftConnectPanel({ onConfigured }) {
+  const router = useRouter();
+  const [status, setStatus] = useState(null); // { app_configured, connected, email, connected_at }
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [okMsg, setOkMsg] = useState("");
+
+  function load() {
+    setLoading(true);
+    getMsOauthStatus()
+      .then((s) => { setStatus(s); onConfigured && onConfigured({ configured: s.connected }); })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    // Microsoft đưa người dùng quay lại trang này kèm ?ms=ok hoặc ?ms=error&msg=...
+    const q = router.query || {};
+    if (q.ms === "ok") setOkMsg("Đã kết nối Microsoft thành công.");
+    if (q.ms === "error") setError(q.msg ? String(q.msg) : "Kết nối Microsoft thất bại.");
+    if (q.ms) router.replace("/gui-mail-bcks?tab=outlook", undefined, { shallow: true });
+    load();
+  }, []);
+
+  async function handleConnect() {
+    setBusy(true);
+    setError("");
+    setOkMsg("");
+    try {
+      const r = await getMsOauthConnectUrl();
+      window.location.href = r.url; // sang trang đăng nhập Microsoft
+    } catch (err) {
+      setError(err.message || "Không mở được trang đăng nhập Microsoft");
+      setBusy(false);
+    }
+  }
+
+  async function handleDisconnect() {
+    if (!window.confirm("Ngắt kết nối Microsoft? Muốn gửi mail lại phải kết nối lại.")) return;
+    setBusy(true);
+    setError("");
+    setOkMsg("");
+    try {
+      const s = await disconnectMsOauth();
+      setStatus(s);
+      onConfigured && onConfigured({ configured: false });
+    } catch (err) {
+      setError(err.message || "Ngắt kết nối thất bại");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Chưa có app Microsoft (IT chưa đăng ký) -> ẩn hẳn khung này; người dùng gửi bằng "Tạo mail để gửi bằng Outlook" (.eml).
+  if (!loading && status && !status.app_configured && !error && !okMsg) return null;
+
+  return (
+    <div className="card">
+      <div className="card-head">
+        <h3>Kết nối Microsoft (tài khoản gửi mail)</h3>
+        <span className="note">Đăng nhập như vào Outlook web — hệ thống không nhận và không lưu mật khẩu của anh/chị</span>
+      </div>
+      <div className="card-body">
+        <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 14, lineHeight: 1.6 }}>
+          Bấm <strong>Kết nối Microsoft</strong> để sang trang đăng nhập của Microsoft, đăng nhập bằng email FPT của anh/chị (kèm
+          mã OTP nếu được yêu cầu) và đồng ý cho hệ thống <strong>gửi mail thay mặt</strong> anh/chị. Chỉ xin quyền gửi mail, không
+          đọc hộp thư. Kết nối 1 lần rồi dùng cho các lần gửi sau; có thể ngắt kết nối bất cứ lúc nào.
+        </p>
+
+        {loading && <div style={{ fontSize: 12.5, color: "var(--text-600)" }}>Đang tải...</div>}
+
+        {!loading && status && !status.app_configured && (
+          <div style={{ background: "#FFF7E6", border: "1px solid #F5C542", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#8A6200", lineHeight: 1.6 }}>
+            Hệ thống chưa được cấu hình ứng dụng Microsoft. Nhờ IT đăng ký app trên Microsoft Entra ID và điền
+            MS_CLIENT_ID / MS_CLIENT_SECRET / MS_TENANT_ID / MS_REDIRECT_URI vào máy chủ (xem hướng dẫn trong .env.example).
+          </div>
+        )}
+
+        {!loading && status?.app_configured && status.connected && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10,
+            background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px",
+          }}>
+            <span style={{ fontSize: 12.5 }}>
+              Đã kết nối: <strong>{status.email}</strong>
+              {status.connected_at ? <span style={{ color: "var(--text-600)" }}> · từ {new Date(status.connected_at).toLocaleString("vi-VN")}</span> : null}
+            </span>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="fbtn" onClick={handleConnect} disabled={busy}>Kết nối lại</button>
+              <button className="fbtn danger" onClick={handleDisconnect} disabled={busy}>Ngắt kết nối</button>
+            </div>
+          </div>
+        )}
+
+        {!loading && status?.app_configured && !status.connected && (
+          <button className="login-btn" style={{ width: "auto", padding: "9px 22px" }} onClick={handleConnect} disabled={busy}>
+            {busy ? "Đang chuyển sang Microsoft..." : "Kết nối Microsoft"}
+          </button>
+        )}
+
+        {okMsg && <div style={{ fontSize: 12.5, color: "#4C9A2A", marginTop: 12 }}>{okMsg}</div>}
+        {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginTop: 12, whiteSpace: "pre-line" }}>{error}</div>}
+      </div>
+    </div>
+  );
+}
+
+function SelfServicePanel({ smtpConfigured }) {
+  const fileInputRef = useRef(null);
+  const [file, setFile] = useState(null);
+  const [previewing, setPreviewing] = useState(false);
+  const [previewError, setPreviewError] = useState("");
+  const [preview, setPreview] = useState(null); // { ma_shop, ten_shop, report_type, warnings, attachment_name, summary_image_base64 } từ API
+  const [toText, setToText] = useState("");
+  const [ccText, setCcText] = useState("");
+  const [subject, setSubject] = useState("");
+  const [greeting, setGreeting] = useState("");
+  const [signature, setSignature] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState("");
+  const [sent, setSent] = useState(false);
+  // Chốt 17/11 — gửi bằng Outlook của người dùng: tạo file .eml -> mở bằng Outlook -> bấm Gửi -> báo "đã gửi xong" để ghi nhận.
+  const [emlBusy, setEmlBusy] = useState(false);
+  const [emlMade, setEmlMade] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  // Chốt 08/09 — thiếu sheet "Kiểm kê Thanh Lý" không còn bị chặn cứng ở
+  // backend, chỉ báo "missing_thanh_ly_sheet" — giữ preview đã nhận được
+  // TẠM ở đây, chờ NV tự xác nhận qua popup đỏ (Hủy/Tiếp tục) rồi mới áp
+  // dụng vào form thật (applyPreview), tránh lỡ tay gửi thiếu sheet mà
+  // không hay biết.
+  const [thanhLyConfirm, setThanhLyConfirm] = useState(null); // { p, f } đang chờ xác nhận
+
+  function applyPreview(p, f) {
+    setPreview(p);
+    // Thay file gốc bằng đúng file backend đã (có thể) tự sửa lại "Ngày
+    // kiểm soát" — xem base64ToFile() ở trên.
+    if (p.attachment_base64) {
+      setFile(base64ToFile(p.attachment_base64, f.name));
+    }
+    setToText(p.to.join(", "));
+    setCcText(p.cc.join(", "));
+    setSubject(p.subject);
+    setGreeting(p.greeting);
+    setSignature(p.signature);
+  }
+
+  async function handlePickFile(e) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setFile(f);
+    setPreview(null);
+    setPreviewError("");
+    setSendError("");
+    setSent(false);
+    setThanhLyConfirm(null);
+    setPreviewing(true);
+    try {
+      const p = await previewGuiMailBcksOauth(f);
+      if (p.missing_thanh_ly_sheet) {
+        // Chờ NV tự xác nhận trước — KHÔNG áp dụng preview ngay.
+        setThanhLyConfirm({ p, f });
+        return;
+      }
+      applyPreview(p, f);
+    } catch (err) {
+      setPreviewError(err.message || "Không đọc được file");
+    } finally {
+      setPreviewing(false);
+    }
+  }
+
+  function confirmThanhLyContinue() {
+    if (!thanhLyConfirm) return;
+    applyPreview(thanhLyConfirm.p, thanhLyConfirm.f);
+    setThanhLyConfirm(null);
+  }
+
+  function confirmThanhLyCancel() {
+    setThanhLyConfirm(null);
+    resetAll();
+  }
+
+  async function handleSend() {
+    if (!file) return;
+    setSending(true);
+    setSendError("");
+    try {
+      await sendGuiMailBcksOauth(file, { to: toText, cc: ccText, subject, greeting, signature });
+      setSent(true);
+    } catch (err) {
+      setSendError(err.message || "Gửi mail thất bại");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+
+  async function handleTaoEml() {
+    if (!file) return;
+    setEmlBusy(true);
+    setSendError("");
+    try {
+      const { blob, filename } = await taoEmlGuiMailBcks(file, { to: toText, cc: ccText, subject, greeting, signature });
+      downloadBlob(blob, filename);
+      setEmlMade(true);
+    } catch (err) {
+      setSendError(err.message || "Tạo mail thất bại");
+    } finally {
+      setEmlBusy(false);
+    }
+  }
+
+  async function handleXacNhan() {
+    if (!file) return;
+    setConfirming(true);
+    setSendError("");
+    try {
+      await xacNhanDaGuiMailBcks(file, { to: toText, cc: ccText, subject });
+      setSent(true);
+      setEmlMade(false);
+    } catch (err) {
+      setSendError(err.message || "Ghi nhận thất bại");
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  function resetAll() {
+    setEmlMade(false);
+    setFile(null);
+    setPreview(null);
+    setPreviewError("");
+    setSendError("");
+    setSent(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  return (
+    <div className="card">
+      <div className="card-head">
+        <h3>📧 Gửi báo cáo BCKS</h3>
+        <span className="note">Tự phục vụ — đính kèm file báo cáo đã hoàn chỉnh, xem trước rồi gửi</span>
+      </div>
+      <div className="card-body">
+        <p style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 16, lineHeight: 1.6 }}>
+          Đính kèm file báo cáo kiểm soát <strong>đã hoàn chỉnh</strong> (xuất ra từ mục Hỗ Trợ Kiểm Kê &gt; Tổng hợp
+          Báo cáo Kiểm Soát Sau Kiểm Kê — đủ 3 sheet: Tổng hợp BCKS, Kiểm Kê Hàng Hóa, Kiểm kê Thanh Lý). Hệ thống
+          không xử lý lại file này — chỉ đọc tên shop để tra người nhận, anh/chị xem trước nội dung mail rồi gửi.
+        </p>
+
+        <input ref={fileInputRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }} onChange={handlePickFile} />
+        <button className="upload-btn" onClick={() => fileInputRef.current?.click()} disabled={previewing}>
+          {file ? "Đổi file khác" : "📤 Chọn file báo cáo kiểm soát"}
+        </button>
+        <div style={{ fontSize: 11, color: file ? "#4C9A2A" : "var(--text-400)", marginTop: 8, marginBottom: 16 }}>
+          {file ? `✅ ${file.name}` : "Chưa chọn file"}
+        </div>
+
+        {previewing && (
+          <div style={{ fontSize: 12.5, color: "var(--text-600)", display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+            <span className="tiny-spinner" />
+            Đang đọc file để xác định shop...
+          </div>
+        )}
+
+        {previewError && !previewing && (
+          <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14, whiteSpace: "pre-line" }}>{previewError}</div>
+        )}
+
+        {preview && !previewing && !sent && (
+          <>
+            <div style={{
+              background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 8,
+              padding: "10px 14px", marginBottom: 14, fontSize: 12.5,
+              display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+            }}>
+              <span><strong>Shop:</strong> {preview.ma_shop} - {preview.ten_shop}</span>
+              <span style={{
+                fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999,
+                ...(preview.report_type === "vaccine"
+                  ? { background: "#E6F4FF", color: "#0B5FA5", border: "1px solid #A9D6F5" }
+                  : { background: "#EAF6E5", color: "#3E7A2A", border: "1px solid #CFE8C4" }),
+              }}>
+                {preview.report_type === "vaccine" ? "💉 Shop Vaccine" : "🏪 Shop Long Châu"}
+              </span>
+            </div>
+
+            {preview.warnings?.length > 0 && (
+              <div style={{
+                background: "#FFF7E6", border: "1px solid #F5C542", borderRadius: 8,
+                padding: "10px 14px", marginBottom: 14, fontSize: 12, color: "#8A6200", lineHeight: 1.6,
+              }}>
+                {preview.warnings.map((w, i) => <div key={i}>⚠️ {w}</div>)}
+                <div style={{ marginTop: 4 }}>Anh/chị có thể tự điền/sửa người nhận bên dưới trước khi gửi.</div>
+              </div>
+            )}
+
+            <div style={fieldBoxStyle}>
+              <label style={fieldLabelStyle}>Người nhận (To) — cách nhau bởi dấu phẩy</label>
+              <input style={textInputStyle} value={toText} onChange={(e) => setToText(e.target.value)} placeholder="asm.vung1@fptlongchau.vn" />
+            </div>
+            <div style={fieldBoxStyle}>
+              <label style={fieldLabelStyle}>CC — cách nhau bởi dấu phẩy</label>
+              <input style={textInputStyle} value={ccText} onChange={(e) => setCcText(e.target.value)} placeholder="(tuỳ chọn)" />
+            </div>
+            <div style={fieldBoxStyle}>
+              <label style={fieldLabelStyle}>Tiêu đề mail</label>
+              <input
+                style={{ ...textInputStyle, ...(preview?.dang_kiem_not_found ? { borderColor: "var(--danger)" } : {}) }}
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+              />
+              {preview?.dang_kiem_not_found && (
+                <div style={{ fontSize: 11.5, color: "var(--danger)", marginTop: 6, fontWeight: 600 }}>
+                  ⚠️ Không tìm thấy Mã Shop {preview.ma_shop} trong danh sách "Đang kiểm" (Theo dõi kiểm kê) — Hình
+                  thức + Ngày Kiểm đang để trống trong tiêu đề, anh/chị tự điền hoặc kiểm tra lại danh sách trước
+                  khi gửi.
+                </div>
+              )}
+            </div>
+            <div style={fieldBoxStyle}>
+              <label style={fieldLabelStyle}>Nội dung mail</label>
+              <SignatureEditor value={greeting} onChange={setGreeting} minHeight={90} fontSizes={GREETING_FONT_SIZES} />
+            </div>
+
+            <div style={{ ...fieldBoxStyle, background: "var(--bg)" }}>
+              <label style={fieldLabelStyle}>Ảnh tóm tắt Tổng hợp BCKS (tự động chèn vào mail, trước chữ ký)</label>
+              {preview.summary_image_base64 ? (
+                <img
+                  src={`data:image/png;base64,${preview.summary_image_base64}`}
+                  alt="Tổng hợp BCKS"
+                  style={{ maxWidth: "100%", border: "1px solid var(--border)", borderRadius: 4 }}
+                />
+              ) : (
+                <div style={{ fontSize: 11.5, color: "var(--text-400)" }}>Không cắt được ảnh từ file này.</div>
+              )}
+            </div>
+
+            <div style={fieldBoxStyle}>
+              <label style={fieldLabelStyle}>Chữ ký</label>
+              <SignatureEditor value={signature} onChange={setSignature} minHeight={70} />
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-400)", marginBottom: 16 }}>
+              📎 Đính kèm: {preview.attachment_name}
+            </div>
+
+            {sendError && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 14, whiteSpace: "pre-line" }}>{sendError}</div>}
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+              <button
+                className="login-btn"
+                style={{ width: "auto", padding: "10px 24px" }}
+                onClick={handleTaoEml}
+                disabled={emlBusy || confirming || !toText.trim()}
+              >
+                {emlBusy ? "Đang tạo mail..." : emlMade ? "Tải lại file mail" : "Tạo mail để gửi bằng Outlook"}
+              </button>
+              {smtpConfigured && (
+                <button className="fbtn" style={{ whiteSpace: "nowrap" }} onClick={handleSend} disabled={sending || !toText.trim()}>
+                  {sending ? "Đang gửi..." : "Gửi trực tiếp (đã kết nối Microsoft)"}
+                </button>
+              )}
+            </div>
+
+            {emlMade && (
+              <div style={{
+                background: "#F0F7FF", border: "1px solid #A9D6F5", borderRadius: 8, padding: "12px 14px",
+                marginTop: 14, fontSize: 12.5, color: "#0B5FA5", lineHeight: 1.7,
+              }}>
+                <div><strong>Bước tiếp theo:</strong></div>
+                <div>1. Mở file <strong>.eml</strong> vừa tải về (bấm đúp) — Outlook sẽ hiện mail đã điền sẵn người nhận, nội dung, ảnh và file đính kèm.</div>
+                <div>2. Kiểm tra lại rồi bấm <strong>Gửi</strong> trong Outlook.</div>
+                <div>3. Gửi xong thì bấm nút bên dưới để hệ thống ghi nhận <strong>Đã kiểm</strong>.</div>
+                <button
+                  className="login-btn"
+                  style={{ width: "auto", padding: "9px 22px", marginTop: 10 }}
+                  onClick={handleXacNhan}
+                  disabled={confirming}
+                >
+                  {confirming ? "Đang ghi nhận..." : "Tôi đã gửi xong"}
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {sent && (
+          <div style={{
+            background: "#F0FFF4", border: "1px solid #4C9A2A", borderRadius: 8,
+            padding: "12px 14px", fontSize: 12.5, color: "#3E7A2A", display: "flex",
+            alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap",
+          }}>
+            <span>✅ Đã ghi nhận gửi mail báo cáo shop {preview?.ma_shop} - {preview?.ten_shop}.</span>
+            <button className="fbtn" onClick={resetAll}>Gửi báo cáo khác</button>
+          </div>
+        )}
+
+        <div style={{ borderTop: "1px solid var(--border)", margin: "20px 0 14px" }} />
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-900)", marginBottom: 10 }}>
+          Lịch sử gửi mail của tôi
+        </div>
+        <div className="placeholder-box">Chưa có báo cáo nào được gửi.</div>
+      </div>
+
+      {/* Chốt 08/09 — file thiếu sheet "Kiểm kê Thanh Lý" (shop Long
+          Châu) không còn bị chặn, chỉ hỏi lại NV có muốn tiếp tục không. */}
+      {thanhLyConfirm && (
+        <div style={overlayStyle} onClick={confirmThanhLyCancel}>
+          <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+            <div style={{
+              background: "#FDEAEA", border: "1px solid var(--danger)", borderRadius: 8,
+              padding: "12px 14px", fontSize: 13, color: "var(--danger)", fontWeight: 600, marginBottom: 16,
+            }}>
+              ⚠️ File báo cáo thiếu sheet "Kiểm kê Thanh Lý". Bạn có muốn tiếp tục không?
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button className="login-btn" style={{ width: "auto", padding: "9px 22px" }} onClick={confirmThanhLyContinue}>
+                Tiếp tục
+              </button>
+              <button
+                type="button" onClick={confirmThanhLyCancel}
+                style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "9px 18px", fontSize: 13, color: "var(--text-600)", cursor: "pointer" }}
+              >
+                Hủy
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function GuiMailBcksOutlookTab() {
+  const { can } = useAllowedKeys();
+  const [smtpConfigured, setSmtpConfigured] = useState(false);
+
+  return (
+    <>
+      {can("/gui-mail-bcks-oauth::ket-noi") && (
+        <div style={{ marginBottom: 14 }}>
+          <MicrosoftConnectPanel onConfigured={(s) => setSmtpConfigured(s.configured)} />
+        </div>
+      )}
+
+      {can("/gui-mail-bcks-oauth::gui-bao-cao") && <SelfServicePanel smtpConfigured={smtpConfigured} />}
+    </>
+  );
+}

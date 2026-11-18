@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/router";
 import Layout from "../components/Layout";
+import GuiMailBcksOutlookTab from "../components/GuiMailBcksOutlookTab";
 import SignatureEditor, { GREETING_FONT_SIZES } from "../components/SignatureEditor";
 import { useAllowedKeys } from "../lib/permissions";
 import {
@@ -423,17 +425,12 @@ function SelfServicePanel({ smtpConfigured }) {
   );
 }
 
-export default function GuiMailBcksPage() {
-  const me = getUser();
+function GuiMailBcksSendTab() {
   const { can } = useAllowedKeys();
   const [smtpConfigured, setSmtpConfigured] = useState(false);
 
   return (
-    <Layout crumb="Gửi mail BCKS">
-      <div className="page-head">
-        <h1>Gửi mail BCKS</h1>
-      </div>
-
+    <>
       {can("/gui-mail-bcks::cau-hinh-email") && (
         <div style={{ marginBottom: 14 }}>
           <SmtpCredentialPanel onConfigured={(s) => setSmtpConfigured(s.configured)} />
@@ -441,6 +438,54 @@ export default function GuiMailBcksPage() {
       )}
 
       {can("/gui-mail-bcks::gui-bao-cao") && <SelfServicePanel smtpConfigured={smtpConfigured} />}
+    </>
+  );
+}
+
+// 2 tab (chốt 18/11): "Gửi mail BCKS" (mặc định, vào trang là thấy tab này) và "Gửi mail BCKS (Outlook)" (gộp từ menu riêng; chỉ ai có quyền "/gui-mail-bcks-oauth" mới thấy tab — mặc định chỉ super_admin).
+export default function GuiMailBcksPage() {
+  const router = useRouter();
+  const { can } = useAllowedKeys();
+  const [tab, setTab] = useState("send");
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    if (router.query.tab === "outlook") setTab("outlook");
+  }, [router.isReady]);
+
+  if (!router.isReady) return null; // chờ có query (?tab=outlook&ms=...) rồi mới dựng tab, để panel Microsoft đọc được kết quả kết nối
+  const showOutlook = can("/gui-mail-bcks-oauth");
+  const cur = tab === "outlook" && showOutlook ? "outlook" : "send";
+  const TABS = [{ key: "send", label: "Gửi mail BCKS" }, ...(showOutlook ? [{ key: "outlook", label: "Gửi mail BCKS (Outlook)" }] : [])];
+
+  return (
+    <Layout crumb="Gửi mail BCKS">
+      <div className="page-head">
+        <h1>Gửi mail BCKS</h1>
+      </div>
+
+      {TABS.length > 1 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", borderBottom: "1px solid var(--border)", marginBottom: 16 }}>
+          {TABS.map((t) => {
+            const on = t.key === cur;
+            return (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                style={{
+                  background: on ? "#E3F0FF" : "transparent", color: on ? "#1C64B4" : "var(--text-600)", border: "none",
+                  borderBottom: on ? "3px solid #1C64B4" : "3px solid transparent", padding: "9px 16px", fontSize: 13.5,
+                  fontWeight: 700, cursor: "pointer", borderRadius: "8px 8px 0 0", marginBottom: -1,
+                }}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {cur === "send" ? <GuiMailBcksSendTab /> : <GuiMailBcksOutlookTab />}
     </Layout>
   );
 }

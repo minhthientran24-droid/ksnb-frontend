@@ -13,7 +13,6 @@ const NAV_ITEMS = [
   { href: "/ho-tro-shop", icon: "🛟", label: "Hỗ trợ shop" },
   // Chốt 18/11 — "Kiểm kê LAB" đã dời vào menu LAB HOUSE (tab con, tạm chỉ super_admin).
   { href: "/gui-mail-bcks", icon: "📧", label: "Gửi mail BCKS" },
-  { href: "/gui-mail-bcks-oauth", icon: "📧", label: "Gửi mail BCKS (Outlook)" }, // chốt 16-17/11: tạo mail nháp .eml mở bằng Outlook (+ Graph nếu IT cấu hình); mặc định chỉ super_admin (menu_permissions DEFAULT_DENY)
   { href: "/tong-hop-mail", icon: "🤖", label: "Tổng hợp mail AI" }, // menu thử nghiệm: chỉ super_admin (backend menu_permissions DEFAULT_DENY)
   // Chốt 08/10 — tra cứu thông tin shop theo Mã shop, dành cho TẤT CẢ role
   // (không hideForRoles, menu_permissions mặc định cho phép mọi role).
