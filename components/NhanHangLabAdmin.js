@@ -79,8 +79,8 @@ function TaskModal({ task, users, onClose, onSaved }) {
       ghi_chu_giao: f.ghi_chu_giao, han_lay: toIso(f.han_lay),
     };
     try {
-      if (editing) await updateNhanHangTask(task.id, body); else await createNhanHangTask(body);
-      onSaved();
+      const saved = editing ? await updateNhanHangTask(task.id, body) : await createNhanHangTask(body);
+      onSaved(saved);
     } catch (e) {
       setErr(e.message);
       setBusy(false);
@@ -146,11 +146,18 @@ export default function NhanHangLabAdmin() {
     try { await fn(); if (ok) setMsg(ok); load(); } catch (e) { setErr(e.message); } finally { setBusy(""); }
   }
 
+  // Sau khi tạo/nhập: mở rộng bộ lọc để thấy ngay việc vừa thêm (nếu hạn lấy nằm ngoài ngày đang lọc)
+  function showRange(a, b) {
+    if (a && a < from) setFrom(a);
+    if (b && b > to) setTo(b);
+    setUserId(""); setStatus("");
+  }
+
   async function onImport(e) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    act("import", async () => { const r = await importNhanHangExcel(file); setMsg(`Đã nhập ${r.imported} việc từ file Excel.`); }, "");
+    act("import", async () => { const r = await importNhanHangExcel(file); showRange(r.tu_ngay, r.den_ngay); setMsg(`Đã nhập ${r.imported} việc từ file Excel.`); }, "");
   }
 
   const cnt = (s) => items.filter((t) => t.trang_thai === s).length;
@@ -158,7 +165,7 @@ export default function NhanHangLabAdmin() {
 
   return (
     <>
-      {modal && <TaskModal task={modal.task} users={users} onClose={() => setModal(null)} onSaved={() => { setModal(null); setMsg("Đã lưu."); load(); }} />}
+      {modal && <TaskModal task={modal.task} users={users} onClose={() => setModal(null)} onSaved={(t) => { setModal(null); setMsg("Đã lưu."); if (t?.han_lay) { const d = toLocal(t.han_lay).slice(0, 10); showRange(d, d); } load(); }} />}
       {photoTask && <PhotoModal task={photoTask} onClose={() => setPhotoTask(null)} />}
 
       <div className="card" style={{ marginBottom: 14 }}>
