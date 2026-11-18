@@ -1,28 +1,36 @@
 import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { getGpsRoute } from "../lib/api";
 
-// Popup "Lịch sử hành trình" (chốt 18/11) — gần toàn màn hình: bản đồ (OpenStreetMap / vệ tinh) vẽ lộ trình tô màu theo tốc độ, điểm bắt đầu / kết thúc,
+// Popup "Lịch sử hành trình" (chốt 18/11) — kích thước 85% màn hình, căn giữa: bản đồ (kiểu Google ban ngày / vệ tinh) vẽ lộ trình tô màu theo tốc độ, điểm bắt đầu / kết thúc,
 // các điểm dừng; bên phải là danh sách điểm dừng + bảng các điểm đi. Dữ liệu lấy trực tiếp từ gpsthanhnam.com theo khoảng ngày chọn.
 
 // Nguồn bản đồ không cần khoá API. (tile.openstreetmap.org không truy cập được từ mạng ở đây, CARTO thì đòi khoá -> dùng Esri + OSM Đức)
+// Nền mặc định (chốt 18/11): bản đồ vector OpenFreeMap (dữ liệu OpenStreetMap) tô lại bảng màu gần giống Google Maps ban ngày — xem public/gps-map-style.json.
+// Các nền raster bên dưới là phương án dự phòng (máy không có WebGL) / lựa chọn thêm.
+const GOOGLE_STYLE_URL = "/gps-map-style.json";
+// Esri "Light Gray Canvas" — xám sáng, đường phố mờ nhạt (chốt 18/11: nền vàng/đường đậm của World_Street_Map làm chói mắt, khó nhìn lộ trình)
+const LIGHT_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}";
+const LIGHT_REF_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}"; // tên đường / địa danh
 const STREET_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}";
 const OSM_URL = "https://{s}.tile.openstreetmap.de/{z}/{x}/{y}.png";
 const SAT_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 const MAX_ROWS = 3000;
 
+// Màu lộ trình theo tốc độ — tránh vàng/cam/xanh lá vì trùng màu đường lớn / công viên của nền bản đồ kiểu Google (chốt 18/11)
 const SPEED_LEGEND = [
-  ["#8A8F98", "≤ 5 km/h"],
-  ["#2E9E4F", "6–40"],
-  ["#E8A100", "41–60"],
-  ["#D6342C", "> 60"],
+  ["#6B7280", "≤ 5 km/h"],
+  ["#1A73E8", "6–40"],
+  ["#8E24AA", "41–60"],
+  ["#D93025", "> 60"],
 ];
 
 function speedColor(v) {
-  if (v <= 5) return "#8A8F98";
-  if (v <= 40) return "#2E9E4F";
-  if (v <= 60) return "#E8A100";
-  return "#D6342C";
+  if (v <= 5) return "#6B7280";
+  if (v <= 40) return "#1A73E8";
+  if (v <= 60) return "#8E24AA";
+  return "#D93025";
 }
 
 function todayVn() {
@@ -73,14 +81,38 @@ export default function GpsRouteModal({ device, onClose }) {
     (async () => {
       const mod = await import("leaflet");
       const L = mod.default || mod;
+      let maplibreGL = null;
+      try {
+        const hasWebGL = !!document.createElement("canvas").getContext("webgl");
+        if (hasWebGL) {
+          // Worker xử lý tile vector: dùng file tách riêng trong public/ (worker nhúng sẵn bị lỗi khi đóng gói bằng Next.js)
+          const ml = await import("maplibre-gl");
+          (ml.default || ml).setWorkerUrl("/maplibre-gl-csp-worker.js");
+          maplibreGL = (await import("@maplibre/maplibre-gl-leaflet")).maplibreGL;
+        }
+      } catch (e) {
+        maplibreGL = null;
+      }
       if (cancelled || !mapEl.current) return;
       LRef.current = L;
       const map = L.map(mapEl.current, { preferCanvas: true }).setView([10.78, 106.7], 12);
+      const light = L.layerGroup([
+        L.tileLayer(LIGHT_URL, { maxZoom: 19, maxNativeZoom: 16, attribution: "Tiles © Esri" }),
+        L.tileLayer(LIGHT_REF_URL, { maxZoom: 19, maxNativeZoom: 16 }),
+      ]);
       const street = L.tileLayer(STREET_URL, { maxZoom: 19, attribution: "Tiles © Esri" });
       const osm = L.tileLayer(OSM_URL, { maxZoom: 19, subdomains: "abc", attribution: "© OpenStreetMap contributors" });
       const sat = L.tileLayer(SAT_URL, { maxZoom: 19, attribution: "Tiles © Esri" });
-      street.addTo(map);
-      L.control.layers({ "Đường phố": street, "OpenStreetMap": osm, "Vệ tinh": sat }).addTo(map);
+      const bases = {};
+      let first = light;
+      if (maplibreGL) {
+        const gl = maplibreGL({ style: GOOGLE_STYLE_URL, attribution: "© OpenStreetMap contributors · OpenFreeMap" });
+        bases["Ban ngày (kiểu Google)"] = gl;
+        first = gl;
+      }
+      Object.assign(bases, { "Nền xám nhạt": light, "Đường phố (Esri)": street, "OpenStreetMap": osm, "Vệ tinh": sat });
+      first.addTo(map);
+      L.control.layers(bases).addTo(map);
       lgRef.current = L.layerGroup().addTo(map);
       mapRef.current = map;
       setMapReady(true);
@@ -136,10 +168,12 @@ export default function GpsRouteModal({ device, onClose }) {
     const renderer = L.canvas({ padding: 0.5 });
 
     if (pts.length > 1) {
+      // viền trắng dày bên dưới để lộ trình nổi bật trên mọi nền bản đồ
+      L.polyline(pts.map((p) => [p.lat, p.lng]), { color: "#fff", weight: 9, opacity: 0.95, renderer }).addTo(lg);
       let cur = speedColor(pts[1].speed);
       let run = [pts[0]];
       const flush = () => {
-        if (run.length > 1) L.polyline(run.map((p) => [p.lat, p.lng]), { color: cur, weight: 4, opacity: 0.9, renderer }).addTo(lg);
+        if (run.length > 1) L.polyline(run.map((p) => [p.lat, p.lng]), { color: cur, weight: 5, opacity: 1, renderer }).addTo(lg);
       };
       for (let i = 1; i < pts.length; i++) {
         const c = speedColor(pts[i].speed);
@@ -206,7 +240,7 @@ export default function GpsRouteModal({ device, onClose }) {
       onClick={onClose}
     >
       <div
-        style={{ background: "var(--surface, #fff)", borderRadius: 12, width: "calc(100vw - 24px)", height: "calc(100vh - 24px)", display: "flex", flexDirection: "column", boxShadow: "0 12px 40px rgba(0,0,0,0.35)", overflow: "hidden" }}
+        style={{ background: "var(--surface, #fff)", borderRadius: 12, width: "calc((100vw - 24px) * 0.85)", height: "calc((100vh - 24px) * 0.85)", display: "flex", flexDirection: "column", boxShadow: "0 12px 40px rgba(0,0,0,0.35)", overflow: "hidden" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Thanh tiêu đề + chọn ngày */}
