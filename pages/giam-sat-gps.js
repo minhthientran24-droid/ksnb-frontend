@@ -62,6 +62,7 @@ export default function GiamSatGpsPage() {
   const [busy, setBusy] = useState("");
   const [form, setForm] = useState({ username: "", password: "", enabled: true, interval_minutes: 10 });
   const formInit = useRef(false);
+  const [showSettings, setShowSettings] = useState(false);
   const mcf = useMultiColFilters();
   const [sort, setSort] = useState({ key: "name", dir: "asc" });
   const onSort = (key) => setSort((o) => (o.key === key ? { key, dir: o.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
@@ -176,13 +177,51 @@ export default function GiamSatGpsPage() {
   return (
     <Layout crumb="Giám sát GPS">
       <div className="page-head">
-        <h1>Giám sát GPS</h1>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          <h1 style={{ margin: 0 }}>Giám sát GPS</h1>
+          <button
+            onClick={() => { setMsg(""); setError(""); setShowSettings(true); }}
+            style={{ background: "#E3F0FF", color: "#1C64B4", border: "1px solid #BBD7F5", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+          >
+            ⚙️ Cài đặt
+          </button>
+        </div>
         <p>Hệ thống tự đăng nhập gpsthanhnam.com và quét vị trí / trạng thái xe theo chu kỳ, lưu lại để xem lịch sử.</p>
       </div>
 
-      <div className="card">
-        <div className="card-head"><h3>Tài khoản GPS & quét tự động</h3><span className="note">Chỉ super_admin thấy</span></div>
-        <div className="card-body">
+      {cfg && (
+        <div style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 14 }}>
+          {!cfg.configured ? (
+            <span>Chưa có tài khoản GPS — bấm <b>Cài đặt</b> để nhập.</span>
+          ) : (
+            <>
+              Quét gần nhất: <b>{fmtDateTime(cfg.last_run_at)}</b>{" "}
+              {cfg.last_status === "ok" && <span style={{ color: "#3E7A2A", fontWeight: 700 }}>✓ thành công ({cfg.last_count} thiết bị)</span>}
+              {cfg.last_status === "error" && <span style={{ color: "var(--danger)", fontWeight: 700 }}>✗ lỗi: {cfg.last_error}</span>}
+              {!cfg.last_status && <span>(chưa quét lần nào)</span>}
+              {" · "}Quét tự động: <b>{cfg.enabled ? `bật, mỗi ${cfg.interval_minutes} phút` : "tắt"}</b>
+            </>
+          )}
+        </div>
+      )}
+
+      {showSettings && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+          onClick={() => setShowSettings(false)}
+        >
+          <div
+            style={{ background: "var(--surface, #fff)", borderRadius: 12, width: "100%", maxWidth: 640, maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 12px 40px rgba(0,0,0,0.25)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: "var(--text-900)" }}>Cài đặt tài khoản GPS & quét tự động</div>
+                <div style={{ fontSize: 11.5, color: "var(--text-400)" }}>Chỉ super_admin thấy</div>
+              </div>
+              <button className="fbtn" onClick={() => setShowSettings(false)}>Đóng</button>
+            </div>
+            <div style={{ padding: "16px 18px", overflowY: "auto" }}>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
             <div>
               <div style={{ fontSize: 11.5, fontWeight: 700, marginBottom: 4 }}>Tên đăng nhập GPS</div>
@@ -238,8 +277,10 @@ export default function GiamSatGpsPage() {
               </div>
             </div>
           )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {Object.keys(counts).length > 0 && (
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
