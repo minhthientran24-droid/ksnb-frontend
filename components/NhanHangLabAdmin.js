@@ -188,6 +188,7 @@ export default function NhanHangLabAdmin() {
   const fmtDay = (iso) => new Date(iso).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: TZ });
   const statusText = (t) => STATUS[t.trang_thai].label + (t.muc_do === "tre" ? " · Trễ" : "");
   const colDefs = [
+    { key: "ma", get: (t) => t.ma_don || "—", sortVal: (t) => t.ma_don || "", menu: 160 },
     { key: "gio", get: (t) => fmtDay(t.han_lay), rank: (t) => t.han_lay, sortVal: (t) => t.han_lay, menu: 200 },
     { key: "nguoi", get: (t) => t.assigned_name || "—", sortVal: (t) => t.assigned_name || "", menu: 260 },
     { key: "diem", get: (t) => t.ten_diem || t.dia_chi, sortVal: (t) => `${t.ten_diem || ""} ${t.dia_chi || ""}`, menu: 380 },
@@ -266,7 +267,7 @@ export default function NhanHangLabAdmin() {
             <table style={{ width: "100%" }}>
               <thead>
                 <tr>
-                  {th("gio", "Giờ cần lấy")}{th("nguoi", "Người nhận")}{th("diem", "Điểm / địa chỉ", "left")}
+                  {th("ma", "Mã đơn hàng")}{th("gio", "Giờ cần lấy")}{th("nguoi", "Người nhận")}{th("diem", "Điểm / địa chỉ", "left")}
                   {th("sl", "SL cần lấy")}{th("tt", "Trạng thái")}{th("slt", "SL thực nhận")}{th("ghichu", "Ghi chú nhận", "left")}
                   {th("anh", "Ảnh")}<th style={thStyle}></th>
                 </tr>
@@ -277,6 +278,7 @@ export default function NhanHangLabAdmin() {
                   const lv = LEVEL_CHIP[t.muc_do];
                   return (
                     <tr key={t.id} style={t.muc_do === "tre" ? { background: "#FDEAEA" } : undefined}>
+                      <td className="num" style={{ ...tdStyle, fontWeight: 700, whiteSpace: "nowrap" }}>{t.ma_don || "—"}</td>
                       <td className="num" style={tdStyle}>{fmtDT(t.han_lay)}</td>
                       <td style={tdStyle}>{t.assigned_name}</td>
                       <td style={{ ...tdStyle, textAlign: "left", maxWidth: 320 }}>

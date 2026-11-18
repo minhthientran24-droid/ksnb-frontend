@@ -197,7 +197,7 @@ export default function NhanHangLabUser() {
       <div id={`task-${t.id}`} key={t.id} onClick={() => setDetailId(t.id)} role="button"
         style={{ background: C.bg, border: `1.5px solid ${C.bd}`, borderRadius: 14, padding: "12px 14px", marginBottom: 10, cursor: "pointer", opacity: isDone ? 0.92 : 1 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-          <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1 }}>{fmtHM(t.han_lay)}</div>
+          <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1 }}>{fmtHM(t.han_lay)}{t.ma_don && <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-600)", marginLeft: 8 }}>#{t.ma_don}</span>}</div>
           <span style={{ background: C.color, color: "#fff", fontWeight: 800, fontSize: 12.5, padding: "4px 11px", borderRadius: 999, whiteSpace: "nowrap" }}>{C.text}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
@@ -300,6 +300,7 @@ function DetailSheet({ task: t, chip, onClose, onReceive }) {
           <button onClick={onClose} style={{ border: "none", background: "none", fontSize: 24, cursor: "pointer", color: "var(--text-600)" }}>✕</button>
         </div>
         <div style={{ marginTop: 12 }}>
+          {row("🔖 Mã đơn hàng", t.ma_don ? <b>{t.ma_don}</b> : null)}
           {row("⏰ Giờ cần lấy", <b style={{ textTransform: "capitalize" }}>{full}</b>)}
           {row("📍 Địa chỉ", t.dia_chi)}
           {row("📦 Số lượng cần lấy", fmtQty(t.so_luong, t.don_vi))}
