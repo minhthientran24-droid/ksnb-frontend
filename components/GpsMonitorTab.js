@@ -4,8 +4,8 @@ import GpsRouteModal from "../components/GpsRouteModal";
 import { useMultiColFilters } from "../lib/useMultiColFilters";
 import { getGpsLatest, saveGpsConfig, deleteGpsConfig, syncGpsNow } from "../lib/api";
 
-const thStyle = { textAlign: "center", padding: "8px 10px", fontSize: 11.5, whiteSpace: "nowrap" };
-const tdStyle = { textAlign: "center", padding: "7px 10px", fontSize: 12 };
+const thStyle = { textAlign: "center", padding: "8px 10px", fontSize: 12.5, whiteSpace: "nowrap" };
+const tdStyle = { textAlign: "center", padding: "7px 10px", fontSize: 13 };
 
 function fmtDateTime(v) {
   if (!v) return "—";
@@ -171,7 +171,7 @@ export default function GpsMonitorTab() {
           <h2 style={{ margin: 0, fontSize: 18 }}>Giám sát GPS</h2>
           <button
             onClick={() => { setMsg(""); setError(""); setShowSettings(true); }}
-            style={{ background: "#E3F0FF", color: "#1C64B4", border: "1px solid #BBD7F5", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+            style={{ background: "#E3F0FF", color: "#1C64B4", border: "1px solid #BBD7F5", borderRadius: 8, padding: "8px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
           >
             ⚙️ Cài đặt
           </button>
@@ -179,7 +179,7 @@ export default function GpsMonitorTab() {
       </div>
 
       {cfg && (
-        <div style={{ fontSize: 12, color: "var(--text-600)", marginBottom: 14 }}>
+        <div style={{ fontSize: 13, color: "var(--text-600)", marginBottom: 14 }}>
           {!cfg.configured ? (
             <span>Chưa có tài khoản GPS — bấm <b>Cài đặt</b> để nhập.</span>
           ) : (
@@ -207,19 +207,19 @@ export default function GpsMonitorTab() {
           >
             <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: "var(--text-900)" }}>Cài đặt tài khoản GPS & quét tự động</div>
-                <div style={{ fontSize: 11.5, color: "var(--text-400)" }}>Chỉ super_admin thấy</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text-900)" }}>Cài đặt tài khoản GPS & quét tự động</div>
+                <div style={{ fontSize: 12.5, color: "var(--text-400)" }}>Chỉ super_admin thấy</div>
               </div>
               <button className="fbtn" onClick={() => setShowSettings(false)}>Đóng</button>
             </div>
             <div style={{ padding: "16px 18px", overflowY: "auto" }}>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
             <div>
-              <div style={{ fontSize: 11.5, fontWeight: 700, marginBottom: 4 }}>Tên đăng nhập GPS</div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 4 }}>Tên đăng nhập GPS</div>
               <input className="finput" value={form.username} autoComplete="off" onChange={(e) => setForm({ ...form, username: e.target.value })} style={{ width: 200 }} />
             </div>
             <div>
-              <div style={{ fontSize: 11.5, fontWeight: 700, marginBottom: 4 }}>Mật khẩu</div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 4 }}>Mật khẩu</div>
               <input
                 className="finput" type="password" autoComplete="new-password" value={form.password}
                 placeholder={cfg?.configured ? "•••••• (đã lưu — để trống nếu không đổi)" : "Nhập mật khẩu"}
@@ -227,10 +227,10 @@ export default function GpsMonitorTab() {
               />
             </div>
             <div>
-              <div style={{ fontSize: 11.5, fontWeight: 700, marginBottom: 4 }}>Quét mỗi (phút)</div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 4 }}>Quét mỗi (phút)</div>
               <input className="finput" type="number" min={5} max={120} value={form.interval_minutes} onChange={(e) => setForm({ ...form, interval_minutes: e.target.value })} style={{ width: 90 }} />
             </div>
-            <label style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6, cursor: "pointer", paddingBottom: 10 }}>
+            <label style={{ fontSize: 13.5, display: "flex", alignItems: "center", gap: 6, cursor: "pointer", paddingBottom: 10 }}>
               <input type="checkbox" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} />
               Bật quét tự động
             </label>
@@ -245,11 +245,11 @@ export default function GpsMonitorTab() {
             <button className="fbtn danger" disabled={!!busy || !cfg?.configured} onClick={handleDelete}>Xoá tài khoản đã lưu</button>
           </div>
 
-          {msg && <div style={{ marginTop: 10, fontSize: 12.5, color: "#3E7A2A" }}>{msg}</div>}
-          {error && <div style={{ marginTop: 10, fontSize: 12.5, color: "var(--danger)" }}>{error}</div>}
+          {msg && <div style={{ marginTop: 10, fontSize: 13.5, color: "#3E7A2A" }}>{msg}</div>}
+          {error && <div style={{ marginTop: 10, fontSize: 13.5, color: "var(--danger)" }}>{error}</div>}
 
           {cfg && (
-            <div style={{ marginTop: 12, fontSize: 12, color: "var(--text-600)", lineHeight: 1.7 }}>
+            <div style={{ marginTop: 12, fontSize: 13, color: "var(--text-600)", lineHeight: 1.7 }}>
               {!cfg.configured && <div>Chưa có tài khoản GPS — nhập ở trên rồi bấm Lưu.</div>}
               {cfg.configured && (
                 <>
@@ -263,7 +263,7 @@ export default function GpsMonitorTab() {
                   {cfg.last_status === "error" && cfg.last_success_at && <div>Lần thành công gần nhất: {fmtDateTime(cfg.last_success_at)}</div>}
                 </>
               )}
-              <div style={{ fontSize: 11, color: "var(--text-400)" }}>
+              <div style={{ fontSize: 12, color: "var(--text-400)" }}>
                 Mật khẩu lưu mã hoá trong cơ sở dữ liệu của hệ thống, không hiển thị lại. Dữ liệu quét giữ 90 ngày.
               </div>
             </div>
@@ -277,8 +277,8 @@ export default function GpsMonitorTab() {
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
           {COUNT_TILES.filter(([k]) => counts[k] !== undefined).map(([k, label, color]) => (
             <div key={k} className="card" style={{ margin: 0, padding: "10px 16px", minWidth: 120 }}>
-              <div style={{ fontSize: 11.5, color: "var(--text-600)" }}>{label}</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color }}>{counts[k]}</div>
+              <div style={{ fontSize: 12.5, color: "var(--text-600)" }}>{label}</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color }}>{counts[k]}</div>
             </div>
           ))}
         </div>
@@ -326,10 +326,10 @@ export default function GpsMonitorTab() {
                         >
                           {r.driver_name || r.plate_number || "(không tên)"}
                         </div>
-                        <div style={{ fontSize: 10.5, color: "var(--text-400)" }}>{r.imei}{r.group_name ? ` · ${r.group_name}` : ""}</div>
+                        <div style={{ fontSize: 11.5, color: "var(--text-400)" }}>{r.imei}{r.group_name ? ` · ${r.group_name}` : ""}</div>
                       </td>
                       <td style={tdStyle}>
-                        <span style={{ background: STATE_COLORS[st] || "#6B7280", color: "#fff", fontWeight: 700, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap", fontSize: 11.5 }}>{st}</span>
+                        <span style={{ background: STATE_COLORS[st] || "#6B7280", color: "#fff", fontWeight: 700, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap", fontSize: 12.5 }}>{st}</span>
                       </td>
                       <td style={tdStyle}>{ignitionLabel(r)}</td>
                       <td className="num" style={tdStyle}>{r.speed == null ? "—" : `${r.speed} km/h`}</td>

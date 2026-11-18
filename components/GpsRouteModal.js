@@ -246,14 +246,14 @@ export default function GpsRouteModal({ device, onClose }) {
         {/* Thanh tiêu đề + chọn ngày */}
         <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <div style={{ minWidth: 0, marginRight: "auto" }}>
-            <div style={{ fontSize: 15, fontWeight: 800, color: "var(--text-900)" }}>Lịch sử hành trình — {device.name}</div>
-            <div style={{ fontSize: 11, color: "var(--text-400)" }}>{device.imei} · dữ liệu lấy trực tiếp từ gpsthanhnam.com</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text-900)" }}>Lịch sử hành trình — {device.name}</div>
+            <div style={{ fontSize: 12, color: "var(--text-400)" }}>{device.imei} · dữ liệu lấy trực tiếp từ gpsthanhnam.com</div>
           </div>
-          <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
+          <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
             Từ
             <input type="date" className="finput" value={from} max={today} onChange={(e) => setFrom(e.target.value)} style={{ padding: "6px 8px" }} />
           </label>
-          <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
+          <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
             Đến
             <input type="date" className="finput" value={to} max={today} onChange={(e) => setTo(e.target.value)} style={{ padding: "6px 8px" }} />
           </label>
@@ -265,7 +265,7 @@ export default function GpsRouteModal({ device, onClose }) {
         </div>
 
         {/* Thống kê nhanh */}
-        <div style={{ padding: "7px 16px", borderBottom: "1px solid var(--border)", display: "flex", gap: 18, flexWrap: "wrap", fontSize: 12.5, alignItems: "center" }}>
+        <div style={{ padding: "7px 16px", borderBottom: "1px solid var(--border)", display: "flex", gap: 18, flexWrap: "wrap", fontSize: 13.5, alignItems: "center" }}>
           {error && <span style={{ color: "var(--danger)", fontWeight: 700 }}>✗ {error}</span>}
           {!error && data && (
             <>
@@ -277,7 +277,7 @@ export default function GpsRouteModal({ device, onClose }) {
             </>
           )}
           {!error && !data && loading && <span>Đang tải dữ liệu hành trình...</span>}
-          <span style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center", fontSize: 11.5, color: "var(--text-600)" }}>
+          <span style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center", fontSize: 12.5, color: "var(--text-600)" }}>
             {SPEED_LEGEND.map(([c, l]) => (
               <span key={l} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                 <span style={{ width: 16, height: 4, borderRadius: 2, background: c, display: "inline-block" }} />{l}
@@ -294,7 +294,7 @@ export default function GpsRouteModal({ device, onClose }) {
           <div style={{ flex: "1 1 560px", minHeight: 320, position: "relative" }}>
             <div ref={mapEl} style={{ position: "absolute", inset: 0 }} />
             {!loading && !error && data && pts.length === 0 && stops.length === 0 && (
-              <div style={{ position: "absolute", top: 14, left: "50%", transform: "translateX(-50%)", zIndex: 500, background: "#fff", padding: "8px 16px", borderRadius: 8, boxShadow: "0 2px 10px rgba(0,0,0,0.25)", fontSize: 13 }}>
+              <div style={{ position: "absolute", top: 14, left: "50%", transform: "translateX(-50%)", zIndex: 500, background: "#fff", padding: "8px 16px", borderRadius: 8, boxShadow: "0 2px 10px rgba(0,0,0,0.25)", fontSize: 14 }}>
                 Không có dữ liệu hành trình trong khoảng ngày này.
               </div>
             )}
@@ -305,7 +305,7 @@ export default function GpsRouteModal({ device, onClose }) {
               {[["stops", `Điểm dừng (${stops.length})`], ["points", `Lộ trình (${pts.length} điểm)`]].map(([k, l]) => (
                 <div
                   key={k} onClick={() => setTab(k)}
-                  style={{ flex: 1, textAlign: "center", padding: "9px 6px", cursor: "pointer", fontSize: 12.5, fontWeight: 700, color: tab === k ? "#1C64B4" : "var(--text-600)", borderBottom: tab === k ? "2px solid #1C64B4" : "2px solid transparent" }}
+                  style={{ flex: 1, textAlign: "center", padding: "9px 6px", cursor: "pointer", fontSize: 13.5, fontWeight: 700, color: tab === k ? "#1C64B4" : "var(--text-600)", borderBottom: tab === k ? "2px solid #1C64B4" : "2px solid transparent" }}
                 >
                   {l}
                 </div>
@@ -314,25 +314,25 @@ export default function GpsRouteModal({ device, onClose }) {
             <div style={{ flex: 1, overflowY: "auto" }}>
               {tab === "stops" && (
                 stops.length === 0 ? (
-                  <div style={{ padding: 16, fontSize: 12.5, color: "var(--text-400)" }}>{data ? "Không có điểm dừng." : ""}</div>
+                  <div style={{ padding: 16, fontSize: 13.5, color: "var(--text-400)" }}>{data ? "Không có điểm dừng." : ""}</div>
                 ) : (
                   stops.map((s, i) => (
-                    <div key={i} onClick={() => focusStop(i)} style={{ padding: "9px 14px", borderBottom: "1px solid var(--border)", cursor: "pointer", fontSize: 12 }}>
+                    <div key={i} onClick={() => focusStop(i)} style={{ padding: "9px 14px", borderBottom: "1px solid var(--border)", cursor: "pointer", fontSize: 13 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                         <b style={{ color: "#E8590C" }}>Dừng {i + 1}</b>
                         <span style={{ fontWeight: 700 }}>{fmtDur(s.duration)}</span>
                       </div>
                       <div style={{ color: "var(--text-600)" }}>{fmtT(s.start)} → {fmtT(s.end)}</div>
-                      <div style={{ color: "var(--text-400)", fontSize: 11.5 }}>{s.address || "—"}</div>
+                      <div style={{ color: "var(--text-400)", fontSize: 12.5 }}>{s.address || "—"}</div>
                     </div>
                   ))
                 )
               )}
               {tab === "points" && (
                 pts.length === 0 ? (
-                  <div style={{ padding: 16, fontSize: 12.5, color: "var(--text-400)" }}>{data ? "Không có điểm nào." : ""}</div>
+                  <div style={{ padding: 16, fontSize: 13.5, color: "var(--text-400)" }}>{data ? "Không có điểm nào." : ""}</div>
                 ) : (
-                  <table style={{ width: "100%", fontSize: 11.5 }}>
+                  <table style={{ width: "100%", fontSize: 12.5 }}>
                     <thead>
                       <tr style={{ position: "sticky", top: 0, background: "var(--surface, #fff)" }}>
                         <th style={{ padding: "6px 8px", textAlign: "left" }}>Thời gian</th>
