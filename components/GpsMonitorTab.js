@@ -63,7 +63,7 @@ export default function GpsMonitorTab() {
   const [showSettings, setShowSettings] = useState(false);
   const [routeDevice, setRouteDevice] = useState(null); // bấm tên xe -> popup lịch sử hành trình + bản đồ
   const mcf = useMultiColFilters();
-  const [sort, setSort] = useState({ key: "name", dir: "asc" });
+  const [sort, setSort] = useState({ key: "state", dir: "asc" });
   const onSort = (key) => setSort((o) => (o.key === key ? { key, dir: o.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
 
   function load() {
@@ -158,7 +158,8 @@ export default function GpsMonitorTab() {
     const blank = (v) => v == null || v === "";
     if (blank(av) || blank(bv)) return blank(av) && blank(bv) ? 0 : blank(av) ? 1 : -1; // ô trống luôn xếp cuối
     const cmp = typeof av === "number" && typeof bv === "number" ? av - bv : String(av).localeCompare(String(bv), "vi");
-    return sort.dir === "asc" ? cmp : -cmp;
+    if (cmp !== 0) return sort.dir === "asc" ? cmp : -cmp;
+    return String(a.driver_name || a.plate_number || "").localeCompare(String(b.driver_name || b.plate_number || ""), "vi"); // cùng giá trị: xếp theo tên để thứ tự ổn định
   });
   const th = (key, label, align) => (
     <FilterHeaderTh label={label} align={align} filter={fb(key)} onClick={() => onSort(key)} sortActive={sort.key === key} sortDir={sort.dir} />
@@ -322,7 +323,7 @@ export default function GpsMonitorTab() {
                         <div
                           onClick={() => setRouteDevice({ imei: r.imei, name: r.driver_name || r.plate_number || "(không tên)" })}
                           title="Bấm để xem lịch sử hành trình trên bản đồ"
-                          style={{ fontWeight: 700, color: "#1C64B4", cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: 3 }}
+                          style={{ fontWeight: 700, color: "#1C64B4", cursor: "pointer" }}
                         >
                           {r.driver_name || r.plate_number || "(không tên)"}
                         </div>
