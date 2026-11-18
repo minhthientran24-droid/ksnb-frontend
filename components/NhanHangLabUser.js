@@ -421,7 +421,8 @@ function ConfirmSheet({ task, onClose, onDone }) {
       const D = destP.current ? await Promise.race([destP.current, new Promise((r) => setTimeout(() => r(null), 8000))]) : null;
       if (L.st === "ok" && D && D.lat != null && D.lng != null) {
         const m = haversineM(L.lat, L.lng, D.lat, D.lng);
-        if (m > CANH_BAO_XA_M) items.push({ icon: "📏", pre: "Vị trí hiện tại của bạn cách điểm nhận mẫu khoảng ", strong: fmtDist(Math.round(m)), post: " (theo địa chỉ ghi trên đơn)." });
+        const nguong = D.nguong_m === undefined ? CANH_BAO_XA_M : D.nguong_m; // địa chỉ chỉ tra được tới cấp quận/thành phố thì ngưỡng rộng hơn (null = không cảnh báo xa)
+        if (nguong != null && m > nguong) items.push({ icon: "📏", pre: "Vị trí hiện tại của bạn cách điểm nhận mẫu khoảng ", strong: fmtDist(Math.round(m)), post: " (theo địa chỉ ghi trên đơn)." });
       }
       const som = (new Date(task.han_lay).getTime() - Date.now()) / 60000;
       if (som >= CANH_BAO_SOM_PHUT) {
