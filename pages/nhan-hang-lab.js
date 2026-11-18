@@ -8,9 +8,15 @@ import { getUser } from "../lib/api";
 // admin/super_admin (có quyền menu) thấy màn hình giao việc + xem kết quả.
 export default function NhanHangLabPage() {
   const [role, setRole] = useState(null);
-  useEffect(() => { setRole(getUser()?.role || ""); }, []);
+  const [tab, setTab] = useState("quan-ly");
+  useEffect(() => {
+    setRole(getUser()?.role || "");
+    try { if (localStorage.getItem("nhanhang_tab") === "cua-toi") setTab("cua-toi"); } catch {}
+  }, []);
+  function switchTab(k) { setTab(k); try { localStorage.setItem("nhanhang_tab", k); } catch {} }
   if (role === null) return null;
   const isLab = role === "lab";
+  const isSuper = role === "super_admin";
   return (
     <Layout crumb={isLab ? "Nhận hàng LAB" : "Nhận hàng Long Châu LAB"}>
       {!isLab && (
@@ -18,7 +24,14 @@ export default function NhanHangLabPage() {
           <h1>📦 Nhận hàng Long Châu LAB</h1>
         </div>
       )}
-      {isLab ? <NhanHangLabUser /> : <NhanHangLabAdmin />}
+      {isSuper && (
+        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+          {[["quan-ly", "🗂️ Quản lý"], ["cua-toi", "📱 Việc của tôi (nhận hàng)"]].map(([k, l]) => (
+            <button key={k} className={tab === k ? "login-btn" : "fbtn"} style={tab === k ? { width: "auto", padding: "8px 18px" } : undefined} onClick={() => switchTab(k)}>{l}</button>
+          ))}
+        </div>
+      )}
+      {isLab || (isSuper && tab === "cua-toi") ? <NhanHangLabUser /> : <NhanHangLabAdmin />}
     </Layout>
   );
 }

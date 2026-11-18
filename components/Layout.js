@@ -72,9 +72,9 @@ export default function Layout({ crumb, children }) {
       return;
     }
 
-    // User loại LAB (chốt 18/11): chỉ được vào menu Nhận hàng Long Châu LAB (+ đổi mật khẩu), mọi đường dẫn khác chuyển về đó.
+    // User loại LAB (chốt 18/11): chỉ được vào menu Nhận hàng Long Châu LAB + Quản lý TK (+ đổi mật khẩu), mọi đường dẫn khác chuyển về đó.
     if (u?.role === "lab") {
-      if (!["/nhan-hang-lab", "/doi-mat-khau"].includes(router.pathname)) {
+      if (!["/nhan-hang-lab", "/quan-ly-tk", "/doi-mat-khau"].includes(router.pathname)) {
         router.replace("/nhan-hang-lab");
         return;
       }
