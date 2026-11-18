@@ -92,6 +92,7 @@ export default function NhanHangLabUser() {
   const [err, setErr] = useState("");
   const [now, setNow] = useState(Date.now());
   const [sheet, setSheet] = useState(null); // việc đang mở form nhận hàng
+  const [detailId, setDetailId] = useState(null); // việc đang xem chi tiết
   const [push, setPush] = useState("checking"); // checking | unsupported | off | denied | on
   const [pushMsg, setPushMsg] = useState("");
   const focusId = Number(router.query.task) || null;
@@ -146,54 +147,72 @@ export default function NhanHangLabUser() {
   const items = data?.items || [];
   const pending = items.filter((t) => t.trang_thai === "cho_lay");
   const done = items.filter((t) => t.trang_thai !== "cho_lay");
+  const todayKey = data ? dayKey(data.server_time) : "";
   const today = data ? new Date(data.server_time).toLocaleDateString("vi-VN", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric", timeZone: TZ }) : "";
+  const tomorrowKey = data ? dayKey(new Date(new Date(data.server_time).getTime() + 86400000).toISOString()) : "";
 
-  function renderTask(t) {
-    const lv = LEVEL[t.trang_thai === "khong_nhan_duoc" ? "xong" : t.muc_do] || LEVEL.binh_thuong;
+  // Nhóm theo NGÀY (hạn lấy), ngày cũ trước; trong ngày theo giờ
+  const groups = [];
+  [...items].sort((a, b) => new Date(a.han_lay) - new Date(b.han_lay)).forEach((t) => {
+    const k = dayKey(t.han_lay);
+    let g = groups[groups.length - 1];
+    if (!g || g.key !== k) { g = { key: k, list: [] }; groups.push(g); }
+    g.list.push(t);
+  });
+
+  function levelOf(t) {
     // mức độ tính lại theo đồng hồ máy để màu/đếm ngược chạy mượt giữa 2 lần tải
-    let level = t.muc_do;
-    if (t.trang_thai === "cho_lay") {
-      const diff = (new Date(t.han_lay).getTime() - now) / 60000;
-      level = diff <= 0 ? "tre" : diff <= 30 ? "sap_tre" : "binh_thuong";
-    }
-    const L = t.trang_thai === "cho_lay" ? LEVEL[level] : lv;
-    const other = dayKey(t.han_lay) !== dayKey(data.server_time);
-    const maps = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(t.dia_chi)}`;
-    return (
-      <div id={`task-${t.id}`} key={t.id} style={{ background: L.bg, border: `1.5px solid ${t.id === focusId ? "#1C64B4" : L.bd}`, borderRadius: 14, padding: "14px 16px", marginBottom: 12, boxShadow: t.id === focusId ? "0 0 0 3px #BBD7F5" : "none" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-          <div style={{ fontSize: 26, fontWeight: 800, color: "var(--text-900)", lineHeight: 1 }}>
-            {fmtHM(t.han_lay)}{other && <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-600)", marginLeft: 6 }}>{fmtDM(t.han_lay)}</span>}
-          </div>
-          <span style={{ background: t.trang_thai === "khong_nhan_duoc" ? "#6B7280" : L.chip, color: "#fff", fontWeight: 800, fontSize: 13, padding: "5px 12px", borderRadius: 999, whiteSpace: "nowrap" }}>
-            {t.trang_thai === "cho_lay" ? `${L.label} · ${remainText(t.han_lay, now)}` : t.trang_thai === "da_nhan" ? "Đã nhận" : "Không nhận được"}
-          </span>
-        </div>
-        {t.ten_diem && <div style={{ fontSize: 16, fontWeight: 800, marginTop: 10 }}>{t.ten_diem}</div>}
-        <div style={{ fontSize: 15, marginTop: t.ten_diem ? 2 : 10, lineHeight: 1.45 }}>📍 {t.dia_chi}</div>
-        <div style={{ fontSize: 15, marginTop: 8, fontWeight: 700 }}>
-          📦 Cần lấy: {fmtQty(t.so_luong, t.don_vi)}{t.mo_ta_hang ? <span style={{ fontWeight: 500 }}> · {t.mo_ta_hang}</span> : null}
-        </div>
-        {t.ghi_chu_giao && <div style={{ fontSize: 14, marginTop: 6, color: "var(--text-600)" }}>📝 {t.ghi_chu_giao}</div>}
+    if (t.trang_thai !== "cho_lay") return t.trang_thai === "khong_nhan_duoc" ? "khong" : "xong";
+    const diff = (new Date(t.han_lay).getTime() - now) / 60000;
+    return diff <= 0 ? "tre" : diff <= 30 ? "sap_tre" : "binh_thuong";
+  }
+  function chipOf(t) {
+    const lv = levelOf(t);
+    if (lv === "khong") return { color: "#6B7280", text: "Không nhận được", bg: "#F3F4F6", bd: "var(--border)" };
+    if (lv === "xong") return { color: "#3E7A2A", text: "Đã nhận", bg: LEVEL.xong.bg, bd: LEVEL.xong.bd };
+    const L = LEVEL[lv];
+    return { color: L.chip, text: lv === "tre" ? `TRỄ ${remainText(t.han_lay, now).replace("trễ ", "")}` : `${L.label} · ${remainText(t.han_lay, now)}`, bg: L.bg, bd: L.bd };
+  }
 
-        {t.trang_thai === "cho_lay" ? (
-          <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
-            <a href={maps} target="_blank" rel="noreferrer" style={{ flex: 1, textAlign: "center", padding: "13px 8px", borderRadius: 10, border: "1.5px solid #1C64B4", color: "#1C64B4", background: "#fff", fontWeight: 800, fontSize: 15, textDecoration: "none" }}>🧭 Chỉ đường</a>
-            <button onClick={() => setSheet(t)} style={{ flex: 1.3, padding: "13px 8px", borderRadius: 10, border: "none", background: "#3E7A2A", color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>✅ Nhận hàng</button>
+  function renderDayHeader(g) {
+    const d = new Date(`${g.key}T12:00:00+07:00`).toLocaleDateString("vi-VN", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric", timeZone: TZ });
+    const hasPend = g.list.some((t) => t.trang_thai === "cho_lay");
+    const tag = g.key === todayKey ? { t: "Hôm nay", c: "#1C64B4" } : g.key < todayKey ? (hasPend ? { t: "Quá hạn", c: "#C0392B" } : { t: "Đã qua", c: "#6B7280" }) : g.key === tomorrowKey ? { t: "Ngày mai", c: "#3E7A2A" } : null;
+    return (
+      <div key={`h-${g.key}`} style={{ display: "flex", alignItems: "center", gap: 10, margin: "18px 0 10px" }}>
+        <div style={{ fontSize: 14.5, fontWeight: 800, textTransform: "capitalize", whiteSpace: "nowrap" }}>📅 {d}</div>
+        {tag && <span style={{ background: tag.c, color: "#fff", fontSize: 11.5, fontWeight: 800, padding: "2px 9px", borderRadius: 999, whiteSpace: "nowrap" }}>{tag.t}</span>}
+        <div style={{ flex: 1, height: 1.5, background: "var(--border)" }} />
+        <span style={{ fontSize: 12.5, color: "var(--text-600)", whiteSpace: "nowrap" }}>{g.list.length} điểm</span>
+      </div>
+    );
+  }
+
+  // Dòng gọn của 1 điểm nhận mẫu — bấm vào để xem chi tiết
+  function renderTask(t) {
+    const C = chipOf(t);
+    const isDone = t.trang_thai !== "cho_lay";
+    return (
+      <div id={`task-${t.id}`} key={t.id} onClick={() => setDetailId(t.id)} role="button"
+        style={{ background: C.bg, border: `1.5px solid ${C.bd}`, borderRadius: 14, padding: "12px 14px", marginBottom: 10, cursor: "pointer", opacity: isDone ? 0.92 : 1 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+          <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1 }}>{fmtHM(t.han_lay)}</div>
+          <span style={{ background: C.color, color: "#fff", fontWeight: 800, fontSize: 12.5, padding: "4px 11px", borderRadius: 999, whiteSpace: "nowrap" }}>{C.text}</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 15.5, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.ten_diem || t.dia_chi}</div>
+            {t.ten_diem && <div style={{ fontSize: 13.5, color: "var(--text-600)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📍 {t.dia_chi}</div>}
+            <div style={{ fontSize: 13.5, marginTop: 2 }}>📦 {isDone ? `Thực nhận: ${fmtQty(t.so_luong_thuc_te, t.don_vi)}` : `Cần lấy: ${fmtQty(t.so_luong, t.don_vi)}`}</div>
           </div>
-        ) : (
-          <div style={{ marginTop: 10, fontSize: 14, borderTop: "1px dashed var(--border)", paddingTop: 8 }}>
-            <div>Lúc {fmtHM(t.received_at)} · Thực nhận: <b>{fmtQty(t.so_luong_thuc_te, t.don_vi)}</b></div>
-            {t.ghi_chu_nhan && <div style={{ marginTop: 4 }}>📝 {t.ghi_chu_nhan}</div>}
-            <PhotoThumbs ids={t.photo_ids} />
-          </div>
-        )}
+          <div style={{ fontSize: 26, color: "var(--text-600)", lineHeight: 1 }}>›</div>
+        </div>
       </div>
     );
   }
 
   useEffect(() => {
-    if (focusId && data) document.getElementById(`task-${focusId}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+    if (focusId && data && items.some((t) => t.id === focusId)) { setDetailId(focusId); document.getElementById(`task-${focusId}`)?.scrollIntoView({ block: "center" }); }
   }, [focusId, !!data]);
 
   return (
@@ -201,7 +220,7 @@ export default function NhanHangLabUser() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 12 }}>
         <div>
           <div style={{ fontSize: 13, color: "var(--text-600)", textTransform: "capitalize" }}>{today}</div>
-          <div style={{ fontSize: 20, fontWeight: 800 }}>📦 Danh sách điểm nhận mẫu hôm nay</div>
+          <div style={{ fontSize: 20, fontWeight: 800 }}>📦 Danh sách nhận mẫu cần xử lý</div>
         </div>
         <button onClick={load} style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>🔄</button>
       </div>
@@ -238,14 +257,70 @@ export default function NhanHangLabUser() {
               <div style={{ fontSize: 26, fontWeight: 800, color: "#3E7A2A" }}>{done.length}</div>
             </div>
           </div>
-          {items.length === 0 && <div className="placeholder-box">Hôm nay chưa có việc lấy hàng nào được giao cho bạn.</div>}
-          {pending.map(renderTask)}
-          {done.length > 0 && <div style={{ fontSize: 13, fontWeight: 800, color: "var(--text-600)", margin: "18px 0 8px" }}>ĐÃ XỬ LÝ</div>}
-          {done.map(renderTask)}
+          {items.length === 0 && <div className="placeholder-box">Hiện chưa có điểm nhận mẫu nào được phân công cho bạn.</div>}
+          {groups.map((g) => (
+            <div key={g.key}>
+              {renderDayHeader(g)}
+              {g.list.map(renderTask)}
+            </div>
+          ))}
         </>
       )}
 
+      {detailId && items.find((t) => t.id === detailId) && (
+        <DetailSheet task={items.find((t) => t.id === detailId)} chip={chipOf(items.find((t) => t.id === detailId))} onClose={() => setDetailId(null)}
+          onReceive={(t) => { setDetailId(null); setSheet(t); }} />
+      )}
       {sheet && <ConfirmSheet task={sheet} onClose={() => setSheet(null)} onDone={() => { setSheet(null); load(); }} />}
+    </div>
+  );
+}
+
+// Chi tiết 1 điểm nhận mẫu (bấm từ danh sách)
+function DetailSheet({ task: t, chip, onClose, onReceive }) {
+  const maps = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(t.dia_chi)}`;
+  const full = new Date(t.han_lay).toLocaleString("vi-VN", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TZ });
+  const row = (label, val) => val ? (
+    <div style={{ padding: "10px 0", borderTop: "1px solid var(--border)" }}>
+      <div style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 16, lineHeight: 1.45 }}>{val}</div>
+    </div>
+  ) : null;
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", width: "100%", maxWidth: 640, maxHeight: "92vh", overflowY: "auto", borderRadius: "18px 18px 0 0", padding: "18px 18px 22px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+          <div>
+            <div style={{ fontSize: 19, fontWeight: 800 }}>{t.ten_diem || "Điểm nhận mẫu"}</div>
+            <span style={{ display: "inline-block", marginTop: 6, background: chip.color, color: "#fff", fontWeight: 800, fontSize: 12.5, padding: "4px 11px", borderRadius: 999 }}>{chip.text}</span>
+          </div>
+          <button onClick={onClose} style={{ border: "none", background: "none", fontSize: 24, cursor: "pointer", color: "var(--text-600)" }}>✕</button>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          {row("⏰ Giờ cần lấy", <b style={{ textTransform: "capitalize" }}>{full}</b>)}
+          {row("📍 Địa chỉ", t.dia_chi)}
+          {row("📦 Số lượng cần lấy", fmtQty(t.so_luong, t.don_vi))}
+          {row("🧪 Mô tả hàng", t.mo_ta_hang)}
+          {row("📝 Ghi chú từ người giao việc", t.ghi_chu_giao)}
+          {t.trang_thai !== "cho_lay" && (
+            <div style={{ padding: "10px 0", borderTop: "1px solid var(--border)" }}>
+              <div style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 2 }}>✅ Kết quả xử lý</div>
+              <div style={{ fontSize: 16, lineHeight: 1.45 }}>
+                {t.trang_thai === "da_nhan" ? "Đã nhận" : "Không nhận được"} lúc {fmtHM(t.received_at)} {fmtDM(t.received_at)}
+                {t.trang_thai === "da_nhan" && <> · Thực nhận: <b>{fmtQty(t.so_luong_thuc_te, t.don_vi)}</b></>}
+              </div>
+              {t.ghi_chu_nhan && <div style={{ fontSize: 15, marginTop: 4 }}>📝 {t.ghi_chu_nhan}</div>}
+              <PhotoThumbs ids={t.photo_ids} />
+            </div>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+          <a href={maps} target="_blank" rel="noreferrer" style={{ flex: 1, textAlign: "center", padding: "14px 8px", borderRadius: 10, border: "1.5px solid #1C64B4", color: "#1C64B4", background: "#fff", fontWeight: 800, fontSize: 15, textDecoration: "none" }}>🧭 Chỉ đường</a>
+          {t.trang_thai === "cho_lay" && (
+            <button onClick={() => onReceive(t)} style={{ flex: 1.3, padding: "14px 8px", borderRadius: 10, border: "none", background: "#3E7A2A", color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>✅ Nhận hàng</button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
