@@ -140,7 +140,7 @@ export default function Layout({ crumb, children }) {
       <div className="main">
         <div className="topbar">
           <div>
-            KSNB Long Châu &nbsp;/&nbsp;{" "}
+            {user?.role === "lab" ? "Long Châu Lab" : "KSNB Long Châu"} &nbsp;/&nbsp;{" "}
             <span className="crumb-current">{crumb}</span>
           </div>
           <div className="tb-user">
