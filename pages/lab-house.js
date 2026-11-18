@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import GpsMonitorTab from "../components/GpsMonitorTab";
+import KiemKeLabTab from "../components/KiemKeLabTab";
 import { getUser } from "../lib/api";
 
 // LAB HOUSE — khu vực thử nghiệm, chỉ super_admin. Mỗi tính năng là 1 tab con (thêm tab mới: bổ sung vào TABS).
 const TABS = [
   { key: "gps", icon: "🛰️", label: "Giám sát GPS", render: () => <GpsMonitorTab /> },
+  { key: "kiem-ke-lab", icon: "🧪", label: "Kiểm kê LAB", render: () => <KiemKeLabTab /> },
 ];
 
 export default function LabHousePage() {

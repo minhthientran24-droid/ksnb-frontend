@@ -11,8 +11,7 @@ const NAV_ITEMS = [
   // Chốt 09/09 — menu mới, nhiều tab hỗ trợ xử lý cho shop, dành cho TẤT
   // CẢ role (không có hideForRoles), tab đầu tiên "Hỗ trợ check lệch tồn VX".
   { href: "/ho-tro-shop", icon: "🛟", label: "Hỗ trợ shop" },
-  // Chốt 02/11 — kiểm kê tay sản phẩm LAB (không barcode), link công khai không cần đăng nhập; dành cho TẤT CẢ role.
-  { href: "/kiem-ke-lab", icon: "🧪", label: "Kiểm kê LAB" },
+  // Chốt 18/11 — "Kiểm kê LAB" đã dời vào menu LAB HOUSE (tab con, tạm chỉ super_admin).
   { href: "/gui-mail-bcks", icon: "📧", label: "Gửi mail BCKS" },
   { href: "/gui-mail-bcks-oauth", icon: "📧", label: "Gửi mail BCKS (Outlook)" }, // chốt 16-17/11: tạo mail nháp .eml mở bằng Outlook (+ Graph nếu IT cấu hình); mặc định chỉ super_admin (menu_permissions DEFAULT_DENY)
   { href: "/tong-hop-mail", icon: "🤖", label: "Tổng hợp mail AI" }, // menu thử nghiệm: chỉ super_admin (backend menu_permissions DEFAULT_DENY)
