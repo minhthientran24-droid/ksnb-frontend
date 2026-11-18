@@ -313,11 +313,11 @@ function DetailSheet({ task: t, chip, onClose, onReceive }) {
         </div>
         <div style={{ marginTop: 12 }}>
           {row("🔖 Mã đơn hàng", t.ma_don ? <b>{t.ma_don}</b> : null)}
-          {row("⏰ Giờ cần lấy", <b style={{ textTransform: "capitalize" }}>{full}</b>)}
+          {row("⏰ Ngày hẹn lấy mẫu", <b style={{ textTransform: "capitalize" }}>{full}</b>)}
           {row("📍 Địa chỉ", t.dia_chi)}
-          {row("📦 Số lượng cần lấy", fmtQty(t.so_luong, t.don_vi))}
+          {row("📦 Số lượng mẫu", fmtQty(t.so_luong, t.don_vi))}
           {row("🧪 Mô tả hàng", t.mo_ta_hang)}
-          {row("📝 Ghi chú từ người giao việc", t.ghi_chu_giao)}
+          {row("📝 Ghi chú đơn hàng", t.ghi_chu_giao)}
           {t.trang_thai !== "cho_lay" && (
             <div style={{ padding: "10px 0", borderTop: "1px solid var(--border)" }}>
               <div style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 2 }}>✅ Kết quả xử lý</div>
