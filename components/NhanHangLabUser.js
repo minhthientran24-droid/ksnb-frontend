@@ -201,7 +201,7 @@ export default function NhanHangLabUser() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 12 }}>
         <div>
           <div style={{ fontSize: 13, color: "var(--text-600)", textTransform: "capitalize" }}>{today}</div>
-          <div style={{ fontSize: 20, fontWeight: 800 }}>📦 Việc lấy hàng hôm nay</div>
+          <div style={{ fontSize: 20, fontWeight: 800 }}>📦 Danh sách điểm nhận mẫu hôm nay</div>
         </div>
         <button onClick={load} style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>🔄</button>
       </div>

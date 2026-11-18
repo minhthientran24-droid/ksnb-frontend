@@ -149,7 +149,7 @@ export default function Layout({ crumb, children }) {
               <span>{user?.full_name}</span>
               {user?.position && <span className="tb-user-pos">{user.position}</span>}
             </div>
-            <AppVersionTag />
+            {user?.role !== "lab" && <AppVersionTag />}
             <button className="logout-btn" onClick={handleLogout}>
               Đăng xuất
             </button>
