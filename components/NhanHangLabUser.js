@@ -93,6 +93,7 @@ export default function NhanHangLabUser() {
   const [now, setNow] = useState(Date.now());
   const [sheet, setSheet] = useState(null); // việc đang mở form nhận hàng
   const [detailId, setDetailId] = useState(null); // việc đang xem chi tiết
+  const [tab, setTab] = useState("cho"); // cho = Chờ lấy | xong = Đã xong
   const [push, setPush] = useState("checking"); // checking | unsupported | off | denied | on
   const [pushMsg, setPushMsg] = useState("");
   const focusId = Number(router.query.task) || null;
@@ -153,7 +154,7 @@ export default function NhanHangLabUser() {
 
   // Nhóm theo NGÀY (hạn lấy), ngày cũ trước; trong ngày theo giờ
   const groups = [];
-  [...items].sort((a, b) => new Date(a.han_lay) - new Date(b.han_lay)).forEach((t) => {
+  [...(tab === "cho" ? pending : done)].sort((a, b) => (tab === "cho" ? 1 : -1) * (new Date(a.han_lay) - new Date(b.han_lay))).forEach((t) => {
     const k = dayKey(t.han_lay);
     let g = groups[groups.length - 1];
     if (!g || g.key !== k) { g = { key: k, list: [] }; groups.push(g); }
@@ -212,7 +213,7 @@ export default function NhanHangLabUser() {
   }
 
   useEffect(() => {
-    if (focusId && data && items.some((t) => t.id === focusId)) { setDetailId(focusId); document.getElementById(`task-${focusId}`)?.scrollIntoView({ block: "center" }); }
+    if (focusId && data && items.some((t) => t.id === focusId)) { setTab(items.find((t) => t.id === focusId).trang_thai === "cho_lay" ? "cho" : "xong"); setDetailId(focusId); document.getElementById(`task-${focusId}`)?.scrollIntoView({ block: "center" }); }
   }, [focusId, !!data]);
 
   return (
@@ -247,17 +248,19 @@ export default function NhanHangLabUser() {
 
       {data && (
         <>
-          <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-            <div style={{ flex: 1, background: "#fff", border: "1px solid var(--border)", borderRadius: 12, padding: "10px 14px" }}>
-              <div style={{ fontSize: 12.5, color: "var(--text-600)" }}>Chờ lấy</div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: "#1C64B4" }}>{pending.length}</div>
-            </div>
-            <div style={{ flex: 1, background: "#fff", border: "1px solid var(--border)", borderRadius: 12, padding: "10px 14px" }}>
-              <div style={{ fontSize: 12.5, color: "var(--text-600)" }}>Đã xong</div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: "#3E7A2A" }}>{done.length}</div>
-            </div>
+          <div style={{ display: "flex", gap: 10, marginBottom: 6 }}>
+            {[["cho", "Chờ lấy", pending.length, "#1C64B4"], ["xong", "Đã xong", done.length, "#3E7A2A"]].map(([k, label, n, color]) => {
+              const on = tab === k;
+              return (
+                <button key={k} onClick={() => setTab(k)}
+                  style={{ flex: 1, textAlign: "left", cursor: "pointer", fontFamily: "inherit", background: on ? "#fff" : "#EEF2F8", border: on ? `2px solid ${color}` : "1px solid var(--border)", borderRadius: 12, padding: "10px 14px", boxShadow: on ? "0 2px 8px rgba(0,0,0,0.08)" : "none" }}>
+                  <div style={{ fontSize: 12.5, color: on ? color : "var(--text-600)", fontWeight: on ? 800 : 500 }}>{label}</div>
+                  <div style={{ fontSize: 26, fontWeight: 800, color }}>{n}</div>
+                </button>
+              );
+            })}
           </div>
-          {items.length === 0 && <div className="placeholder-box">Hiện chưa có điểm nhận mẫu nào được phân công cho bạn.</div>}
+          {groups.length === 0 && <div className="placeholder-box">{tab === "cho" ? (items.length === 0 ? "Hiện chưa có điểm nhận mẫu nào được phân công cho bạn." : "Không còn điểm nào chờ lấy 🎉") : "Chưa có điểm nào đã xong trong 7 ngày gần đây."}</div>}
           {groups.map((g) => (
             <div key={g.key}>
               {renderDayHeader(g)}
