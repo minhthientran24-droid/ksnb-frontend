@@ -326,31 +326,29 @@ function DetailSheet({ task: t, chip, onClose, onReceive }) {
                 {t.trang_thai === "da_nhan" && <> · Thực nhận: <b>{fmtQty(t.so_luong_thuc_te, t.don_vi)}</b></>}
               </div>
               {t.ghi_chu_nhan && <div style={{ fontSize: 15, marginTop: 4 }}>📝 {t.ghi_chu_nhan}</div>}
-              {t.nhan_lat != null && (
-                <div style={{ fontSize: 14, marginTop: 6 }}>
-                  📍 {t.nhan_dia_chi || "(đang tra địa chỉ...)"}
-                  <div style={{ color: "var(--text-600)", fontSize: 12.5 }}>
-                    {t.nhan_lat.toFixed(6)}, {t.nhan_lng.toFixed(6)}{t.nhan_do_chinh_xac != null ? ` · sai số ~${t.nhan_do_chinh_xac} m` : ""}{" · "}
-                    <a href={`https://www.google.com/maps?q=${t.nhan_lat},${t.nhan_lng}`} target="_blank" rel="noreferrer">Mở bản đồ</a>
-                  </div>
-                  {t.chenh_lech_m != null ? (
-                    <div style={{ marginTop: 4, fontWeight: 800, color: distColor(t.chenh_lech_m) }}>
-                      📏 Cách điểm nhận mẫu ~{fmtDist(t.chenh_lech_m)}
-                      <span style={{ fontWeight: 500, fontSize: 12, color: "var(--text-600)" }}> (ước tính so với {t.dich_ten || "địa chỉ ghi trên đơn"})</span>
-                    </div>
-                  ) : <div style={{ marginTop: 4, fontSize: 12.5, color: "var(--text-600)" }}>📏 Chưa tính được khoảng cách so với điểm nhận mẫu</div>}
-                </div>
-              )}
               <PhotoThumbs ids={t.photo_ids} />
             </div>
           )}
+          {t.trang_thai !== "cho_lay" && t.nhan_lat != null && (
+            <div style={{ padding: "10px 0", borderTop: "1px solid var(--border)" }}>
+              <div style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 2 }}>📍 Nhận tại</div>
+              <div style={{ fontSize: 16, lineHeight: 1.45 }}>{t.nhan_dia_chi || "(đang tra địa chỉ...)"}</div>
+              {t.chenh_lech_m != null && t.chenh_lech_m > 200 && (
+                <div style={{ marginTop: 6, fontSize: 15, fontWeight: 800, color: distColor(t.chenh_lech_m) }}>
+                  📏 Chênh lệch ~{fmtDist(t.chenh_lech_m)} so với điểm nhận mẫu
+                </div>
+              )}
+            </div>
+          )}
         </div>
+        {t.trang_thai === "cho_lay" && (
         <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
           <a href={maps} target="_blank" rel="noreferrer" style={{ flex: 1, textAlign: "center", padding: "14px 8px", borderRadius: 10, border: "1.5px solid #1C64B4", color: "#1C64B4", background: "#fff", fontWeight: 800, fontSize: 15, textDecoration: "none" }}>🧭 Chỉ đường</a>
           {t.trang_thai === "cho_lay" && (
             <button onClick={() => onReceive(t)} style={{ flex: 1.3, padding: "14px 8px", borderRadius: 10, border: "none", background: "#3E7A2A", color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>✅ Nhận hàng</button>
           )}
         </div>
+        )}
       </div>
     </div>
   );
