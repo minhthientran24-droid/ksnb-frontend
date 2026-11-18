@@ -176,7 +176,6 @@ export default function GpsMonitorTab() {
             ⚙️ Cài đặt
           </button>
         </div>
-        <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--text-600)" }}>Hệ thống tự đăng nhập gpsthanhnam.com và quét vị trí / trạng thái xe theo chu kỳ, lưu lại để xem lịch sử.</p>
       </div>
 
       {cfg && (

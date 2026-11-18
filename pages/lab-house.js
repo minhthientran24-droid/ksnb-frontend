@@ -41,7 +41,6 @@ export default function LabHousePage() {
     <Layout crumb="LAB HOUSE">
       <div className="page-head">
         <h1>🧪 LAB HOUSE</h1>
-        <p>Khu vực thử nghiệm các tính năng mới (chỉ super_admin).</p>
       </div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", borderBottom: "1px solid var(--border)", marginBottom: 16 }}>
         {TABS.map((t) => {
