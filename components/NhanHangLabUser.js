@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import {
-  getNhanHangMy, confirmNhanHang, fetchNhanHangPhotoUrl, getNhanHangPushKey, subscribeNhanHangPush, testNhanHangPush,
+  getNhanHangMy, getNhanHangDiemHen, confirmNhanHang, fetchNhanHangPhotoUrl, getNhanHangPushKey, subscribeNhanHangPush, testNhanHangPush,
 } from "../lib/api";
 
 // Màn hình ĐIỆN THOẠI của user loại LAB (chốt 18/11): danh sách địa chỉ cần lấy hàng trong ngày (số lượng + giờ cần lấy),
@@ -13,6 +13,15 @@ const dayKey = (iso) => new Date(iso).toLocaleDateString("en-CA", { timeZone: TZ
 // Khoảng cách xác nhận so với điểm nhận mẫu (ước lượng từ địa chỉ): màu theo mức lệch
 const fmtDist = (m) => (m < 1000 ? `${m} m` : `${(m / 1000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} km`);
 const distColor = (m) => (m <= 300 ? "#3E7A2A" : m <= 1000 ? "#E8590C" : "#C0392B");
+// Khoảng cách đường chim bay (mét) giữa 2 toạ độ
+function haversineM(lat1, lng1, lat2, lng2) {
+  const R = 6371000, rad = (d) => (d * Math.PI) / 180;
+  const dp = rad(lat2 - lat1), dl = rad(lng2 - lng1);
+  const h = Math.sin(dp / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dl / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+const CANH_BAO_XA_M = 1000; // vị trí hoàn tất cách điểm nhận mẫu hơn 1 km -> cảnh báo
+const CANH_BAO_SOM_PHUT = 60; // hoàn tất sớm hơn giờ hẹn từ 60 phút trở lên -> cảnh báo
 const fmtQty = (q, dv) => (q === null || q === undefined ? "—" : `${q.toLocaleString("vi-VN")}${dv ? ` ${dv}` : ""}`);
 
 function remainText(iso, now) {
@@ -379,7 +388,10 @@ function ConfirmSheet({ task, onClose, onDone }) {
     if (locRef.current.st !== "loading") return Promise.resolve(locRef.current);
     return new Promise((res) => { waiters.current.push(res); setTimeout(() => res(locRef.current), 16000); });
   }
-  useEffect(() => { getLoc(); }, []);
+  const destP = useRef(null); // toạ độ ước lượng của điểm nhận mẫu (để cảnh báo lệch vị trí)
+  useEffect(() => { getLoc(); destP.current = getNhanHangDiemHen(task.id).catch(() => null); }, []);
+  const [warn, setWarn] = useState(null); // {items: [...], resolve}
+  const askWarn = (items) => new Promise((resolve) => setWarn({ items, resolve }));
 
   useEffect(() => () => photos.forEach((p) => URL.revokeObjectURL(p.url)), []);
 
@@ -404,6 +416,20 @@ function ConfirmSheet({ task, onClose, onDone }) {
     setBusy(ketQua);
     const L = await waitLoc();
     if (L.st !== "ok" && !window.confirm(`Chưa lấy được vị trí của bạn (${L.msg || "đang chờ định vị"}).\nVẫn xác nhận mà không có vị trí?`)) { setBusy(""); return; }
+    if (ketQua === "da_nhan") {
+      const items = [];
+      const D = destP.current ? await Promise.race([destP.current, new Promise((r) => setTimeout(() => r(null), 8000))]) : null;
+      if (L.st === "ok" && D && D.lat != null && D.lng != null) {
+        const m = haversineM(L.lat, L.lng, D.lat, D.lng);
+        if (m > CANH_BAO_XA_M) items.push({ icon: "📏", pre: "Vị trí hiện tại của bạn cách điểm nhận mẫu khoảng ", strong: fmtDist(Math.round(m)), post: " (theo địa chỉ ghi trên đơn)." });
+      }
+      const som = (new Date(task.han_lay).getTime() - Date.now()) / 60000;
+      if (som >= CANH_BAO_SOM_PHUT) {
+        const p = Math.round(som);
+        items.push({ icon: "⏰", pre: "Bạn đang nhận sớm hơn ngày hẹn khoảng ", strong: p >= 60 ? `${Math.floor(p / 60)} giờ${p % 60 ? ` ${p % 60} phút` : ""}` : `${p} phút`, post: ` (hẹn lúc ${fmtHM(task.han_lay)} ${fmtDM(task.han_lay)}).` });
+      }
+      if (items.length && !(await askWarn(items))) { setBusy(""); return; }
+    }
     try {
       await confirmNhanHang(task.id, { ketQua, ghiChu: note, soLuongThucTe: ketQua === "da_nhan" ? qty : "", files: photos.map((p) => p.file), viTri: L.st === "ok" ? L : null });
       onDone();
@@ -453,6 +479,24 @@ function ConfirmSheet({ task, onClose, onDone }) {
         </div>
 
         {err && <div style={{ background: "#FDEAEA", color: "var(--danger)", padding: "10px 12px", borderRadius: 10, marginTop: 14, fontSize: 14 }}>{err}</div>}
+
+        {warn && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.6)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 420, padding: "20px 18px" }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#C0392B" }}>⚠️ Vui lòng kiểm tra lại</div>
+              <div style={{ marginTop: 12 }}>
+                {warn.items.map((w, i) => (
+                  <div key={i} style={{ fontSize: 15.5, lineHeight: 1.5, marginBottom: 10 }}>{w.icon} {w.pre}<b style={{ color: "#C0392B", fontWeight: 800 }}>{w.strong}</b>{w.post}</div>
+                ))}
+              </div>
+              <div style={{ fontSize: 14.5, color: "var(--text-600)", lineHeight: 1.5 }}>Hãy kiểm tra xem bạn có bấm nhận hàng nhầm chỗ không. Nếu nhầm, bấm <b>Hủy</b>. Nếu đúng, bấm <b>Hoàn tất</b>.</div>
+              <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+                <button onClick={() => { warn.resolve(false); setWarn(null); }} style={{ flex: 1, padding: "14px 8px", borderRadius: 10, border: "1.5px solid #C0392B", background: "#fff", color: "#C0392B", fontWeight: 800, fontSize: 16, cursor: "pointer" }}>Hủy</button>
+                <button onClick={() => { warn.resolve(true); setWarn(null); }} style={{ flex: 1.2, padding: "14px 8px", borderRadius: 10, border: "none", background: "#3E7A2A", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer" }}>Hoàn tất</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <button disabled={!!busy} onClick={() => submit("da_nhan")} style={{ width: "100%", marginTop: 18, padding: "15px 8px", borderRadius: 12, border: "none", background: "#3E7A2A", color: "#fff", fontWeight: 800, fontSize: 17, cursor: "pointer", opacity: busy ? 0.6 : 1 }}>
           {busy === "da_nhan" ? "Đang gửi..." : "✅ Xác nhận đã nhận hàng"}
