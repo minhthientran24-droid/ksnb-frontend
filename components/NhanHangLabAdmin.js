@@ -116,8 +116,8 @@ function TaskModal({ task, users, onClose, onSaved }) {
 }
 
 export default function NhanHangLabAdmin() {
-  const [from, setFrom] = useState(todayVN());
-  const [to, setTo] = useState(todayVN());
+  const [from, setFrom] = useState(""); // bỏ trống = tất cả ngày (chốt 18/11)
+  const [to, setTo] = useState("");
   const [userId, setUserId] = useState("");
   const [status, setStatus] = useState("");
   const [users, setUsers] = useState([]);
@@ -148,8 +148,8 @@ export default function NhanHangLabAdmin() {
 
   // Sau khi tạo/nhập: mở rộng bộ lọc để thấy ngay việc vừa thêm (nếu hạn lấy nằm ngoài ngày đang lọc)
   function showRange(a, b) {
-    if (a && a < from) setFrom(a);
-    if (b && b > to) setTo(b);
+    if (from && a && a < from) setFrom(a);
+    if (to && b && b > to) setTo(b);
     setUserId(""); setStatus("");
   }
 
@@ -170,8 +170,12 @@ export default function NhanHangLabAdmin() {
 
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="card-body" style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
-          <div><label style={labelStyle}>Từ ngày</label><input className="finput" type="date" value={from} onChange={(e) => { setFrom(e.target.value); if (e.target.value > to) setTo(e.target.value); }} /></div>
+          <div><label style={labelStyle}>Từ ngày</label><input className="finput" type="date" value={from} onChange={(e) => { setFrom(e.target.value); if (to && e.target.value > to) setTo(e.target.value); }} /></div>
           <div><label style={labelStyle}>Đến ngày</label><input className="finput" type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} /></div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button className="fbtn" title="Chỉ xem việc của hôm nay" onClick={() => { setFrom(todayVN()); setTo(todayVN()); }}>Hôm nay</button>
+            <button className="fbtn" title="Xem tất cả các ngày" onClick={() => { setFrom(""); setTo(""); }} disabled={!from && !to}>Tất cả ngày</button>
+          </div>
           <div><label style={labelStyle}>Người nhận</label>
             <select className="finput" value={userId} onChange={(e) => setUserId(e.target.value)}>
               <option value="">Tất cả</option>
@@ -207,7 +211,7 @@ export default function NhanHangLabAdmin() {
         <div className="card-head"><h3>Danh sách việc lấy hàng ({items.length})</h3><span className="note">Tự làm mới mỗi phút · user LAB: {users.length}</span></div>
         <div className="card-body" style={{ padding: 0, overflowX: "auto" }}>
           {loading && items.length === 0 ? <div className="placeholder-box">Đang tải...</div> : items.length === 0 ? (
-            <div className="placeholder-box">Không có việc nào trong khoảng này. Bấm "+ Thêm việc" hoặc "Import Excel" để giao việc.</div>
+            <div className="placeholder-box">Không có việc nào theo bộ lọc này. Bấm "+ Thêm việc" hoặc "Import Excel" để giao việc.</div>
           ) : (
             <table style={{ width: "100%" }}>
               <thead>
