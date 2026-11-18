@@ -11,6 +11,7 @@
     "@zxing/browser": "^0.2.1",
     "@zxing/library": "^0.23.0",
     "html5-qrcode": "^2.3.8",
+    "leaflet": "^1.9.4",
     "next": "14.2.5",
     "react": "18.3.1",
     "react-dom": "18.3.1",

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import FilterHeaderTh from "../components/FilterHeaderTh";
+import GpsRouteModal from "../components/GpsRouteModal";
 import { useMultiColFilters } from "../lib/useMultiColFilters";
 import { getUser, getGpsLatest, saveGpsConfig, deleteGpsConfig, syncGpsNow } from "../lib/api";
 
@@ -63,6 +64,7 @@ export default function GiamSatGpsPage() {
   const [form, setForm] = useState({ username: "", password: "", enabled: true, interval_minutes: 10 });
   const formInit = useRef(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [routeDevice, setRouteDevice] = useState(null); // bấm tên xe -> popup lịch sử hành trình + bản đồ
   const mcf = useMultiColFilters();
   const [sort, setSort] = useState({ key: "name", dir: "asc" });
   const onSort = (key) => setSort((o) => (o.key === key ? { key, dir: o.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
@@ -205,6 +207,8 @@ export default function GiamSatGpsPage() {
         </div>
       )}
 
+      {routeDevice && <GpsRouteModal device={routeDevice} onClose={() => setRouteDevice(null)} />}
+
       {showSettings && (
         <div
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
@@ -328,7 +332,13 @@ export default function GiamSatGpsPage() {
                   return (
                     <tr key={r.imei} style={r.is_expired ? { background: "#FDEAEA" } : undefined}>
                       <td style={{ ...tdStyle, textAlign: "left" }}>
-                        <div style={{ fontWeight: 700, color: "var(--text-900)" }}>{r.driver_name || r.plate_number || "(không tên)"}</div>
+                        <div
+                          onClick={() => setRouteDevice({ imei: r.imei, name: r.driver_name || r.plate_number || "(không tên)" })}
+                          title="Bấm để xem lịch sử hành trình trên bản đồ"
+                          style={{ fontWeight: 700, color: "#1C64B4", cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: 3 }}
+                        >
+                          {r.driver_name || r.plate_number || "(không tên)"}
+                        </div>
                         <div style={{ fontSize: 10.5, color: "var(--text-400)" }}>{r.imei}{r.group_name ? ` · ${r.group_name}` : ""}</div>
                       </td>
                       <td style={tdStyle}>
