@@ -153,7 +153,7 @@ export default function GiamSatGpsPage() {
     { key: "name", get: (r) => r.driver_name || r.plate_number || "(không tên)", sortVal: (r) => r.driver_name || r.plate_number || "", menu: 280 },
     { key: "state", get: (r) => stateLabel(r), sortVal: (r) => stateLabel(r) },
     { key: "ignition", get: (r) => ignitionLabel(r), sortVal: (r) => ignitionLabel(r) },
-    { key: "speed", get: (r) => (r.speed == null ? "—" : String(r.speed)), rank: (r) => r.speed ?? -1, sortVal: (r) => r.speed, desc: true },
+    { key: "speed", get: (r) => (r.speed == null ? "—" : `${r.speed} km/h`), rank: (r) => r.speed ?? -1, sortVal: (r) => r.speed, desc: true },
     { key: "km", get: (r) => (r.total_distance_day == null ? "—" : String(r.total_distance_day)), rank: (r) => r.total_distance_day ?? -1, sortVal: (r) => r.total_distance_day, desc: true },
     { key: "stop", get: (r) => fmtDur(r.total_stop_duration), rank: (r) => durSeconds(r.total_stop_duration) ?? -1, sortVal: (r) => durSeconds(r.total_stop_duration), desc: true, menu: 200 },
     { key: "address", get: (r) => r.address || "—", sortVal: (r) => r.address || "", menu: 420 },
@@ -294,7 +294,7 @@ export default function GiamSatGpsPage() {
                         <span style={{ background: STATE_COLORS[st] || "#6B7280", color: "#fff", fontWeight: 700, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap", fontSize: 11.5 }}>{st}</span>
                       </td>
                       <td style={tdStyle}>{ignitionLabel(r)}</td>
-                      <td className="num" style={tdStyle}>{r.speed ?? "—"}</td>
+                      <td className="num" style={tdStyle}>{r.speed == null ? "—" : `${r.speed} km/h`}</td>
                       <td className="num" style={tdStyle}>{r.total_distance_day ?? "—"}</td>
                       <td className="num" style={tdStyle}>{fmtDur(r.total_stop_duration)}</td>
                       <td style={{ ...tdStyle, textAlign: "left", maxWidth: 320 }}>{r.address || "—"}</td>
