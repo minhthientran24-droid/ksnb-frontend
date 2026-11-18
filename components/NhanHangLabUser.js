@@ -97,6 +97,7 @@ export default function NhanHangLabUser() {
   const [push, setPush] = useState("checking"); // checking | unsupported | off | denied | on
   const [pushMsg, setPushMsg] = useState("");
   const focusId = Number(router.query.task) || null;
+  const geoTries = useRef(0);
 
   function load() {
     return getNhanHangMy().then((r) => { setData(r); setErr(""); }).catch((e) => setErr(e.message));
@@ -212,6 +213,14 @@ export default function NhanHangLabUser() {
     );
   }
 
+  // vừa xác nhận xong: địa chỉ từ toạ độ được tra sau vài giây -> tự tải lại 1 lần cho tới khi có
+  useEffect(() => {
+    if (!items.some((t) => t.nhan_lat != null && !t.nhan_dia_chi) || geoTries.current >= 6) return undefined;
+    geoTries.current += 1; // tối đa 6 lần (~24 giây), sau đó luồng nền / lần tải sau sẽ lo
+    const h = setTimeout(load, 4000);
+    return () => clearTimeout(h);
+  }, [data]);
+
   useEffect(() => {
     if (focusId && data && items.some((t) => t.id === focusId)) { setTab(items.find((t) => t.id === focusId).trang_thai === "cho_lay" ? "cho" : "xong"); setDetailId(focusId); document.getElementById(`task-${focusId}`)?.scrollIntoView({ block: "center" }); }
   }, [focusId, !!data]);
@@ -274,7 +283,7 @@ export default function NhanHangLabUser() {
         <DetailSheet task={items.find((t) => t.id === detailId)} chip={chipOf(items.find((t) => t.id === detailId))} onClose={() => setDetailId(null)}
           onReceive={(t) => { setDetailId(null); setSheet(t); }} />
       )}
-      {sheet && <ConfirmSheet task={sheet} onClose={() => setSheet(null)} onDone={() => { setSheet(null); load(); }} />}
+      {sheet && <ConfirmSheet task={sheet} onClose={() => setSheet(null)} onDone={() => { geoTries.current = 0; setSheet(null); load(); }} />}
     </div>
   );
 }
@@ -314,6 +323,15 @@ function DetailSheet({ task: t, chip, onClose, onReceive }) {
                 {t.trang_thai === "da_nhan" && <> · Thực nhận: <b>{fmtQty(t.so_luong_thuc_te, t.don_vi)}</b></>}
               </div>
               {t.ghi_chu_nhan && <div style={{ fontSize: 15, marginTop: 4 }}>📝 {t.ghi_chu_nhan}</div>}
+              {t.nhan_lat != null && (
+                <div style={{ fontSize: 14, marginTop: 6 }}>
+                  📍 {t.nhan_dia_chi || "(đang tra địa chỉ...)"}
+                  <div style={{ color: "var(--text-600)", fontSize: 12.5 }}>
+                    {t.nhan_lat.toFixed(6)}, {t.nhan_lng.toFixed(6)}{t.nhan_do_chinh_xac != null ? ` · sai số ~${t.nhan_do_chinh_xac} m` : ""}{" · "}
+                    <a href={`https://www.google.com/maps?q=${t.nhan_lat},${t.nhan_lng}`} target="_blank" rel="noreferrer">Mở bản đồ</a>
+                  </div>
+                </div>
+              )}
               <PhotoThumbs ids={t.photo_ids} />
             </div>
           )}
@@ -336,6 +354,25 @@ function ConfirmSheet({ task, onClose, onDone }) {
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const input = useRef(null);
+  // Định vị (GPS điện thoại): bắt đầu lấy ngay khi mở form để lúc bấm xác nhận đã có sẵn
+  const [loc, setLoc] = useState({ st: "loading" }); // loading | ok | fail
+  const locRef = useRef({ st: "loading" });
+  const waiters = useRef([]);
+  function setLocBoth(v) { locRef.current = v; setLoc(v); if (v.st !== "loading") { waiters.current.forEach((f) => f(v)); waiters.current = []; } }
+  function getLoc() {
+    setLocBoth({ st: "loading" });
+    if (typeof navigator === "undefined" || !navigator.geolocation) { setLocBoth({ st: "fail", msg: "Thiết bị không hỗ trợ định vị" }); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setLocBoth({ st: "ok", lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy }),
+      (e) => setLocBoth({ st: "fail", msg: e.code === 1 ? "Bạn chưa cho phép truy cập vị trí" : e.code === 3 ? "Hết thời gian chờ định vị" : "Không xác định được vị trí" }),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
+    );
+  }
+  function waitLoc() { // đợi kết quả định vị nếu đang lấy dở (tối đa ~16 giây)
+    if (locRef.current.st !== "loading") return Promise.resolve(locRef.current);
+    return new Promise((res) => { waiters.current.push(res); setTimeout(() => res(locRef.current), 16000); });
+  }
+  useEffect(() => { getLoc(); }, []);
 
   useEffect(() => () => photos.forEach((p) => URL.revokeObjectURL(p.url)), []);
 
@@ -358,8 +395,10 @@ function ConfirmSheet({ task, onClose, onDone }) {
     if (ketQua === "khong_nhan_duoc" && !note.trim()) { setErr("Không nhận được hàng: hãy ghi lý do vào ô ghi chú."); return; }
     if (ketQua === "khong_nhan_duoc" && !window.confirm("Xác nhận KHÔNG nhận được hàng tại địa chỉ này?")) return;
     setBusy(ketQua);
+    const L = await waitLoc();
+    if (L.st !== "ok" && !window.confirm(`Chưa lấy được vị trí của bạn (${L.msg || "đang chờ định vị"}).\nVẫn xác nhận mà không có vị trí?`)) { setBusy(""); return; }
     try {
-      await confirmNhanHang(task.id, { ketQua, ghiChu: note, soLuongThucTe: ketQua === "da_nhan" ? qty : "", files: photos.map((p) => p.file) });
+      await confirmNhanHang(task.id, { ketQua, ghiChu: note, soLuongThucTe: ketQua === "da_nhan" ? qty : "", files: photos.map((p) => p.file), viTri: L.st === "ok" ? L : null });
       onDone();
     } catch (e) {
       setErr(e.message);
@@ -398,6 +437,12 @@ function ConfirmSheet({ task, onClose, onDone }) {
               {busy === "photo" ? "..." : "📷 Chụp / chọn ảnh"}
             </button>
           )}
+        </div>
+
+        <div style={{ marginTop: 14, padding: "9px 12px", borderRadius: 10, fontSize: 13.5, background: loc.st === "ok" ? "#EEF7EA" : loc.st === "fail" ? "#FFF3E0" : "#F1F5FB", border: `1px solid ${loc.st === "ok" ? "#BBD9AE" : loc.st === "fail" ? "#F2C688" : "var(--border)"}` }}>
+          {loc.st === "loading" && <>📍 Đang xác định vị trí của bạn...</>}
+          {loc.st === "ok" && <>📍 Đã lấy vị trí{loc.acc != null ? ` (sai số ~${Math.round(loc.acc)} m)` : ""} — sẽ gửi kèm khi xác nhận</>}
+          {loc.st === "fail" && <>⚠️ {loc.msg}. Hãy bật GPS / cho phép vị trí rồi <button onClick={getLoc} style={{ border: "none", background: "none", color: "#1C64B4", fontWeight: 800, textDecoration: "underline", cursor: "pointer", fontSize: 13.5, padding: 0 }}>thử lại</button></>}
         </div>
 
         {err && <div style={{ background: "#FDEAEA", color: "var(--danger)", padding: "10px 12px", borderRadius: 10, marginTop: 14, fontSize: 14 }}>{err}</div>}

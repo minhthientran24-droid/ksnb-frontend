@@ -196,6 +196,7 @@ export default function NhanHangLabAdmin() {
     { key: "tt", get: statusText, sortVal: statusText, menu: 200 },
     { key: "slt", get: (t) => (t.trang_thai === "da_nhan" ? fmtQty(t.so_luong_thuc_te, t.don_vi) : "—"), rank: (t) => (t.trang_thai === "da_nhan" ? t.so_luong_thuc_te ?? -1 : -1), sortVal: (t) => (t.trang_thai === "da_nhan" ? t.so_luong_thuc_te : null), menu: 180 },
     { key: "ghichu", get: (t) => t.ghi_chu_nhan || "—", sortVal: (t) => t.ghi_chu_nhan || "", menu: 320 },
+    { key: "vt", get: (t) => (t.trang_thai === "cho_lay" ? "—" : t.nhan_lat != null ? "Có định vị" : "Không có định vị"), sortVal: (t) => (t.nhan_lat != null ? 1 : 0), menu: 180 },
     { key: "anh", get: (t) => (t.photo_ids.length ? `${t.photo_ids.length} ảnh` : "—"), rank: (t) => t.photo_ids.length, sortVal: (t) => t.photo_ids.length, menu: 140 },
   ];
   const sortCol = colDefs.find((c) => c.key === sort.key);
@@ -269,7 +270,7 @@ export default function NhanHangLabAdmin() {
                 <tr>
                   {th("ma", "Mã đơn hàng")}{th("gio", "Giờ cần lấy")}{th("nguoi", "Người nhận")}{th("diem", "Điểm / địa chỉ", "left")}
                   {th("sl", "SL cần lấy")}{th("tt", "Trạng thái")}{th("slt", "SL thực nhận")}{th("ghichu", "Ghi chú nhận", "left")}
-                  {th("anh", "Ảnh")}<th style={thStyle}></th>
+                  {th("vt", "Vị trí xác nhận", "left")}{th("anh", "Ảnh")}<th style={thStyle}></th>
                 </tr>
               </thead>
               <tbody>
@@ -295,6 +296,17 @@ export default function NhanHangLabAdmin() {
                       </td>
                       <td className="num" style={tdStyle}>{t.trang_thai === "da_nhan" ? fmtQty(t.so_luong_thuc_te, t.don_vi) : "—"}</td>
                       <td style={{ ...tdStyle, textAlign: "left", maxWidth: 240 }}>{t.ghi_chu_nhan || "—"}</td>
+                      <td style={{ ...tdStyle, textAlign: "left", maxWidth: 260 }}>
+                        {t.nhan_lat != null ? (
+                          <>
+                            <div style={{ fontSize: 13 }}>{t.nhan_dia_chi || "(đang tra địa chỉ...)"}</div>
+                            <div style={{ fontSize: 11.5, color: "var(--text-600)" }}>
+                              {t.nhan_lat.toFixed(6)}, {t.nhan_lng.toFixed(6)}{t.nhan_do_chinh_xac != null ? ` · ±${t.nhan_do_chinh_xac} m` : ""}{" · "}
+                              <a href={`https://www.google.com/maps?q=${t.nhan_lat},${t.nhan_lng}`} target="_blank" rel="noreferrer">Bản đồ</a>
+                            </div>
+                          </>
+                        ) : t.trang_thai === "cho_lay" ? "—" : <span style={{ color: "var(--text-600)", fontSize: 12.5 }}>Không có định vị</span>}
+                      </td>
                       <td style={tdStyle}>{t.photo_ids.length ? <a href="#" onClick={(e) => { e.preventDefault(); setPhotoTask(t); }}>🖼 {t.photo_ids.length} ảnh</a> : "—"}</td>
                       <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>
                         {t.trang_thai === "cho_lay" ? (
