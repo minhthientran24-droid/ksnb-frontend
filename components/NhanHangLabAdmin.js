@@ -61,8 +61,7 @@ function DateTime24({ value, onChange }) {
   const [hh, mm] = (t || "08:00").split(":");
   const pad = (n) => String(n).padStart(2, "0");
   const hours = Array.from({ length: 24 }, (_, i) => pad(i));
-  const mins = Array.from({ length: 12 }, (_, i) => pad(i * 5));
-  if (!mins.includes(mm)) mins.push(mm), mins.sort();
+  const mins = Array.from({ length: 60 }, (_, i) => pad(i));
   const set = (nd, nh, nm) => onChange(`${nd || todayVN()}T${nh}:${nm}`);
   const sel = { ...inputStyle, width: "auto", flex: 1 };
   return (
