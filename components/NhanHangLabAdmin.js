@@ -55,6 +55,26 @@ function PhotoModal({ task, onClose }) {
   );
 }
 
+// Chọn ngày + giờ theo 24h (input datetime-local của trình duyệt hay hiện AM/PM khó chỉnh) — value dạng "YYYY-MM-DDTHH:MM"
+function DateTime24({ value, onChange }) {
+  const [d, t] = (value || "").split("T");
+  const [hh, mm] = (t || "08:00").split(":");
+  const pad = (n) => String(n).padStart(2, "0");
+  const hours = Array.from({ length: 24 }, (_, i) => pad(i));
+  const mins = Array.from({ length: 12 }, (_, i) => pad(i * 5));
+  if (!mins.includes(mm)) mins.push(mm), mins.sort();
+  const set = (nd, nh, nm) => onChange(`${nd || todayVN()}T${nh}:${nm}`);
+  const sel = { ...inputStyle, width: "auto", flex: 1 };
+  return (
+    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+      <input style={{ ...inputStyle, flex: 2 }} type="date" value={d || ""} onChange={(e) => set(e.target.value, hh, mm)} />
+      <select style={sel} value={hh} onChange={(e) => set(d, e.target.value, mm)}>{hours.map((h) => <option key={h} value={h}>{h}</option>)}</select>
+      <span style={{ fontWeight: 800 }}>:</span>
+      <select style={sel} value={mm} onChange={(e) => set(d, hh, e.target.value)}>{mins.map((m) => <option key={m} value={m}>{m}</option>)}</select>
+    </div>
+  );
+}
+
 function TaskModal({ task, users, onClose, onSaved }) {
   const editing = !!task?.id;
   const [f, setF] = useState(() => ({
@@ -97,7 +117,7 @@ function TaskModal({ task, users, onClose, onSaved }) {
               {users.length === 0 && <option value="">— chưa có tài khoản LAB —</option>}
               {users.map((u) => <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>)}
             </select></div>
-          <div><label style={labelStyle}>Giờ cần lấy *</label><input style={inputStyle} type="datetime-local" value={f.han_lay} onChange={set("han_lay")} /></div>
+          <div><label style={labelStyle}>Giờ cần lấy *</label><DateTime24 value={f.han_lay} onChange={(v) => setF({ ...f, han_lay: v })} /></div>
           <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Địa chỉ lấy hàng *</label><input style={inputStyle} value={f.dia_chi} onChange={set("dia_chi")} /></div>
           <div><label style={labelStyle}>Tên điểm / cửa hàng</label><input style={inputStyle} value={f.ten_diem} onChange={set("ten_diem")} /></div>
           <div><label style={labelStyle}>Mô tả hàng cần lấy</label><input style={inputStyle} value={f.mo_ta_hang} onChange={set("mo_ta_hang")} /></div>
