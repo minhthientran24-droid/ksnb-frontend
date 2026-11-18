@@ -3,7 +3,7 @@ import FilterHeaderTh from "./FilterHeaderTh";
 import { useMultiColFilters } from "../lib/useMultiColFilters";
 import {
   listNhanHangLabUsers, listNhanHangAdminTasks, createNhanHangTask, updateNhanHangTask, deleteNhanHangTask, reopenNhanHangTask,
-  downloadNhanHangTemplate, importNhanHangExcel, fetchNhanHangPhotoUrl,
+  downloadNhanHangTemplate, importNhanHangExcel, exportNhanHangExcel, fetchNhanHangPhotoUrl,
 } from "../lib/api";
 
 // Màn hình QUẢN LÝ (web) của menu "Nhận hàng Long Châu LAB" (chốt 18/11): giao việc lấy hàng cho user loại LAB (nhập tay hoặc
@@ -264,7 +264,7 @@ export default function NhanHangLabAdmin() {
       {err && <div style={{ color: "var(--danger)", fontSize: 13.5, marginBottom: 10 }}>{err}</div>}
 
       <div className="card">
-        <div className="card-head"><h3>Danh sách việc lấy hàng ({mcf.active ? `${shown.length}/${items.length}` : items.length})</h3><span className="note">Tự làm mới mỗi phút · user LAB: {users.length}{mcf.active && <button className="fbtn" style={{ marginLeft: 8 }} onClick={mcf.clear}>✕ Bỏ lọc cột</button>}</span></div>
+        <div className="card-head"><h3>Danh sách việc lấy hàng ({mcf.active ? `${shown.length}/${items.length}` : items.length})</h3><span className="note">{mcf.active && <button className="fbtn" style={{ marginRight: 8 }} onClick={mcf.clear}>✕ Bỏ lọc cột</button>}<button className="fbtn" disabled={busy === "export" || shown.length === 0} onClick={() => act("export", () => exportNhanHangExcel(shown.map((t) => t.id)))}>{busy === "export" ? "Đang tạo file..." : "📥 Tải Excel"}</button></span></div>
         <div className="card-body" style={{ padding: 0, overflowX: "auto" }}>
           {loading && items.length === 0 ? <div className="placeholder-box">Đang tải...</div> : items.length === 0 ? (
             <div className="placeholder-box">Không có việc nào theo bộ lọc này. Bấm "+ Thêm việc" hoặc "Import Excel" để giao việc.</div>
