@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import FilterHeaderTh from "./FilterHeaderTh";
+import { useMultiColFilters } from "../lib/useMultiColFilters";
 import {
   listNhanHangLabUsers, listNhanHangAdminTasks, createNhanHangTask, updateNhanHangTask, deleteNhanHangTask, reopenNhanHangTask,
   downloadNhanHangTemplate, importNhanHangExcel, fetchNhanHangPhotoUrl,
@@ -148,6 +150,9 @@ export default function NhanHangLabAdmin() {
   const [photoTask, setPhotoTask] = useState(null);
   const [busy, setBusy] = useState("");
   const fileRef = useRef(null);
+  const mcf = useMultiColFilters(); // lọc tick theo cột (giống các bảng khác)
+  const [sort, setSort] = useState({ key: "gio", dir: "asc" });
+  const onSort = (key) => setSort((o) => (o.key === key ? { key, dir: o.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
 
   function load() {
     setLoading(true);
@@ -179,8 +184,34 @@ export default function NhanHangLabAdmin() {
     act("import", async () => { const r = await importNhanHangExcel(file); showRange(r.tu_ngay, r.den_ngay); setMsg(`Đã nhập ${r.imported} việc từ file Excel.`); }, "");
   }
 
-  const cnt = (s) => items.filter((t) => t.trang_thai === s).length;
-  const late = items.filter((t) => t.muc_do === "tre").length;
+  // Cột lọc + sắp xếp: get = chữ đang hiển thị (lọc đúng theo chữ thấy), sortVal = giá trị so sánh
+  const fmtDay = (iso) => new Date(iso).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: TZ });
+  const statusText = (t) => STATUS[t.trang_thai].label + (t.muc_do === "tre" ? " · Trễ" : "");
+  const colDefs = [
+    { key: "gio", get: (t) => fmtDay(t.han_lay), rank: (t) => t.han_lay, sortVal: (t) => t.han_lay, menu: 200 },
+    { key: "nguoi", get: (t) => t.assigned_name || "—", sortVal: (t) => t.assigned_name || "", menu: 260 },
+    { key: "diem", get: (t) => t.ten_diem || t.dia_chi, sortVal: (t) => `${t.ten_diem || ""} ${t.dia_chi || ""}`, menu: 380 },
+    { key: "sl", get: (t) => fmtQty(t.so_luong, t.don_vi), rank: (t) => t.so_luong ?? -1, sortVal: (t) => t.so_luong, menu: 180 },
+    { key: "tt", get: statusText, sortVal: statusText, menu: 200 },
+    { key: "slt", get: (t) => (t.trang_thai === "da_nhan" ? fmtQty(t.so_luong_thuc_te, t.don_vi) : "—"), rank: (t) => (t.trang_thai === "da_nhan" ? t.so_luong_thuc_te ?? -1 : -1), sortVal: (t) => (t.trang_thai === "da_nhan" ? t.so_luong_thuc_te : null), menu: 180 },
+    { key: "ghichu", get: (t) => t.ghi_chu_nhan || "—", sortVal: (t) => t.ghi_chu_nhan || "", menu: 320 },
+    { key: "anh", get: (t) => (t.photo_ids.length ? `${t.photo_ids.length} ảnh` : "—"), rank: (t) => t.photo_ids.length, sortVal: (t) => t.photo_ids.length, menu: 140 },
+  ];
+  const sortCol = colDefs.find((c) => c.key === sort.key);
+  const shown = mcf.filterRows(colDefs, items).slice().sort((a, b) => {
+    const av = sortCol.sortVal(a);
+    const bv = sortCol.sortVal(b);
+    const blank = (v) => v == null || v === "";
+    if (blank(av) || blank(bv)) return blank(av) && blank(bv) ? 0 : blank(av) ? 1 : -1; // ô trống luôn xếp cuối
+    const cmp = typeof av === "number" && typeof bv === "number" ? av - bv : String(av).localeCompare(String(bv), "vi");
+    if (cmp !== 0) return sort.dir === "asc" ? cmp : -cmp;
+    return new Date(a.han_lay) - new Date(b.han_lay) || a.id - b.id; // cùng giá trị: theo giờ cần lấy cho ổn định
+  });
+  const th = (key, label, align) => (
+    <FilterHeaderTh label={label} align={align} filter={mcf.button(colDefs, items, key)} onClick={() => onSort(key)} sortActive={sort.key === key} sortDir={sort.dir} />
+  );
+  const cnt = (s) => shown.filter((t) => t.trang_thai === s).length;
+  const late = shown.filter((t) => t.muc_do === "tre").length;
 
   return (
     <>
@@ -215,7 +246,7 @@ export default function NhanHangLabAdmin() {
       </div>
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-        {[["Tổng việc", items.length, "var(--text-900)"], ["Chờ lấy", cnt("cho_lay"), "#1C64B4"], ["Trễ hạn", late, "#C0392B"], ["Đã nhận", cnt("da_nhan"), "#3E7A2A"], ["Không nhận được", cnt("khong_nhan_duoc"), "#6B7280"]].map(([l, n, c]) => (
+        {[["Tổng việc", shown.length, "var(--text-900)"], ["Chờ lấy", cnt("cho_lay"), "#1C64B4"], ["Trễ hạn", late, "#C0392B"], ["Đã nhận", cnt("da_nhan"), "#3E7A2A"], ["Không nhận được", cnt("khong_nhan_duoc"), "#6B7280"]].map(([l, n, c]) => (
           <div key={l} className="card" style={{ margin: 0, padding: "10px 16px", minWidth: 120 }}>
             <div style={{ fontSize: 12.5, color: "var(--text-600)" }}>{l}</div>
             <div style={{ fontSize: 24, fontWeight: 800, color: c }}>{n}</div>
@@ -227,7 +258,7 @@ export default function NhanHangLabAdmin() {
       {err && <div style={{ color: "var(--danger)", fontSize: 13.5, marginBottom: 10 }}>{err}</div>}
 
       <div className="card">
-        <div className="card-head"><h3>Danh sách việc lấy hàng ({items.length})</h3><span className="note">Tự làm mới mỗi phút · user LAB: {users.length}</span></div>
+        <div className="card-head"><h3>Danh sách việc lấy hàng ({mcf.active ? `${shown.length}/${items.length}` : items.length})</h3><span className="note">Tự làm mới mỗi phút · user LAB: {users.length}{mcf.active && <button className="fbtn" style={{ marginLeft: 8 }} onClick={mcf.clear}>✕ Bỏ lọc cột</button>}</span></div>
         <div className="card-body" style={{ padding: 0, overflowX: "auto" }}>
           {loading && items.length === 0 ? <div className="placeholder-box">Đang tải...</div> : items.length === 0 ? (
             <div className="placeholder-box">Không có việc nào theo bộ lọc này. Bấm "+ Thêm việc" hoặc "Import Excel" để giao việc.</div>
@@ -235,13 +266,13 @@ export default function NhanHangLabAdmin() {
             <table style={{ width: "100%" }}>
               <thead>
                 <tr>
-                  <th style={thStyle}>Giờ cần lấy</th><th style={thStyle}>Người nhận</th><th style={{ ...thStyle, textAlign: "left" }}>Điểm / địa chỉ</th>
-                  <th style={thStyle}>SL cần lấy</th><th style={thStyle}>Trạng thái</th><th style={thStyle}>SL thực nhận</th><th style={{ ...thStyle, textAlign: "left" }}>Ghi chú nhận</th>
-                  <th style={thStyle}>Ảnh</th><th style={thStyle}></th>
+                  {th("gio", "Giờ cần lấy")}{th("nguoi", "Người nhận")}{th("diem", "Điểm / địa chỉ", "left")}
+                  {th("sl", "SL cần lấy")}{th("tt", "Trạng thái")}{th("slt", "SL thực nhận")}{th("ghichu", "Ghi chú nhận", "left")}
+                  {th("anh", "Ảnh")}<th style={thStyle}></th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((t) => {
+                {shown.map((t) => {
                   const st = STATUS[t.trang_thai];
                   const lv = LEVEL_CHIP[t.muc_do];
                   return (
