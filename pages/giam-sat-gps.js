@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
+import FilterHeaderTh from "../components/FilterHeaderTh";
+import { useMultiColFilters } from "../lib/useMultiColFilters";
 import { getUser, getGpsLatest, saveGpsConfig, deleteGpsConfig, syncGpsNow } from "../lib/api";
 
 const thStyle = { textAlign: "center", padding: "8px 10px", fontSize: 11.5, whiteSpace: "nowrap" };
@@ -11,6 +13,35 @@ function fmtDateTime(v) {
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+// Mã trạng thái GPS Thanh Nam trả về (chốt 18/11, đối chiếu số xe theo từng mã với các số đếm GPS trả sẵn): 3 chạy, 4 dừng, 5 mất tín hiệu, 9 dừng nổ máy
+const STATE_LABELS = { "3": "Đang chạy", "4": "Đang dừng", "5": "Mất tín hiệu", "9": "Dừng nổ máy" };
+const STATE_COLORS = { "Đang chạy": "#3E7A2A", "Đang dừng": "#1C64B4", "Dừng nổ máy": "#E8590C", "Mất tín hiệu": "#C0392B", "Hết hạn": "#C0392B" };
+
+function stateLabel(r) {
+  if (r.is_expired) return "Hết hạn";
+  const s = r.state == null ? "" : String(r.state);
+  if (STATE_LABELS[s]) return STATE_LABELS[s];
+  if (r.speed > 0) return "Đang chạy";
+  return s ? `Trạng thái ${s}` : "—";
+}
+
+function ignitionLabel(r) {
+  return r.ignition == null ? "—" : String(r.ignition).toLowerCase() === "true" ? "Bật" : "Tắt";
+}
+
+// "44:8:35" (giờ:phút:giây, giờ có thể > 24) -> số giây để sắp xếp; hiển thị "44:08:35"
+function durSeconds(v) {
+  if (!v) return null;
+  const p = String(v).split(":").map(Number);
+  if (p.length !== 3 || p.some((x) => Number.isNaN(x))) return null;
+  return p[0] * 3600 + p[1] * 60 + p[2];
+}
+function fmtDur(v) {
+  if (!v) return "—";
+  const p = String(v).split(":");
+  return p.length === 3 ? `${p[0]}:${p[1].padStart(2, "0")}:${p[2].padStart(2, "0")}` : v;
 }
 
 const COUNT_TILES = [
@@ -31,6 +62,9 @@ export default function GiamSatGpsPage() {
   const [busy, setBusy] = useState("");
   const [form, setForm] = useState({ username: "", password: "", enabled: true, interval_minutes: 10 });
   const formInit = useRef(false);
+  const mcf = useMultiColFilters();
+  const [sort, setSort] = useState({ key: "name", dir: "asc" });
+  const onSort = (key) => setSort((o) => (o.key === key ? { key, dir: o.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
 
   useEffect(() => {
     const user = getUser();
@@ -114,6 +148,31 @@ export default function GiamSatGpsPage() {
   const items = data?.items || [];
   const counts = cfg?.counts || {};
 
+  // Cột lọc (tick nhiều giá trị, giống các bảng khác) + sắp xếp theo cột. get = chữ đang hiển thị; sortVal = giá trị so sánh
+  const colDefs = [
+    { key: "name", get: (r) => r.driver_name || r.plate_number || "(không tên)", sortVal: (r) => r.driver_name || r.plate_number || "", menu: 280 },
+    { key: "state", get: (r) => stateLabel(r), sortVal: (r) => stateLabel(r) },
+    { key: "ignition", get: (r) => ignitionLabel(r), sortVal: (r) => ignitionLabel(r) },
+    { key: "speed", get: (r) => (r.speed == null ? "—" : String(r.speed)), rank: (r) => r.speed ?? -1, sortVal: (r) => r.speed, desc: true },
+    { key: "km", get: (r) => (r.total_distance_day == null ? "—" : String(r.total_distance_day)), rank: (r) => r.total_distance_day ?? -1, sortVal: (r) => r.total_distance_day, desc: true },
+    { key: "stop", get: (r) => fmtDur(r.total_stop_duration), rank: (r) => durSeconds(r.total_stop_duration) ?? -1, sortVal: (r) => durSeconds(r.total_stop_duration), desc: true, menu: 200 },
+    { key: "address", get: (r) => r.address || "—", sortVal: (r) => r.address || "", menu: 420 },
+    { key: "gps_time", get: (r) => fmtDateTime(r.gps_time), rank: (r) => r.gps_time || "", sortVal: (r) => r.gps_time || "", desc: true, menu: 220 },
+  ];
+  const fb = (key) => mcf.button(colDefs, items, key);
+  const sortCol = colDefs.find((c) => c.key === sort.key);
+  const shown = mcf.filterRows(colDefs, items).slice().sort((a, b) => {
+    const av = sortCol.sortVal(a);
+    const bv = sortCol.sortVal(b);
+    const blank = (v) => v == null || v === "";
+    if (blank(av) || blank(bv)) return blank(av) && blank(bv) ? 0 : blank(av) ? 1 : -1; // ô trống luôn xếp cuối
+    const cmp = typeof av === "number" && typeof bv === "number" ? av - bv : String(av).localeCompare(String(bv), "vi");
+    return sort.dir === "asc" ? cmp : -cmp;
+  });
+  const th = (key, label, align) => (
+    <FilterHeaderTh label={label} align={align} filter={fb(key)} onClick={() => onSort(key)} sortActive={sort.key === key} sortDir={sort.dir} />
+  );
+
   return (
     <Layout crumb="Giám sát GPS">
       <div className="page-head">
@@ -194,7 +253,13 @@ export default function GiamSatGpsPage() {
       )}
 
       <div className="card">
-        <div className="card-head"><h3>Thiết bị ({items.length})</h3><span className="note">Dữ liệu mới nhất, tự làm mới mỗi phút</span></div>
+        <div className="card-head">
+          <h3>Thiết bị ({mcf.active ? `${shown.length}/${items.length}` : items.length})</h3>
+          <span className="note">
+            Dữ liệu mới nhất, tự làm mới mỗi phút
+            {mcf.active && <button className="fbtn" style={{ marginLeft: 8 }} onClick={mcf.clear}>✕ Bỏ lọc cột</button>}
+          </span>
+        </div>
         <div className="card-body" style={{ padding: 0, overflowX: "auto" }}>
           {items.length === 0 ? (
             <div className="placeholder-box">Chưa có dữ liệu — nhập tài khoản GPS rồi bấm "Quét ngay".</div>
@@ -202,36 +267,46 @@ export default function GiamSatGpsPage() {
             <table style={{ width: "100%" }}>
               <thead>
                 <tr>
-                  <th style={{ ...thStyle, textAlign: "left" }}>Tên / biển số</th>
-                  <th style={thStyle}>Trạng thái</th>
-                  <th style={thStyle}>Tốc độ</th>
-                  <th style={thStyle}>Km hôm nay</th>
-                  <th style={thStyle}>Dừng hôm nay</th>
-                  <th style={{ ...thStyle, textAlign: "left" }}>Địa chỉ</th>
-                  <th style={thStyle}>Giờ GPS</th>
+                  {th("name", "Tên / biển số", "left")}
+                  {th("state", "Trạng thái")}
+                  {th("ignition", "Nổ máy")}
+                  {th("speed", "Tốc độ")}
+                  {th("km", "Km hôm nay")}
+                  {th("stop", "Thời gian dừng")}
+                  {th("address", "Địa chỉ", "left")}
+                  {th("gps_time", "Giờ GPS")}
                   <th style={thStyle}>Bản đồ</th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((r) => (
-                  <tr key={r.imei} style={r.is_expired ? { background: "#FDEAEA" } : undefined}>
-                    <td style={{ ...tdStyle, textAlign: "left" }}>
-                      <div style={{ fontWeight: 700, color: "var(--text-900)" }}>{r.driver_name || r.plate_number || "(không tên)"}</div>
-                      <div style={{ fontSize: 10.5, color: "var(--text-400)" }}>{r.imei}{r.group_name ? ` · ${r.group_name}` : ""}</div>
-                    </td>
-                    <td style={tdStyle}>{r.state || "—"}{r.ignition ? ` / ${r.ignition}` : ""}</td>
-                    <td className="num" style={tdStyle}>{r.speed ?? "—"}</td>
-                    <td className="num" style={tdStyle}>{r.total_distance_day ?? "—"}</td>
-                    <td className="num" style={tdStyle}>{r.total_stop_duration || "—"}{r.total_stop_times ? ` (${r.total_stop_times} lần)` : ""}</td>
-                    <td style={{ ...tdStyle, textAlign: "left", maxWidth: 320 }}>{r.address || "—"}</td>
-                    <td className="num" style={tdStyle}>{fmtDateTime(r.gps_time)}</td>
-                    <td style={tdStyle}>
-                      {r.lat != null && r.lng != null ? (
-                        <a href={`https://www.google.com/maps?q=${r.lat},${r.lng}`} target="_blank" rel="noreferrer">Xem</a>
-                      ) : "—"}
-                    </td>
-                  </tr>
-                ))}
+                {shown.length === 0 && (
+                  <tr><td colSpan={9} style={{ ...tdStyle, color: "var(--text-400)", padding: 20 }}>Không có thiết bị nào khớp bộ lọc.</td></tr>
+                )}
+                {shown.map((r) => {
+                  const st = stateLabel(r);
+                  return (
+                    <tr key={r.imei} style={r.is_expired ? { background: "#FDEAEA" } : undefined}>
+                      <td style={{ ...tdStyle, textAlign: "left" }}>
+                        <div style={{ fontWeight: 700, color: "var(--text-900)" }}>{r.driver_name || r.plate_number || "(không tên)"}</div>
+                        <div style={{ fontSize: 10.5, color: "var(--text-400)" }}>{r.imei}{r.group_name ? ` · ${r.group_name}` : ""}</div>
+                      </td>
+                      <td style={tdStyle}>
+                        <span style={{ background: STATE_COLORS[st] || "#6B7280", color: "#fff", fontWeight: 700, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap", fontSize: 11.5 }}>{st}</span>
+                      </td>
+                      <td style={tdStyle}>{ignitionLabel(r)}</td>
+                      <td className="num" style={tdStyle}>{r.speed ?? "—"}</td>
+                      <td className="num" style={tdStyle}>{r.total_distance_day ?? "—"}</td>
+                      <td className="num" style={tdStyle}>{fmtDur(r.total_stop_duration)}</td>
+                      <td style={{ ...tdStyle, textAlign: "left", maxWidth: 320 }}>{r.address || "—"}</td>
+                      <td className="num" style={tdStyle}>{fmtDateTime(r.gps_time)}</td>
+                      <td style={tdStyle}>
+                        {r.lat != null && r.lng != null ? (
+                          <a href={`https://www.google.com/maps?q=${r.lat},${r.lng}`} target="_blank" rel="noreferrer">Xem</a>
+                        ) : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
