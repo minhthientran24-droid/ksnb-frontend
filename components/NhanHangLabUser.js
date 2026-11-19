@@ -207,7 +207,7 @@ export default function NhanHangLabUser() {
         <div style={{ fontSize: 14.5, fontWeight: 800, textTransform: "capitalize", whiteSpace: "nowrap" }}>📅 {d}</div>
         {tag && <span style={{ background: tag.c, color: "#fff", fontSize: 11.5, fontWeight: 800, padding: "2px 9px", borderRadius: 999, whiteSpace: "nowrap" }}>{tag.t}</span>}
         <div style={{ flex: 1, height: 1.5, background: "var(--border)" }} />
-        <span style={{ fontSize: 12.5, color: "var(--text-600)", whiteSpace: "nowrap" }}>{g.list.length} điểm</span>
+        <span style={{ fontSize: 14.5, fontWeight: 800, color: "#1C64B4", whiteSpace: "nowrap", marginLeft: "auto", textAlign: "right" }}>{g.list.length} Điểm nhận</span>
       </div>
     );
   }
