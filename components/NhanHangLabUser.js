@@ -367,10 +367,12 @@ function DetailSheet({ task: t, chip, onClose, onReceive }) {
           )}
           {row("📦 Số lượng mẫu lấy", t.so_luong != null ? <b>{fmtQty(t.so_luong)}</b> : null)}
           {(t.so_tien_thu != null || t.phu_phi != null) && row("💰 Số tiền cần thu", (
-            <span>
-              {t.so_tien_thu != null && t.phu_phi != null && <span style={{ color: "var(--text-600)", fontSize: 14.5 }}>{fmtMoney(t.so_tien_thu)} + {fmtMoney(t.phu_phi)} = </span>}
-              <b style={{ color: "#D32F2F", fontSize: 18 }}>{fmtMoney((t.so_tien_thu || 0) + (t.phu_phi || 0))}</b>
-            </span>
+            <div>
+              <div>Tổng thu: <b style={{ color: "#D32F2F", fontSize: 19 }}>{fmtMoney((t.so_tien_thu || 0) + (t.phu_phi || 0))}</b></div>
+              {t.so_tien_thu != null && t.phu_phi != null && (
+                <div style={{ color: "var(--text-600)", fontSize: 13.5, marginTop: 2 }}>Số tiền thu {fmtMoney(t.so_tien_thu)} + Phụ phí {fmtMoney(t.phu_phi)}</div>
+              )}
+            </div>
           ))}
           {row("🧪 Chỉ định", t.chi_dinh)}
           {row("📝 Lưu ý", t.ghi_chu_giao)}
