@@ -432,8 +432,8 @@ function DetailSheet({ task: t, chip, onClose, onReceive }) {
   );
 }
 
-// Màn hình tóm tắt SAU KHI xác nhận (chốt 19/11): hiện thông tin phiếu để user xem lại; bấm "Về trang chủ" hoặc tự chuyển sau 5 giây
-const HOME_AFTER_SEC = 5;
+// Màn hình tóm tắt SAU KHI xác nhận (chốt 19/11): hiện thông tin phiếu để user xem lại; bấm "Về trang chủ" hoặc tự chuyển sau 10 giây
+const HOME_AFTER_SEC = 10;
 function DoneSummary({ task: t, info, onHome }) {
   const [left, setLeft] = useState(HOME_AFTER_SEC);
   const fired = useRef(false);
