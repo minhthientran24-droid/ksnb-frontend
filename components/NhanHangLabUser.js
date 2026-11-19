@@ -375,7 +375,7 @@ function DetailSheet({ task: t, chip, onClose, onReceive }) {
 }
 
 function ConfirmSheet({ task, onClose, onDone }) {
-  const [qty, setQty] = useState(task.so_luong === null || task.so_luong === undefined ? "" : String(task.so_luong));
+  const [qty, setQty] = useState(""); // chốt 19/11: để trống, user tự nhập (không điền sẵn)
   const [note, setNote] = useState("");
   const [photos, setPhotos] = useState([]); // [{file, url}]
   const [busy, setBusy] = useState("");
@@ -403,6 +403,13 @@ function ConfirmSheet({ task, onClose, onDone }) {
   useEffect(() => { getLoc(); destP.current = getNhanHangDiemHen(task.id).catch(() => null); }, []);
   const [warn, setWarn] = useState(null); // {items: [...], resolve}
   const askWarn = (items) => new Promise((resolve) => setWarn({ items, resolve }));
+  // Số lượng = 0 -> không nhận được hàng: chọn "khách huỷ giao mẫu" hoặc "hẹn lại giờ giao" (nhập ngày giờ mới)
+  const [zero, setZero] = useState(null); // {step: "choose" | "time", val, err, resolve}
+  const askZero = () => new Promise((resolve) => {
+    const h = new Date(task.han_lay).getTime();
+    const base = new Date(h > Date.now() ? h : Date.now() + 3600 * 1000);
+    setZero({ step: "choose", val: base.toLocaleString("sv-SE", { timeZone: TZ }).slice(0, 16).replace(" ", "T"), err: "", resolve });
+  });
 
   useEffect(() => () => photos.forEach((p) => URL.revokeObjectURL(p.url)), []);
 
@@ -422,11 +429,26 @@ function ConfirmSheet({ task, onClose, onDone }) {
 
   async function submit(ketQua) {
     setErr("");
+    let q = null;
+    if (ketQua === "da_nhan") {
+      if (String(qty).trim() === "") { setErr("Vui lòng nhập số lượng thực nhận."); return; }
+      q = Number(String(qty).replace(",", "."));
+      if (!Number.isFinite(q) || q < 0) { setErr("Số lượng thực nhận không hợp lệ (không được âm)."); return; }
+      if (q === 0 && !note.trim()) { setErr("Số lượng bằng 0 nghĩa là không nhận được hàng: hãy ghi lý do vào ô ghi chú."); return; }
+    }
     if (ketQua === "khong_nhan_duoc" && !note.trim()) { setErr("Không nhận được hàng: hãy ghi lý do vào ô ghi chú."); return; }
     if (ketQua === "khong_nhan_duoc" && !window.confirm("Xác nhận KHÔNG nhận được hàng tại địa chỉ này?")) return;
     setBusy(ketQua);
     const L = await waitLoc();
     if (L.st !== "ok" && !window.confirm(`Chưa lấy được vị trí của bạn (${L.msg || "đang chờ định vị"}).\nVẫn xác nhận mà không có vị trí?`)) { setBusy(""); return; }
+    let hanLayMoi = "";
+    let noteSend = note;
+    if (ketQua === "da_nhan" && q === 0) {
+      const z = await askZero();
+      if (!z) { setBusy(""); return; }
+      if (z.kind === "huy") { ketQua = "khong_nhan_duoc"; noteSend = `Khách hàng hủy giao mẫu. ${note.trim()}`; }
+      else { ketQua = "hen_lai"; hanLayMoi = z.iso; }
+    }
     if (ketQua === "da_nhan") {
       const items = [];
       const D = destP.current ? await Promise.race([destP.current, new Promise((r) => setTimeout(() => r(null), 8000))]) : null;
@@ -443,7 +465,7 @@ function ConfirmSheet({ task, onClose, onDone }) {
       if (items.length && !(await askWarn(items))) { setBusy(""); return; }
     }
     try {
-      await confirmNhanHang(task.id, { ketQua, ghiChu: note, soLuongThucTe: ketQua === "da_nhan" ? qty : "", files: photos.map((p) => p.file), viTri: L.st === "ok" ? L : null });
+      await confirmNhanHang(task.id, { ketQua, ghiChu: noteSend, soLuongThucTe: ketQua === "da_nhan" ? qty : "", files: photos.map((p) => p.file), viTri: L.st === "ok" ? L : null, hanLayMoi });
       onDone();
     } catch (e) {
       setErr(e.message);
@@ -463,7 +485,7 @@ function ConfirmSheet({ task, onClose, onDone }) {
         </div>
 
         <label style={{ display: "block", fontSize: 14, fontWeight: 700, margin: "16px 0 6px" }}>Số lượng thực nhận {task.so_luong !== null && task.so_luong !== undefined ? `(cần lấy: ${fmtQty(task.so_luong, task.don_vi)})` : ""}</label>
-        <input type="number" inputMode="decimal" min="0" value={qty} onChange={(e) => setQty(e.target.value)} style={{ width: "100%", padding: "13px 12px", fontSize: 17, borderRadius: 10, border: "1.5px solid var(--border)" }} />
+        <input type="number" inputMode="decimal" min="0" placeholder="Nhập số lượng" value={qty} onKeyDown={(e) => { if (["-", "+", "e", "E"].includes(e.key)) e.preventDefault(); }} onChange={(e) => setQty(e.target.value.replace(/-/g, ""))} style={{ width: "100%", padding: "13px 12px", fontSize: 17, borderRadius: 10, border: "1.5px solid var(--border)" }} />
 
         <label style={{ display: "block", fontSize: 14, fontWeight: 700, margin: "14px 0 6px" }}>Ghi chú</label>
         <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="VD: đã nhận đủ, người giao là anh A... (bắt buộc nếu không nhận được)" style={{ width: "100%", padding: "11px 12px", fontSize: 16, borderRadius: 10, border: "1.5px solid var(--border)", resize: "vertical", fontFamily: "inherit" }} />
@@ -486,7 +508,7 @@ function ConfirmSheet({ task, onClose, onDone }) {
 
         <div style={{ marginTop: 14, padding: "9px 12px", borderRadius: 10, fontSize: 13.5, background: loc.st === "ok" ? "#EEF7EA" : loc.st === "fail" ? "#FFF3E0" : "#F1F5FB", border: `1px solid ${loc.st === "ok" ? "#BBD9AE" : loc.st === "fail" ? "#F2C688" : "var(--border)"}` }}>
           {loc.st === "loading" && <>📍 Đang xác định vị trí của bạn...</>}
-          {loc.st === "ok" && <>📍 Đã lấy vị trí{loc.acc != null ? ` (sai số ~${Math.round(loc.acc)} m)` : ""} — sẽ gửi kèm khi xác nhận</>}
+          {loc.st === "ok" && <>📍 Đã lấy vị trí</>}
           {loc.st === "fail" && <>⚠️ {loc.msg}. Hãy bật GPS / cho phép vị trí rồi <button onClick={getLoc} style={{ border: "none", background: "none", color: "#1C64B4", fontWeight: 800, textDecoration: "underline", cursor: "pointer", fontSize: 13.5, padding: 0 }}>thử lại</button></>}
         </div>
 
@@ -509,6 +531,49 @@ function ConfirmSheet({ task, onClose, onDone }) {
             </div>
           </div>
         )}
+
+        {zero && (() => {
+          const done = (r) => { zero.resolve(r); setZero(null); };
+          const pad = (n) => String(n).padStart(2, "0");
+          const [zd, zt] = (zero.val || "").split("T");
+          const [zh, zm] = (zt || "08:00").split(":");
+          const setV = (d, h, m) => setZero({ ...zero, val: `${d}T${h}:${m}`, err: "" });
+          const selS = { padding: "12px 6px", fontSize: 16, borderRadius: 10, border: "1.5px solid var(--border)", background: "#fff", flex: 1 };
+          const btn = (bg, col, bd) => ({ width: "100%", padding: "14px 8px", borderRadius: 12, border: bd || "none", background: bg, color: col, fontWeight: 800, fontSize: 16, cursor: "pointer", marginTop: 10 });
+          return (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(5,10,20,0.78)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 420, padding: "20px 18px" }}>
+                {zero.step === "choose" ? (
+                  <>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: "#C0392B" }}>⚠️ Không nhận được hàng</div>
+                    <div style={{ fontSize: 15.5, lineHeight: 1.5, marginTop: 10 }}>Số lượng thực nhận bằng <b style={{ color: "#C0392B" }}>0</b>. Vui lòng chọn lý do:</div>
+                    <button onClick={() => done({ kind: "huy" })} style={btn("#C0392B", "#fff")}>Khách hàng hủy giao mẫu</button>
+                    <button onClick={() => setZero({ ...zero, step: "time" })} style={btn("#1C64B4", "#fff")}>Hẹn lại giờ giao</button>
+                    <button onClick={() => done(null)} style={btn("#fff", "var(--text-600)", "1.5px solid var(--border)")}>Quay lại</button>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 18, fontWeight: 800 }}>🕒 Hẹn lại giờ giao</div>
+                    <div style={{ fontSize: 14.5, color: "var(--text-600)", marginTop: 6 }}>Chọn ngày giờ giao mẫu mới (giờ 24h):</div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 12 }}>
+                      <input type="date" value={zd || ""} onChange={(e) => setV(e.target.value, zh, zm)} style={{ ...selS, flex: 2.2 }} />
+                      <select value={zh} onChange={(e) => setV(zd, e.target.value, zm)} style={selS}>{Array.from({ length: 24 }, (_, i) => pad(i)).map((h) => <option key={h} value={h}>{h}</option>)}</select>
+                      <b>:</b>
+                      <select value={zm} onChange={(e) => setV(zd, zh, e.target.value)} style={selS}>{Array.from({ length: 60 }, (_, i) => pad(i)).map((m) => <option key={m} value={m}>{m}</option>)}</select>
+                    </div>
+                    {zero.err && <div style={{ color: "#C0392B", fontSize: 14, marginTop: 10 }}>{zero.err}</div>}
+                    <button onClick={() => {
+                      const iso = `${zd}T${zh}:${zm}:00+07:00`;
+                      if (!zd || !(new Date(iso).getTime() > Date.now())) { setZero({ ...zero, err: "Giờ hẹn mới phải sau thời điểm hiện tại." }); return; }
+                      done({ kind: "hen", iso });
+                    }} style={btn("#3E7A2A", "#fff")}>Hoàn tất</button>
+                    <button onClick={() => setZero({ ...zero, step: "choose", err: "" })} style={btn("#fff", "var(--text-600)", "1.5px solid var(--border)")}>Quay lại</button>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         <button disabled={!!busy} onClick={() => submit("da_nhan")} style={{ width: "100%", marginTop: 18, padding: "15px 8px", borderRadius: 12, border: "none", background: "#3E7A2A", color: "#fff", fontWeight: 800, fontSize: 17, cursor: "pointer", opacity: busy ? 0.6 : 1 }}>
           {busy === "da_nhan" ? "Đang gửi..." : "✅ Xác nhận đã nhận hàng"}
