@@ -481,9 +481,10 @@ function ConfirmSheet({ task, onClose, onDone }) {
         const p = Math.round(som);
         items.push({ icon: "⏰", pre: "Bạn đang nhận sớm hơn giờ hẹn khoảng ", strong: p >= 60 ? `${Math.floor(p / 60)} giờ${p % 60 ? ` ${p % 60} phút` : ""}` : `${p} phút`, post: ` (hẹn lúc ${fmtHM(task.han_lay)} ${fmtDM(task.han_lay)}).` });
       }
-      if (task.so_luong != null && q != null && q > 0 && q < task.so_luong) { // nhận ít hơn số lượng yêu cầu (chốt 19/11)
-        const thieu = Math.round((task.so_luong - q) * 1000) / 1000;
-        items.push({ qty: true, icon: "📦", pre: "Số lượng thực nhận ", strong: fmtQty(q, task.don_vi), post: ` ít hơn số lượng yêu cầu (${fmtQty(task.so_luong, task.don_vi)}), thiếu ` , strong2: fmtQty(thieu, task.don_vi), post2: "." });
+      if (task.so_luong != null && q != null && q > 0 && q !== task.so_luong) { // nhận ít hơn / nhiều hơn số lượng yêu cầu (chốt 19/11)
+        const chenh = Math.round(Math.abs(task.so_luong - q) * 1000) / 1000;
+        const it = q < task.so_luong;
+        items.push({ qty: true, icon: "📦", pre: "Số lượng thực nhận ", strong: fmtQty(q, task.don_vi), post: ` ${it ? "ít hơn" : "nhiều hơn"} số lượng yêu cầu (${fmtQty(task.so_luong, task.don_vi)}), ${it ? "thiếu" : "dư"} `, strong2: fmtQty(chenh, task.don_vi), post2: "." });
       }
       if (items.length && !(await askWarn(items))) { setBusy(""); return; }
     }
