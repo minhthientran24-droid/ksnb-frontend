@@ -228,7 +228,7 @@ export default function NhanHangLabUser() {
     const tag = g.key === todayKey ? { t: "Hôm nay", c: "#1C64B4" } : g.key < todayKey ? (hasPend ? { t: "Quá hạn", c: "#C0392B" } : { t: "Đã qua", c: "#6B7280" }) : g.key === tomorrowKey ? { t: "Ngày mai", c: "#3E7A2A" } : null;
     return (
       <div key={`h-${g.key}`} style={{ display: "flex", alignItems: "center", gap: 10, margin: "18px 0 10px" }}>
-        <div style={{ fontSize: 14.5, fontWeight: 800, textTransform: "capitalize", whiteSpace: "nowrap" }}>📅 {d}</div>
+        <div style={{ fontSize: 14.5, fontWeight: 800, textTransform: "capitalize", minWidth: 0 }}>📅 {d}</div>
         {tag && <span style={{ background: tag.c, color: "#fff", fontSize: 11.5, fontWeight: 800, padding: "2px 9px", borderRadius: 999, whiteSpace: "nowrap" }}>{tag.t}</span>}
         <div style={{ flex: 1, height: 1.5, background: "var(--border)" }} />
         <span style={{ fontSize: 14.5, fontWeight: 800, color: "#1C64B4", whiteSpace: "nowrap", marginLeft: "auto", textAlign: "right" }}>{g.list.length} Điểm nhận</span>
@@ -432,7 +432,52 @@ function DetailSheet({ task: t, chip, onClose, onReceive }) {
   );
 }
 
+// Màn hình tóm tắt SAU KHI xác nhận (chốt 19/11): hiện thông tin phiếu để user xem lại; bấm "Về trang chủ" hoặc tự chuyển sau 5 giây
+const HOME_AFTER_SEC = 5;
+function DoneSummary({ task: t, info, onHome }) {
+  const [left, setLeft] = useState(HOME_AFTER_SEC);
+  const fired = useRef(false);
+  const go = () => { if (!fired.current) { fired.current = true; onHome(); } };
+  useEffect(() => {
+    if (left <= 0) { go(); return undefined; }
+    const h = setTimeout(() => setLeft((n) => n - 1), 1000);
+    return () => clearTimeout(h);
+  }, [left]);
+  const R = info.ketQua === "da_nhan" ? { icon: "✅", text: "Đã nhận hàng thành công", color: "#3E7A2A" }
+    : info.ketQua === "hen_lai" ? { icon: "🕒", text: "Đã hẹn lại giờ giao", color: "#E8590C" }
+    : { icon: "❌", text: "Đã ghi nhận: không nhận được hàng", color: "#6B7280" };
+  const row = (label, val) => val ? (
+    <div style={{ padding: "9px 0", borderTop: "1px solid var(--border)" }}>
+      <div style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 16, lineHeight: 1.4 }}>{val}</div>
+    </div>
+  ) : null;
+  const tong = (t.so_tien_thu || 0) + (t.phu_phi || 0);
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(5,10,20,0.78)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={go}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", width: "100%", maxWidth: 640, maxHeight: "92vh", overflowY: "auto", borderRadius: "18px 18px 0 0", padding: "18px 18px 22px", boxShadow: "0 -6px 28px rgba(0,0,0,0.45)" }}>
+        <div style={{ textAlign: "center", marginBottom: 6 }}>
+          <div style={{ fontSize: 40, lineHeight: 1 }}>{R.icon}</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: R.color, marginTop: 6 }}>{R.text}</div>
+          {info.ketQua === "hen_lai" && info.hanLayMoi && <div style={{ fontSize: 15, marginTop: 4 }}>Giờ giao mới: <b>{fmtHM(info.hanLayMoi)} {fmtDM(info.hanLayMoi)}</b></div>}
+        </div>
+        <div style={{ marginTop: 8 }}>
+          {row("🔖 Mã đơn hàng", t.ma_don ? <b>{t.ma_don}</b> : null)}
+          {row("🏥 Điểm lấy mẫu", <b>{t.ten_diem || "—"}</b>)}
+          {row("📦 Số mẫu", info.ketQua === "da_nhan" ? <><b>Thực nhận {fmtQty(info.q)}</b>{t.so_luong != null && <span style={{ color: "var(--text-600)" }}> · cần lấy {fmtQty(t.so_luong)}</span>}</> : (t.so_luong != null ? <>Cần lấy <b>{fmtQty(t.so_luong)}</b></> : null))}
+          {(t.so_tien_thu != null || t.phu_phi != null) && row("💰 Số tiền cần thu", <b style={{ color: "#D32F2F", fontSize: 18 }}>{fmtMoney(tong)}</b>)}
+          {row("📍 Địa chỉ", t.dia_chi)}
+          {(t.nguoi_lien_he || t.sdt_lien_he) && row("👥 Người liên hệ", <>{t.nguoi_lien_he && <b>{t.nguoi_lien_he}</b>}{t.nguoi_lien_he && t.sdt_lien_he && " · "}{t.sdt_lien_he}</>)}
+          {info.ghiChu && row("📝 Ghi chú của bạn", info.ghiChu)}
+        </div>
+        <button onClick={go} style={{ width: "100%", marginTop: 14, padding: "14px 8px", borderRadius: 10, border: "none", background: "#1C64B4", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer" }}>🏠 Về trang chủ ({left}s)</button>
+      </div>
+    </div>
+  );
+}
+
 function ConfirmSheet({ task, onClose, onDone }) {
+  const [done, setDone] = useState(null); // {ketQua, q, hanLayMoi, ghiChu} sau khi xác nhận thành công -> màn hình tóm tắt
   const [qty, setQty] = useState(""); // chốt 19/11: để trống, user tự nhập (không điền sẵn)
   const [note, setNote] = useState("");
   const [photos, setPhotos] = useState([]); // [{file, url}]
@@ -529,12 +574,14 @@ function ConfirmSheet({ task, onClose, onDone }) {
     }
     try {
       await confirmNhanHang(task.id, { ketQua, ghiChu: noteSend, soLuongThucTe: ketQua === "da_nhan" ? qty : "", files: photos.map((p) => p.file), viTri: L.st === "ok" ? L : null, hanLayMoi });
-      onDone();
+      setDone({ ketQua, q, hanLayMoi, ghiChu: noteSend.trim() }); // chuyển sang màn hình tóm tắt; tải lại danh sách khi về trang chủ
     } catch (e) {
       setErr(e.message);
       setBusy("");
     }
   }
+
+  if (done) return <DoneSummary task={task} info={done} onHome={onDone} />;
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={onClose}>
