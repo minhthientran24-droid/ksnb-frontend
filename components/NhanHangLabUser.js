@@ -240,7 +240,7 @@ export default function NhanHangLabUser() {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 15.5, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.ten_diem || t.dia_chi}</div>
             {t.ten_diem && <div style={{ fontSize: 13.5, color: "var(--text-600)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📍 {t.dia_chi}</div>}
-            <div style={{ fontSize: 13.5, marginTop: 2 }}>📦 {isDone ? `Thực nhận: ${fmtQty(t.so_luong_thuc_te)}` : `Cần lấy: ${fmtQty(t.so_luong)}`}{!isDone && t.so_tien_thu != null && <span style={{ marginLeft: 10, fontWeight: 700 }}>💰 Thu: {fmtMoney(t.so_tien_thu)}</span>}</div>
+            <div style={{ fontSize: 13.5, marginTop: 2 }}>📦 {isDone ? `Thực nhận: ${fmtQty(t.so_luong_thuc_te)}` : `Cần lấy: ${fmtQty(t.so_luong)}`}{!isDone && (t.so_tien_thu != null || t.phu_phi != null) && <span style={{ marginLeft: 10, fontWeight: 700 }}>💰 Thu: <span style={{ color: "#D32F2F" }}>{fmtMoney((t.so_tien_thu || 0) + (t.phu_phi || 0))}</span></span>}</div>
           </div>
           <div style={{ fontSize: 26, color: "var(--text-600)", lineHeight: 1 }}>›</div>
         </div>
@@ -350,7 +350,6 @@ function DetailSheet({ task: t, chip, onClose, onReceive }) {
         </div>
         <div style={{ marginTop: 12 }}>
           {row("🔖 Mã đơn hàng", t.ma_don ? <b>{t.ma_don}</b> : null)}
-          {row("🏥 Tên đối tác", t.ten_diem ? <b>{t.ten_diem}</b> : null)}
           {row("⏰ Thời gian lấy mẫu", <b style={{ textTransform: "capitalize" }}>{full}</b>)}
           {row("📍 Địa chỉ lấy mẫu", t.dia_chi)}
           {(t.nguoi_lien_he || t.sdt_lien_he) && (
@@ -358,16 +357,21 @@ function DetailSheet({ task: t, chip, onClose, onReceive }) {
               <div style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 2 }}>👥 Người liên hệ</div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                 <div style={{ fontSize: 16, lineHeight: 1.45 }}>
-                  {t.nguoi_lien_he && <div style={{ fontWeight: 700 }}>{t.nguoi_lien_he}</div>}
-                  {t.sdt_lien_he && <div>{t.sdt_lien_he}</div>}
+                  {t.nguoi_lien_he && <b>{t.nguoi_lien_he}</b>}
+                  {t.nguoi_lien_he && t.sdt_lien_he && " · "}
+                  {t.sdt_lien_he}
                 </div>
                 {t.sdt_lien_he && <CallBtn phone={t.sdt_lien_he.replace(/[^0-9+]/g, "")} label={t.nguoi_lien_he || "người liên hệ"} />}
               </div>
             </div>
           )}
           {row("📦 Số lượng mẫu lấy", t.so_luong != null ? <b>{fmtQty(t.so_luong)}</b> : null)}
-          {row("💰 Số tiền cần thu", t.so_tien_thu != null ? <b>{fmtMoney(t.so_tien_thu)}</b> : null)}
-          {row("➕ Phụ phí", t.phu_phi != null ? <b>{fmtMoney(t.phu_phi)}</b> : null)}
+          {(t.so_tien_thu != null || t.phu_phi != null) && row("💰 Số tiền cần thu", (
+            <span>
+              {t.so_tien_thu != null && t.phu_phi != null && <span style={{ color: "var(--text-600)", fontSize: 14.5 }}>{fmtMoney(t.so_tien_thu)} + {fmtMoney(t.phu_phi)} = </span>}
+              <b style={{ color: "#D32F2F", fontSize: 18 }}>{fmtMoney((t.so_tien_thu || 0) + (t.phu_phi || 0))}</b>
+            </span>
+          ))}
           {row("🧪 Chỉ định", t.chi_dinh)}
           {row("📝 Lưu ý", t.ghi_chu_giao)}
           {t.created_name && (
