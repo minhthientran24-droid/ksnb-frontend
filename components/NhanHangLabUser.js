@@ -437,13 +437,12 @@ function ConfirmSheet({ task, onClose, onDone }) {
       if (q === 0 && !note.trim()) { setErr("Số lượng bằng 0 nghĩa là không nhận được hàng: hãy ghi lý do vào ô ghi chú."); return; }
     }
     if (ketQua === "khong_nhan_duoc" && !note.trim()) { setErr("Không nhận được hàng: hãy ghi lý do vào ô ghi chú."); return; }
-    if (ketQua === "khong_nhan_duoc" && !window.confirm("Xác nhận KHÔNG nhận được hàng tại địa chỉ này?")) return;
     setBusy(ketQua);
     const L = await waitLoc();
     if (L.st !== "ok" && !window.confirm(`Chưa lấy được vị trí của bạn (${L.msg || "đang chờ định vị"}).\nVẫn xác nhận mà không có vị trí?`)) { setBusy(""); return; }
     let hanLayMoi = "";
     let noteSend = note;
-    if (ketQua === "da_nhan" && q === 0) {
+    if ((ketQua === "da_nhan" && q === 0) || ketQua === "khong_nhan_duoc") { // cả 2 đường "không nhận được" đều hỏi: khách huỷ / hẹn lại giờ giao
       const z = await askZero();
       if (!z) { setBusy(""); return; }
       if (z.kind === "huy") { ketQua = "khong_nhan_duoc"; noteSend = `Khách hàng hủy giao mẫu. ${note.trim()}`; }
