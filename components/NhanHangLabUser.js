@@ -23,6 +23,17 @@ function haversineM(lat1, lng1, lat2, lng2) {
 const CANH_BAO_XA_M = 1000; // vị trí hoàn tất cách điểm nhận mẫu hơn 1 km -> cảnh báo
 const CANH_BAO_SOM_PHUT = 60; // hoàn tất sớm hơn giờ hẹn từ 60 phút trở lên -> cảnh báo
 const fmtQty = (q) => (q === null || q === undefined ? "—" : `${q.toLocaleString("vi-VN")} mẫu`);
+// Làm sạch địa chỉ trước khi gửi Google Maps: địa chỉ đối tác hay có nhiều số nhà nối nhau ("803-805-807-809 Đường 3/2") + ghi chú trong ngoặc,
+// khiến Google hiểu thành TÊN cơ sở khác và chỉ sai. Bỏ phần trong ngoặc, chỉ lấy số nhà đầu của dải số, "Tp.HCM" -> "Hồ Chí Minh".
+const cleanAddr = (a) => {
+  let s = String(a || "");
+  s = s.replace(/\([^)]*\)/g, " ");
+  s = s.replace(/^\s*(\d+[A-Za-z]?)(?:\s*[-–]\s*\d+[A-Za-z]?)+/, "$1");
+  s = s.replace(/\b(?:Tp|TP)\.?\s*HCM\b/g, "Hồ Chí Minh");
+  s = s.replace(/\s+,/g, ",").replace(/,\s*,+/g, ",").replace(/\s{2,}/g, " ").replace(/^[\s,]+|[\s,]+$/g, "");
+  s = s.replace(/([^,\s])\s+(Hồ Chí Minh)(,|$)/, "$1, $2$3");
+  return s || String(a || "");
+};
 const fmtMoney = (v) => (v === null || v === undefined ? "—" : `${v.toLocaleString("vi-VN")} đ`);
 
 // Nút gọi điện (xanh #008CE3, vòng trắng + ống nghe) — bấm = gọi số
@@ -330,7 +341,7 @@ export default function NhanHangLabUser() {
 
 // Chi tiết 1 điểm nhận mẫu (bấm từ danh sách)
 function DetailSheet({ task: t, chip, onClose, onReceive }) {
-  const maps = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(t.dia_chi)}`;
+  const maps = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(cleanAddr(t.dia_chi))}`;
   const full = new Date(t.han_lay).toLocaleString("vi-VN", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TZ });
   const row = (label, val) => val ? (
     <div style={{ padding: "10px 0", borderTop: "1px solid var(--border)" }}>
