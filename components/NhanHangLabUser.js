@@ -455,6 +455,7 @@ function ConfirmSheet({ task, onClose, onDone }) {
       q = Number(String(qty).replace(",", "."));
       if (!Number.isFinite(q) || q < 0) { setErr("Số lượng thực nhận không hợp lệ (không được âm)."); return; }
       if (q === 0 && !note.trim()) { setErr("Số lượng bằng 0 nghĩa là không nhận được hàng: hãy ghi lý do vào ô ghi chú."); return; }
+      if (q > 0 && task.so_luong != null && q !== task.so_luong && !note.trim()) { setErr("Số lượng nhận khác số lượng yêu cầu: hãy ghi lý do vào ô ghi chú."); return; }
     }
     if (ketQua === "khong_nhan_duoc" && !note.trim()) { setErr("Không nhận được hàng: hãy ghi lý do vào ô ghi chú."); return; }
     setBusy(ketQua);
@@ -512,7 +513,7 @@ function ConfirmSheet({ task, onClose, onDone }) {
         <input type="number" inputMode="decimal" min="0" placeholder="Nhập số lượng" value={qty} onKeyDown={(e) => { if (["-", "+", "e", "E"].includes(e.key)) e.preventDefault(); }} onChange={(e) => setQty(e.target.value.replace(/-/g, ""))} style={{ width: "100%", padding: "13px 12px", fontSize: 17, borderRadius: 10, border: "1.5px solid var(--border)" }} />
 
         <label style={{ display: "block", fontSize: 14, fontWeight: 700, margin: "14px 0 6px" }}>Ghi chú</label>
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="VD: đã nhận đủ, người giao là anh A... (bắt buộc nếu không nhận được)" style={{ width: "100%", padding: "11px 12px", fontSize: 16, borderRadius: 10, border: "1.5px solid var(--border)", resize: "vertical", fontFamily: "inherit" }} />
+        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="VD: đã nhận đủ, người giao là anh A... (bắt buộc nếu không nhận được hoặc nhận lệch số lượng)" style={{ width: "100%", padding: "11px 12px", fontSize: 16, borderRadius: 10, border: "1.5px solid var(--border)", resize: "vertical", fontFamily: "inherit" }} />
 
         <label style={{ display: "block", fontSize: 14, fontWeight: 700, margin: "14px 0 6px" }}>Ảnh ({photos.length}/8)</label>
         <input ref={input} type="file" accept="image/*" multiple onChange={addFiles} style={{ display: "none" }} />
