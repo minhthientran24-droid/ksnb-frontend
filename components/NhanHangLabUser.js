@@ -481,6 +481,10 @@ function ConfirmSheet({ task, onClose, onDone }) {
         const p = Math.round(som);
         items.push({ icon: "⏰", pre: "Bạn đang nhận sớm hơn giờ hẹn khoảng ", strong: p >= 60 ? `${Math.floor(p / 60)} giờ${p % 60 ? ` ${p % 60} phút` : ""}` : `${p} phút`, post: ` (hẹn lúc ${fmtHM(task.han_lay)} ${fmtDM(task.han_lay)}).` });
       }
+      if (task.so_luong != null && q != null && q > 0 && q < task.so_luong) { // nhận ít hơn số lượng yêu cầu (chốt 19/11)
+        const thieu = Math.round((task.so_luong - q) * 1000) / 1000;
+        items.push({ qty: true, icon: "📦", pre: "Số lượng thực nhận ", strong: fmtQty(q, task.don_vi), post: ` ít hơn số lượng yêu cầu (${fmtQty(task.so_luong, task.don_vi)}), thiếu ` , strong2: fmtQty(thieu, task.don_vi), post2: "." });
+      }
       if (items.length && !(await askWarn(items))) { setBusy(""); return; }
     }
     try {
@@ -539,10 +543,10 @@ function ConfirmSheet({ task, onClose, onDone }) {
               <div style={{ fontSize: 18, fontWeight: 800, color: "#C0392B" }}>⚠️ Vui lòng kiểm tra lại</div>
               <div style={{ marginTop: 12 }}>
                 {warn.items.map((w, i) => (
-                  <div key={i} style={{ fontSize: 15.5, lineHeight: 1.5, marginBottom: 10 }}>{w.icon} {w.pre}<b style={{ color: "#C0392B", fontWeight: 800 }}>{w.strong}</b>{w.post}</div>
+                  <div key={i} style={{ fontSize: 15.5, lineHeight: 1.5, marginBottom: 10 }}>{w.icon} {w.pre}<b style={{ color: "#C0392B", fontWeight: 800 }}>{w.strong}</b>{w.post}{w.strong2 && <b style={{ color: "#C0392B", fontWeight: 800 }}>{w.strong2}</b>}{w.post2}</div>
                 ))}
               </div>
-              <div style={{ fontSize: 14.5, color: "var(--text-600)", lineHeight: 1.5 }}>Hãy kiểm tra xem bạn có bấm nhận hàng nhầm chỗ không. Nếu nhầm, bấm <b>Hủy</b>. Nếu đúng, bấm <b>Hoàn tất</b>.</div>
+              <div style={{ fontSize: 14.5, color: "var(--text-600)", lineHeight: 1.5 }}>{warn.items.every((w) => w.qty) ? "Hãy kiểm tra lại số lượng đã nhận. Nếu nhập sai, bấm " : warn.items.some((w) => w.qty) ? "Hãy kiểm tra lại các thông tin trên. Nếu chưa đúng, bấm " : "Hãy kiểm tra xem bạn có bấm nhận hàng nhầm chỗ không. Nếu nhầm, bấm "}<b>Hủy</b>. Nếu đúng, bấm <b>Hoàn tất</b>.</div>
               <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
                 <button onClick={() => { warn.resolve(false); setWarn(null); }} style={{ flex: 1, padding: "14px 8px", borderRadius: 10, border: "1.5px solid #C0392B", background: "#fff", color: "#C0392B", fontWeight: 800, fontSize: 16, cursor: "pointer" }}>Hủy</button>
                 <button onClick={() => { warn.resolve(true); setWarn(null); }} style={{ flex: 1.2, padding: "14px 8px", borderRadius: 10, border: "none", background: "#3E7A2A", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer" }}>Hoàn tất</button>
