@@ -66,6 +66,14 @@ export default function GpsRouteModal({ device, onClose }) {
   const [error, setError] = useState("");
   const [tab, setTab] = useState("stops");
   const [sel, setSel] = useState(null);
+  // Khung hẹp (điện thoại / cửa sổ nhỏ): bản đồ ở trên, danh sách ở dưới, mỗi bên 1 nửa chiều cao — danh sách tự cuộn bên trong
+  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && (window.innerWidth - 24) * 0.85 < 980);
+  useEffect(() => {
+    const f = () => setNarrow((window.innerWidth - 24) * 0.85 < 980);
+    window.addEventListener("resize", f);
+    return () => window.removeEventListener("resize", f);
+  }, []);
+  useEffect(() => { const t = setTimeout(() => mapRef.current && mapRef.current.invalidateSize(), 120); return () => clearTimeout(t); }, [narrow]);
 
   const mapEl = useRef(null);
   const mapRef = useRef(null);
@@ -290,8 +298,8 @@ export default function GpsRouteModal({ device, onClose }) {
         </div>
 
         {/* Bản đồ + danh sách */}
-        <div style={{ flex: 1, minHeight: 0, display: "flex", flexWrap: "wrap" }}>
-          <div style={{ flex: "1 1 560px", minHeight: 320, position: "relative" }}>
+        <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: narrow ? "column" : "row" }}>
+          <div style={{ flex: narrow ? "1 1 50%" : "1 1 0", minHeight: 0, minWidth: 0, position: "relative" }}>
             <div ref={mapEl} style={{ position: "absolute", inset: 0 }} />
             {!loading && !error && data && pts.length === 0 && stops.length === 0 && (
               <div style={{ position: "absolute", top: 14, left: "50%", transform: "translateX(-50%)", zIndex: 500, background: "#fff", padding: "8px 16px", borderRadius: 8, boxShadow: "0 2px 10px rgba(0,0,0,0.25)", fontSize: 14 }}>
@@ -300,7 +308,7 @@ export default function GpsRouteModal({ device, onClose }) {
             )}
           </div>
 
-          <div style={{ flex: "0 0 400px", maxWidth: "100%", minHeight: 260, borderLeft: "1px solid var(--border)", display: "flex", flexDirection: "column", minWidth: 0 }}>
+          <div style={narrow ? { flex: "1 1 50%", minHeight: 0, borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", minWidth: 0 } : { flex: "0 0 400px", minHeight: 0, borderLeft: "1px solid var(--border)", display: "flex", flexDirection: "column", minWidth: 0 }}>
             <div style={{ display: "flex", borderBottom: "1px solid var(--border)" }}>
               {[["stops", `Điểm dừng (${stops.length})`], ["points", `Lộ trình (${pts.length} điểm)`]].map(([k, l]) => (
                 <div
@@ -311,7 +319,7 @@ export default function GpsRouteModal({ device, onClose }) {
                 </div>
               ))}
             </div>
-            <div style={{ flex: 1, overflowY: "auto" }}>
+            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
               {tab === "stops" && (
                 stops.length === 0 ? (
                   <div style={{ padding: 16, fontSize: 13.5, color: "var(--text-400)" }}>{data ? "Không có điểm dừng." : ""}</div>
