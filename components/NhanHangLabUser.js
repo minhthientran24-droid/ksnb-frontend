@@ -111,8 +111,16 @@ export default function NhanHangLabUser() {
   const focusId = Number(router.query.task) || null;
   const geoTries = useRef(0);
 
+  const doneDays = useRef(1); // đã xong: mặc định chỉ hôm nay; mỗi lần "Xem thêm" +7 ngày
+  const [moreBusy, setMoreBusy] = useState(false);
   function load() {
-    return getNhanHangMy().then((r) => { setData(r); setErr(""); }).catch((e) => setErr(e.message));
+    return getNhanHangMy(undefined, doneDays.current).then((r) => { setData(r); setErr(""); }).catch((e) => setErr(e.message));
+  }
+  async function loadMore() {
+    setMoreBusy(true);
+    doneDays.current += 7;
+    await load();
+    setMoreBusy(false);
   }
 
   useEffect(() => {
@@ -166,9 +174,11 @@ export default function NhanHangLabUser() {
   const tomorrowKey = data ? dayKey(new Date(new Date(data.server_time).getTime() + 86400000).toISOString()) : "";
 
   // Nhóm theo NGÀY (hạn lấy), ngày cũ trước; trong ngày theo giờ
+  // Tab "Đã xong": nhóm theo ngày XÁC NHẬN, ngày mới nhất lên trước
+  const dayOf = (t) => (tab === "cho" ? t.han_lay : t.received_at || t.han_lay);
   const groups = [];
-  [...(tab === "cho" ? pending : done)].sort((a, b) => (tab === "cho" ? 1 : -1) * (new Date(a.han_lay) - new Date(b.han_lay))).forEach((t) => {
-    const k = dayKey(t.han_lay);
+  [...(tab === "cho" ? pending : done)].sort((a, b) => (tab === "cho" ? 1 : -1) * (new Date(dayOf(a)) - new Date(dayOf(b)))).forEach((t) => {
+    const k = dayKey(dayOf(t));
     let g = groups[groups.length - 1];
     if (!g || g.key !== k) { g = { key: k, list: [] }; groups.push(g); }
     g.list.push(t);
@@ -270,7 +280,7 @@ export default function NhanHangLabUser() {
       {data && (
         <>
           <div style={{ display: "flex", gap: 10, marginBottom: 6 }}>
-            {[["cho", "Chờ lấy", pending.length, "#1C64B4"], ["xong", "Đã xong", done.length, "#3E7A2A"]].map(([k, label, n, color]) => {
+            {[["cho", "Chờ lấy", pending.length, "#1C64B4"], ["xong", "Đã xong", data.done_today ?? done.length, "#3E7A2A"]].map(([k, label, n, color]) => {
               const on = tab === k;
               return (
                 <button key={k} onClick={() => setTab(k)}
@@ -281,13 +291,18 @@ export default function NhanHangLabUser() {
               );
             })}
           </div>
-          {groups.length === 0 && <div className="placeholder-box">{tab === "cho" ? (items.length === 0 ? "Hiện chưa có điểm nhận mẫu nào được phân công cho bạn." : "Không còn điểm nào chờ lấy 🎉") : "Chưa có điểm nào đã xong trong 7 ngày gần đây."}</div>}
+          {groups.length === 0 && <div className="placeholder-box">{tab === "cho" ? (items.length === 0 ? "Hiện chưa có điểm nhận mẫu nào được phân công cho bạn." : "Không còn điểm nào chờ lấy 🎉") : (doneDays.current > 1 ? "Chưa có điểm nào đã xong trong khoảng thời gian này." : "Hôm nay chưa có điểm nào đã xong.")}</div>}
           {groups.map((g) => (
             <div key={g.key}>
               {renderDayHeader(g)}
               {g.list.map(renderTask)}
             </div>
           ))}
+          {tab === "xong" && data.done_more && (
+            <button onClick={loadMore} disabled={moreBusy} style={{ width: "100%", marginTop: 16, padding: "14px 8px", borderRadius: 12, border: "1.5px solid #1C64B4", background: "#fff", color: "#1C64B4", fontWeight: 800, fontSize: 16, cursor: "pointer", opacity: moreBusy ? 0.6 : 1 }}>
+              {moreBusy ? "Đang tải..." : "Xem thêm"}
+            </button>
+          )}
         </>
       )}
 
