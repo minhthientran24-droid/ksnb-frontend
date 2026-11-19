@@ -22,7 +22,20 @@ function haversineM(lat1, lng1, lat2, lng2) {
 }
 const CANH_BAO_XA_M = 1000; // vị trí hoàn tất cách điểm nhận mẫu hơn 1 km -> cảnh báo
 const CANH_BAO_SOM_PHUT = 60; // hoàn tất sớm hơn giờ hẹn từ 60 phút trở lên -> cảnh báo
-const fmtQty = (q, dv) => (q === null || q === undefined ? "—" : `${q.toLocaleString("vi-VN")}${dv ? ` ${dv}` : ""}`);
+const fmtQty = (q) => (q === null || q === undefined ? "—" : `${q.toLocaleString("vi-VN")} mẫu`);
+const fmtMoney = (v) => (v === null || v === undefined ? "—" : `${v.toLocaleString("vi-VN")} đ`);
+
+// Nút gọi điện (xanh #008CE3, vòng trắng + ống nghe) — bấm = gọi số
+function CallBtn({ phone, label }) {
+  return (
+    <a href={`tel:${phone}`} aria-label={`Gọi ${label}`} style={{ flex: "none", width: 48, height: 48, borderRadius: 12, background: "#008CE3", display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>
+      <svg width="34" height="34" viewBox="0 0 48 48" aria-hidden="true">
+        <circle cx="24" cy="24" r="21" fill="none" stroke="#fff" strokeWidth="2.4" />
+        <path transform="translate(12 12)" fill="#fff" d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" />
+      </svg>
+    </a>
+  );
+}
 
 function remainText(iso, now) {
   const diff = Math.round((new Date(iso).getTime() - now) / 60000);
@@ -227,7 +240,7 @@ export default function NhanHangLabUser() {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 15.5, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.ten_diem || t.dia_chi}</div>
             {t.ten_diem && <div style={{ fontSize: 13.5, color: "var(--text-600)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📍 {t.dia_chi}</div>}
-            <div style={{ fontSize: 13.5, marginTop: 2 }}>📦 {isDone ? `Thực nhận: ${fmtQty(t.so_luong_thuc_te, t.don_vi)}` : `Cần lấy: ${fmtQty(t.so_luong, t.don_vi)}`}</div>
+            <div style={{ fontSize: 13.5, marginTop: 2 }}>📦 {isDone ? `Thực nhận: ${fmtQty(t.so_luong_thuc_te)}` : `Cần lấy: ${fmtQty(t.so_luong)}`}{!isDone && t.so_tien_thu != null && <span style={{ marginLeft: 10, fontWeight: 700 }}>💰 Thu: {fmtMoney(t.so_tien_thu)}</span>}</div>
           </div>
           <div style={{ fontSize: 26, color: "var(--text-600)", lineHeight: 1 }}>›</div>
         </div>
@@ -330,31 +343,39 @@ function DetailSheet({ task: t, chip, onClose, onReceive }) {
       <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", width: "100%", maxWidth: 640, maxHeight: "92vh", overflowY: "auto", borderRadius: "18px 18px 0 0", padding: "18px 18px 22px", boxShadow: "0 -6px 28px rgba(0,0,0,0.45)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
           <div>
-            <div style={{ fontSize: 19, fontWeight: 800 }}>{t.ten_diem || "Điểm nhận mẫu"}</div>
+            <div style={{ fontSize: 19, fontWeight: 800 }}>{t.ten_diem || "Đơn hàng lấy mẫu"}</div>
             <span style={{ display: "inline-block", marginTop: 6, background: chip.color, color: "#fff", fontWeight: 800, fontSize: 12.5, padding: "4px 11px", borderRadius: 999 }}>{chip.text}</span>
           </div>
           <button onClick={onClose} style={{ border: "none", background: "none", fontSize: 24, cursor: "pointer", color: "var(--text-600)" }}>✕</button>
         </div>
         <div style={{ marginTop: 12 }}>
           {row("🔖 Mã đơn hàng", t.ma_don ? <b>{t.ma_don}</b> : null)}
-          {row("⏰ Ngày hẹn lấy mẫu", <b style={{ textTransform: "capitalize" }}>{full}</b>)}
-          {row("📍 Địa chỉ", t.dia_chi)}
-          {row("📦 Số lượng mẫu", fmtQty(t.so_luong, t.don_vi))}
-          {row("🧪 Mô tả hàng", t.mo_ta_hang)}
-          {row("📝 Ghi chú đơn hàng", t.ghi_chu_giao)}
+          {row("🏥 Tên đối tác", t.ten_diem ? <b>{t.ten_diem}</b> : null)}
+          {row("⏰ Thời gian lấy mẫu", <b style={{ textTransform: "capitalize" }}>{full}</b>)}
+          {row("📍 Địa chỉ lấy mẫu", t.dia_chi)}
+          {(t.nguoi_lien_he || t.sdt_lien_he) && (
+            <div style={{ padding: "10px 0", borderTop: "1px solid var(--border)" }}>
+              <div style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 2 }}>👥 Người liên hệ</div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                <div style={{ fontSize: 16, lineHeight: 1.45 }}>
+                  {t.nguoi_lien_he && <div style={{ fontWeight: 700 }}>{t.nguoi_lien_he}</div>}
+                  {t.sdt_lien_he && <div>{t.sdt_lien_he}</div>}
+                </div>
+                {t.sdt_lien_he && <CallBtn phone={t.sdt_lien_he.replace(/[^0-9+]/g, "")} label={t.nguoi_lien_he || "người liên hệ"} />}
+              </div>
+            </div>
+          )}
+          {row("📦 Số lượng mẫu lấy", t.so_luong != null ? <b>{fmtQty(t.so_luong)}</b> : null)}
+          {row("💰 Số tiền cần thu", t.so_tien_thu != null ? <b>{fmtMoney(t.so_tien_thu)}</b> : null)}
+          {row("➕ Phụ phí", t.phu_phi != null ? <b>{fmtMoney(t.phu_phi)}</b> : null)}
+          {row("🧪 Chỉ định", t.chi_dinh)}
+          {row("📝 Lưu ý", t.ghi_chu_giao)}
           {t.created_name && (
             <div style={{ padding: "10px 0", borderTop: "1px solid var(--border)" }}>
               <div style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 2 }}>👤 Người tạo</div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                 <div style={{ fontSize: 16, lineHeight: 1.45, fontWeight: 700 }}>{t.created_name}</div>
-                {t.created_phone && (
-                  <a href={`tel:${t.created_phone}`} aria-label={`Gọi ${t.created_name}`} style={{ flex: "none", width: 48, height: 48, borderRadius: 12, background: "#008CE3", display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>
-                    <svg width="34" height="34" viewBox="0 0 48 48" aria-hidden="true">
-                      <circle cx="24" cy="24" r="21" fill="none" stroke="#fff" strokeWidth="2.4" />
-                      <path transform="translate(12 12)" fill="#fff" d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" />
-                    </svg>
-                  </a>
-                )}
+                {t.created_phone && <CallBtn phone={t.created_phone} label={t.created_name} />}
               </div>
             </div>
           )}
@@ -363,7 +384,7 @@ function DetailSheet({ task: t, chip, onClose, onReceive }) {
               <div style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 2 }}>✅ Kết quả xử lý</div>
               <div style={{ fontSize: 16, lineHeight: 1.45 }}>
                 {t.trang_thai === "da_nhan" ? "Đã nhận" : "Không nhận được"} lúc {fmtHM(t.received_at)} {fmtDM(t.received_at)}
-                {t.trang_thai === "da_nhan" && <> · Thực nhận: <b>{fmtQty(t.so_luong_thuc_te, t.don_vi)}</b></>}
+                {t.trang_thai === "da_nhan" && <> · Thực nhận: <b>{fmtQty(t.so_luong_thuc_te)}</b></>}
               </div>
               {t.ghi_chu_nhan && <div style={{ fontSize: 15, marginTop: 4 }}>📝 {t.ghi_chu_nhan}</div>}
               <PhotoThumbs ids={t.photo_ids} />
@@ -485,7 +506,7 @@ function ConfirmSheet({ task, onClose, onDone }) {
       if (task.so_luong != null && q != null && q > 0 && q !== task.so_luong) { // nhận ít hơn / nhiều hơn số lượng yêu cầu (chốt 19/11)
         const chenh = Math.round(Math.abs(task.so_luong - q) * 1000) / 1000;
         const it = q < task.so_luong;
-        items.push({ qty: true, icon: "📦", pre: "Số lượng thực nhận ", strong: fmtQty(q, task.don_vi), post: ` ${it ? "ít hơn" : "nhiều hơn"} số lượng yêu cầu (${fmtQty(task.so_luong, task.don_vi)}), ${it ? "thiếu" : "dư"} `, strong2: fmtQty(chenh, task.don_vi), post2: "." });
+        items.push({ qty: true, icon: "📦", pre: "Số lượng thực nhận ", strong: fmtQty(q), post: ` ${it ? "ít hơn" : "nhiều hơn"} số lượng yêu cầu (${fmtQty(task.so_luong)}), ${it ? "thiếu" : "dư"} `, strong2: fmtQty(chenh), post2: "." });
       }
       if (items.length && !(await askWarn(items))) { setBusy(""); return; }
     }
@@ -509,7 +530,7 @@ function ConfirmSheet({ task, onClose, onDone }) {
           <button onClick={onClose} style={{ border: "none", background: "none", fontSize: 24, cursor: "pointer", color: "var(--text-600)" }}>✕</button>
         </div>
 
-        <label style={{ display: "block", fontSize: 14, fontWeight: 700, margin: "16px 0 6px" }}>Số lượng thực nhận {task.so_luong !== null && task.so_luong !== undefined ? `(cần lấy: ${fmtQty(task.so_luong, task.don_vi)})` : ""}</label>
+        <label style={{ display: "block", fontSize: 14, fontWeight: 700, margin: "16px 0 6px" }}>Số lượng thực nhận {task.so_luong !== null && task.so_luong !== undefined ? `(cần lấy: ${fmtQty(task.so_luong)})` : ""}</label>
         <input type="number" inputMode="decimal" min="0" placeholder="Nhập số lượng" value={qty} onKeyDown={(e) => { if (["-", "+", "e", "E"].includes(e.key)) e.preventDefault(); }} onChange={(e) => setQty(e.target.value.replace(/-/g, ""))} style={{ width: "100%", padding: "13px 12px", fontSize: 17, borderRadius: 10, border: "1.5px solid var(--border)" }} />
 
         <label style={{ display: "block", fontSize: 14, fontWeight: 700, margin: "14px 0 6px" }}>Ghi chú</label>

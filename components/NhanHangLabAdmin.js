@@ -14,7 +14,8 @@ const todayVN = () => new Date().toLocaleDateString("en-CA", { timeZone: TZ });
 const fmtDist = (m) => (m < 1000 ? `${m} m` : `${(m / 1000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} km`);
 const distColor = (m) => (m <= 300 ? "#3E7A2A" : m <= 1000 ? "#E8590C" : "#C0392B");
 const distBucket = (t) => (t.trang_thai === "cho_lay" ? "—" : t.nhan_lat == null ? "Không có định vị" : t.chenh_lech_m == null ? "Chưa xác định" : t.chenh_lech_m <= 300 ? "≤ 300 m" : t.chenh_lech_m <= 1000 ? "300 m – 1 km" : "> 1 km");
-const fmtQty = (q, dv) => (q === null || q === undefined ? "—" : `${q.toLocaleString("vi-VN")}${dv ? ` ${dv}` : ""}`);
+const fmtQty = (q) => (q === null || q === undefined ? "—" : q.toLocaleString("vi-VN"));
+const fmtMoney = (v) => (v === null || v === undefined ? "—" : `${v.toLocaleString("vi-VN")} đ`);
 // <input type="datetime-local"> ("2026-11-18T14:30") <-> ISO có múi giờ Việt Nam
 const toIso = (local) => `${local}:00+07:00`;
 const toLocal = (iso) => new Date(iso).toLocaleString("sv-SE", { timeZone: TZ }).replace(" ", "T").slice(0, 16);
@@ -83,8 +84,9 @@ function TaskModal({ task, users, onClose, onSaved }) {
   const editing = !!task?.id;
   const [f, setF] = useState(() => ({
     assigned_user_id: task?.assigned_user_id || (users[0]?.id ?? ""),
-    ten_diem: task?.ten_diem || "", dia_chi: task?.dia_chi || "", so_luong: task?.so_luong ?? "", don_vi: task?.don_vi || "",
-    mo_ta_hang: task?.mo_ta_hang || "", ghi_chu_giao: task?.ghi_chu_giao || "",
+    ma_don: task?.ma_don || "", ten_diem: task?.ten_diem || "", sdt_lien_he: task?.sdt_lien_he || "", nguoi_lien_he: task?.nguoi_lien_he || "",
+    dia_chi: task?.dia_chi || "", so_luong: task?.so_luong ?? "", so_tien_thu: task?.so_tien_thu ?? "", phu_phi: task?.phu_phi ?? "",
+    chi_dinh: task?.chi_dinh || "", ghi_chu_giao: task?.ghi_chu_giao || "",
     han_lay: task?.han_lay ? toLocal(task.han_lay) : `${todayVN()}T08:00`,
   }));
   const [busy, setBusy] = useState(false);
@@ -94,13 +96,14 @@ function TaskModal({ task, users, onClose, onSaved }) {
   async function save() {
     setErr("");
     if (!f.assigned_user_id) { setErr("Chọn người nhận việc (tài khoản loại LAB)"); return; }
-    if (!f.dia_chi.trim()) { setErr("Nhập địa chỉ lấy hàng"); return; }
-    if (!f.han_lay) { setErr("Nhập giờ cần lấy"); return; }
+    if (!f.dia_chi.trim()) { setErr("Nhập địa chỉ lấy mẫu"); return; }
+    if (!f.han_lay) { setErr("Nhập thời gian lấy mẫu"); return; }
     setBusy(true);
+    const num = (v) => (v === "" ? null : Number(v));
     const body = {
-      assigned_user_id: Number(f.assigned_user_id), ten_diem: f.ten_diem, dia_chi: f.dia_chi,
-      so_luong: f.so_luong === "" ? null : Number(f.so_luong), don_vi: f.don_vi, mo_ta_hang: f.mo_ta_hang,
-      ghi_chu_giao: f.ghi_chu_giao, han_lay: toIso(f.han_lay),
+      assigned_user_id: Number(f.assigned_user_id), ma_don: f.ma_don, ten_diem: f.ten_diem, sdt_lien_he: f.sdt_lien_he, nguoi_lien_he: f.nguoi_lien_he,
+      dia_chi: f.dia_chi, so_luong: num(f.so_luong), so_tien_thu: num(f.so_tien_thu), phu_phi: num(f.phu_phi),
+      chi_dinh: f.chi_dinh, ghi_chu_giao: f.ghi_chu_giao, han_lay: toIso(f.han_lay),
     };
     try {
       const saved = editing ? await updateNhanHangTask(task.id, body) : await createNhanHangTask(body);
@@ -114,20 +117,24 @@ function TaskModal({ task, users, onClose, onSaved }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 12, width: "100%", maxWidth: 620, maxHeight: "92vh", overflowY: "auto", padding: "18px 20px" }}>
-        <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 12 }}>{editing ? "Sửa việc lấy hàng" : "Thêm việc lấy hàng"}</div>
+        <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 12 }}>{editing ? "Sửa đơn hàng lấy mẫu" : "Thêm đơn hàng lấy mẫu"}</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div><label style={labelStyle}>Người nhận việc (user LAB) *</label>
             <select style={inputStyle} value={f.assigned_user_id} onChange={set("assigned_user_id")}>
               {users.length === 0 && <option value="">— chưa có tài khoản LAB —</option>}
               {users.map((u) => <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>)}
             </select></div>
-          <div><label style={labelStyle}>Giờ cần lấy *</label><DateTime24 value={f.han_lay} onChange={(v) => setF({ ...f, han_lay: v })} /></div>
-          <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Địa chỉ lấy hàng *</label><input style={inputStyle} value={f.dia_chi} onChange={set("dia_chi")} /></div>
-          <div><label style={labelStyle}>Tên điểm / cửa hàng</label><input style={inputStyle} value={f.ten_diem} onChange={set("ten_diem")} /></div>
-          <div><label style={labelStyle}>Mô tả hàng cần lấy</label><input style={inputStyle} value={f.mo_ta_hang} onChange={set("mo_ta_hang")} /></div>
-          <div><label style={labelStyle}>Số lượng</label><input style={inputStyle} type="number" min="0" step="any" value={f.so_luong} onChange={set("so_luong")} /></div>
-          <div><label style={labelStyle}>Đơn vị</label><input style={inputStyle} value={f.don_vi} onChange={set("don_vi")} placeholder="thùng / hộp / cái..." /></div>
-          <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Ghi chú cho người lấy</label><input style={inputStyle} value={f.ghi_chu_giao} onChange={set("ghi_chu_giao")} /></div>
+          <div><label style={labelStyle}>Mã đơn hàng</label><input style={inputStyle} value={f.ma_don} onChange={set("ma_don")} placeholder={editing ? "" : "Để trống = tự đánh số"} /></div>
+          <div><label style={labelStyle}>Thời gian lấy mẫu *</label><DateTime24 value={f.han_lay} onChange={(v) => setF({ ...f, han_lay: v })} /></div>
+          <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Tên đối tác</label><input style={inputStyle} value={f.ten_diem} onChange={set("ten_diem")} /></div>
+          <div><label style={labelStyle}>Người liên hệ</label><input style={inputStyle} value={f.nguoi_lien_he} onChange={set("nguoi_lien_he")} /></div>
+          <div><label style={labelStyle}>SĐT liên hệ</label><input style={inputStyle} type="tel" value={f.sdt_lien_he} onChange={set("sdt_lien_he")} /></div>
+          <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Địa chỉ lấy mẫu *</label><input style={inputStyle} value={f.dia_chi} onChange={set("dia_chi")} /></div>
+          <div><label style={labelStyle}>Số lượng mẫu lấy</label><input style={inputStyle} type="number" min="0" step="any" value={f.so_luong} onChange={set("so_luong")} /></div>
+          <div><label style={labelStyle}>Số tiền cần thu (đ)</label><input style={inputStyle} type="number" min="0" step="any" value={f.so_tien_thu} onChange={set("so_tien_thu")} /></div>
+          <div><label style={labelStyle}>Phụ phí (đ)</label><input style={inputStyle} type="number" min="0" step="any" value={f.phu_phi} onChange={set("phu_phi")} /></div>
+          <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Chỉ định</label><input style={inputStyle} value={f.chi_dinh} onChange={set("chi_dinh")} /></div>
+          <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Lưu ý</label><input style={inputStyle} value={f.ghi_chu_giao} onChange={set("ghi_chu_giao")} /></div>
         </div>
         {err && <div style={{ color: "var(--danger)", fontSize: 13, marginTop: 10 }}>{err}</div>}
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
@@ -196,9 +203,12 @@ export default function NhanHangLabAdmin() {
     { key: "gio", get: (t) => fmtDay(t.han_lay), rank: (t) => t.han_lay, sortVal: (t) => t.han_lay, menu: 200 },
     { key: "nguoi", get: (t) => t.assigned_name || "—", sortVal: (t) => t.assigned_name || "", menu: 260 },
     { key: "diem", get: (t) => t.ten_diem || t.dia_chi, sortVal: (t) => `${t.ten_diem || ""} ${t.dia_chi || ""}`, menu: 380 },
-    { key: "sl", get: (t) => fmtQty(t.so_luong, t.don_vi), rank: (t) => t.so_luong ?? -1, sortVal: (t) => t.so_luong, menu: 180 },
+    { key: "lh", get: (t) => [t.nguoi_lien_he, t.sdt_lien_he].filter(Boolean).join(" · ") || "—", sortVal: (t) => t.nguoi_lien_he || "", menu: 240 },
+    { key: "sl", get: (t) => fmtQty(t.so_luong), rank: (t) => t.so_luong ?? -1, sortVal: (t) => t.so_luong, menu: 180 },
+    { key: "thu", get: (t) => fmtMoney(t.so_tien_thu), rank: (t) => t.so_tien_thu ?? -1, sortVal: (t) => t.so_tien_thu, menu: 200 },
+    { key: "pp", get: (t) => fmtMoney(t.phu_phi), rank: (t) => t.phu_phi ?? -1, sortVal: (t) => t.phu_phi, menu: 180 },
     { key: "tt", get: statusText, sortVal: statusText, menu: 200 },
-    { key: "slt", get: (t) => (t.trang_thai === "da_nhan" ? fmtQty(t.so_luong_thuc_te, t.don_vi) : "—"), rank: (t) => (t.trang_thai === "da_nhan" ? t.so_luong_thuc_te ?? -1 : -1), sortVal: (t) => (t.trang_thai === "da_nhan" ? t.so_luong_thuc_te : null), menu: 180 },
+    { key: "slt", get: (t) => (t.trang_thai === "da_nhan" ? fmtQty(t.so_luong_thuc_te) : "—"), rank: (t) => (t.trang_thai === "da_nhan" ? t.so_luong_thuc_te ?? -1 : -1), sortVal: (t) => (t.trang_thai === "da_nhan" ? t.so_luong_thuc_te : null), menu: 180 },
     { key: "ghichu", get: (t) => t.ghi_chu_nhan || "—", sortVal: (t) => t.ghi_chu_nhan || "", menu: 320 },
     { key: "vt", get: (t) => (t.trang_thai === "cho_lay" ? "—" : t.nhan_lat != null ? "Có định vị" : "Không có định vị"), sortVal: (t) => (t.nhan_lat != null ? 1 : 0), menu: 180 },
     { key: "kc", get: distBucket, sortVal: (t) => t.chenh_lech_m, menu: 200 },
@@ -247,7 +257,7 @@ export default function NhanHangLabAdmin() {
             <button className="fbtn" onClick={() => act("tpl", downloadNhanHangTemplate)}>📥 File mẫu</button>
             <input ref={fileRef} type="file" accept=".xlsx" style={{ display: "none" }} onChange={onImport} />
             <button className="fbtn" disabled={busy === "import"} onClick={() => fileRef.current?.click()}>{busy === "import" ? "Đang nhập..." : "📤 Import Excel"}</button>
-            <button className="login-btn" style={{ width: "auto", padding: "8px 18px" }} onClick={() => setModal({ task: null })}>+ Thêm việc</button>
+            <button className="login-btn" style={{ width: "auto", padding: "8px 18px" }} onClick={() => setModal({ task: null })}>+ Thêm đơn hàng</button>
           </div>
         </div>
       </div>
@@ -265,16 +275,16 @@ export default function NhanHangLabAdmin() {
       {err && <div style={{ color: "var(--danger)", fontSize: 13.5, marginBottom: 10 }}>{err}</div>}
 
       <div className="card">
-        <div className="card-head"><h3>Danh sách việc lấy hàng ({mcf.active ? `${shown.length}/${items.length}` : items.length})</h3><span className="note">{mcf.active && <button className="fbtn" style={{ marginRight: 8 }} onClick={mcf.clear}>✕ Bỏ lọc cột</button>}<button className="fbtn" disabled={busy === "export" || shown.length === 0} onClick={() => act("export", () => exportNhanHangExcel(shown.map((t) => t.id)))}>{busy === "export" ? "Đang tạo file..." : "📥 Tải Excel"}</button></span></div>
+        <div className="card-head"><h3>Danh sách đơn hàng lấy mẫu ({mcf.active ? `${shown.length}/${items.length}` : items.length})</h3><span className="note">{mcf.active && <button className="fbtn" style={{ marginRight: 8 }} onClick={mcf.clear}>✕ Bỏ lọc cột</button>}<button className="fbtn" disabled={busy === "export" || shown.length === 0} onClick={() => act("export", () => exportNhanHangExcel(shown.map((t) => t.id)))}>{busy === "export" ? "Đang tạo file..." : "📥 Tải Excel"}</button></span></div>
         <div className="card-body" style={{ padding: 0, overflowX: "auto" }}>
           {loading && items.length === 0 ? <div className="placeholder-box">Đang tải...</div> : items.length === 0 ? (
-            <div className="placeholder-box">Không có việc nào theo bộ lọc này. Bấm "+ Thêm việc" hoặc "Import Excel" để giao việc.</div>
+            <div className="placeholder-box">Không có đơn hàng nào theo bộ lọc này. Bấm "+ Thêm đơn hàng" hoặc "Import Excel" để giao việc.</div>
           ) : (
             <table style={{ width: "100%" }}>
               <thead>
                 <tr>
-                  {th("ma", "Mã đơn hàng")}{th("tao", "Người tạo")}{th("gio", "Giờ cần lấy")}{th("nguoi", "Người nhận")}{th("diem", "Điểm / địa chỉ", "left")}
-                  {th("sl", "SL cần lấy")}{th("tt", "Trạng thái")}{th("slt", "SL thực nhận")}{th("ghichu", "Ghi chú nhận", "left")}
+                  {th("ma", "Mã đơn hàng")}{th("tao", "Người tạo")}{th("gio", "Thời gian lấy mẫu")}{th("nguoi", "Người nhận")}{th("diem", "Đối tác / địa chỉ lấy mẫu", "left")}
+                  {th("lh", "Liên hệ", "left")}{th("sl", "SL mẫu lấy")}{th("thu", "Số tiền cần thu")}{th("pp", "Phụ phí")}{th("tt", "Trạng thái")}{th("slt", "SL thực nhận")}{th("ghichu", "Ghi chú nhận", "left")}
                   {th("vt", "Vị trí xác nhận", "left")}{th("kc", "Chênh lệch vị trí")}{th("anh", "Ảnh")}<th style={thStyle}></th>
                 </tr>
               </thead>
@@ -291,16 +301,23 @@ export default function NhanHangLabAdmin() {
                       <td style={{ ...tdStyle, textAlign: "left", maxWidth: 320 }}>
                         {t.ten_diem && <div style={{ fontWeight: 700 }}>{t.ten_diem}</div>}
                         <div>{t.dia_chi}</div>
-                        {t.mo_ta_hang && <div style={{ fontSize: 12, color: "var(--text-600)" }}>{t.mo_ta_hang}</div>}
-                        {t.ghi_chu_giao && <div style={{ fontSize: 12, color: "var(--text-600)" }}>📝 {t.ghi_chu_giao}</div>}
+                        {t.chi_dinh && <div style={{ fontSize: 12, color: "var(--text-600)" }}>🧪 Chỉ định: {t.chi_dinh}</div>}
+                        {t.ghi_chu_giao && <div style={{ fontSize: 12, color: "var(--text-600)" }}>📝 Lưu ý: {t.ghi_chu_giao}</div>}
                       </td>
-                      <td className="num" style={tdStyle}>{fmtQty(t.so_luong, t.don_vi)}</td>
+                      <td style={{ ...tdStyle, textAlign: "left", whiteSpace: "nowrap" }}>
+                        {t.nguoi_lien_he && <div>{t.nguoi_lien_he}</div>}
+                        {t.sdt_lien_he && <div><a href={`tel:${t.sdt_lien_he}`}>{t.sdt_lien_he}</a></div>}
+                        {!t.nguoi_lien_he && !t.sdt_lien_he && "—"}
+                      </td>
+                      <td className="num" style={tdStyle}>{fmtQty(t.so_luong)}</td>
+                      <td className="num" style={{ ...tdStyle, whiteSpace: "nowrap" }}>{fmtMoney(t.so_tien_thu)}</td>
+                      <td className="num" style={{ ...tdStyle, whiteSpace: "nowrap" }}>{fmtMoney(t.phu_phi)}</td>
                       <td style={tdStyle}>
                         <span style={{ background: st.color, color: "#fff", fontWeight: 700, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap", fontSize: 12.5 }}>{st.label}</span>
                         {lv && <div><span style={{ background: lv.color, color: "#fff", fontWeight: 700, padding: "2px 8px", borderRadius: 999, fontSize: 11.5, display: "inline-block", marginTop: 4 }}>{lv.label}</span></div>}
                         {t.received_at && <div style={{ fontSize: 11.5, color: "var(--text-600)", marginTop: 4 }}>{fmtDT(t.received_at)}</div>}
                       </td>
-                      <td className="num" style={tdStyle}>{t.trang_thai === "da_nhan" ? fmtQty(t.so_luong_thuc_te, t.don_vi) : "—"}</td>
+                      <td className="num" style={tdStyle}>{t.trang_thai === "da_nhan" ? fmtQty(t.so_luong_thuc_te) : "—"}</td>
                       <td style={{ ...tdStyle, textAlign: "left", maxWidth: 240 }}>{t.ghi_chu_nhan || "—"}</td>
                       <td style={{ ...tdStyle, textAlign: "left", maxWidth: 260 }}>
                         {t.nhan_lat != null ? (
