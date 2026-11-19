@@ -311,8 +311,8 @@ function DetailSheet({ task: t, chip, onClose, onReceive }) {
     </div>
   ) : null;
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", width: "100%", maxWidth: 640, maxHeight: "92vh", overflowY: "auto", borderRadius: "18px 18px 0 0", padding: "18px 18px 22px" }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(5,10,20,0.78)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", width: "100%", maxWidth: 640, maxHeight: "92vh", overflowY: "auto", borderRadius: "18px 18px 0 0", padding: "18px 18px 22px", boxShadow: "0 -6px 28px rgba(0,0,0,0.45)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
           <div>
             <div style={{ fontSize: 19, fontWeight: 800 }}>{t.ten_diem || "Điểm nhận mẫu"}</div>
@@ -327,6 +327,17 @@ function DetailSheet({ task: t, chip, onClose, onReceive }) {
           {row("📦 Số lượng mẫu", fmtQty(t.so_luong, t.don_vi))}
           {row("🧪 Mô tả hàng", t.mo_ta_hang)}
           {row("📝 Ghi chú đơn hàng", t.ghi_chu_giao)}
+          {t.created_name && (
+            <div style={{ padding: "10px 0", borderTop: "1px solid var(--border)" }}>
+              <div style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 2 }}>👤 Người tạo</div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                <div style={{ fontSize: 16, lineHeight: 1.45, fontWeight: 700 }}>{t.created_name}</div>
+                {t.created_phone && (
+                  <a href={`tel:${t.created_phone}`} aria-label={`Gọi ${t.created_name}`} style={{ flex: "none", width: 44, height: 44, borderRadius: 999, background: "#3E7A2A", display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none", fontSize: 22 }}>📞</a>
+                )}
+              </div>
+            </div>
+          )}
           {t.trang_thai !== "cho_lay" && (
             <div style={{ padding: "10px 0", borderTop: "1px solid var(--border)" }}>
               <div style={{ fontSize: 12.5, color: "var(--text-600)", marginBottom: 2 }}>✅ Kết quả xử lý</div>
