@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import FilterHeaderTh from "../components/FilterHeaderTh";
 import GpsRouteModal from "../components/GpsRouteModal";
 import { useMultiColFilters } from "../lib/useMultiColFilters";
-import { getGpsLatest, saveGpsConfig, deleteGpsConfig, syncGpsNow } from "../lib/api";
+import { getGpsLatest, saveGpsConfig, deleteGpsConfig, syncGpsNow, getUser } from "../lib/api";
 
 const thStyle = { textAlign: "center", padding: "8px 10px", fontSize: 12.5, whiteSpace: "nowrap" };
 const tdStyle = { textAlign: "center", padding: "7px 10px", fontSize: 13 };
@@ -53,7 +53,8 @@ const COUNT_TILES = [
 ];
 
 export default function GpsMonitorTab() {
-  const checked = true; // trang LAB HOUSE đã kiểm tra super_admin
+  const checked = true; // trang LAB HOUSE đã kiểm tra quyền (super_admin / Admin Lab)
+  const canConfig = getUser()?.role === "super_admin"; // chỉ super_admin nhập/xoá tài khoản đăng nhập GPS (Admin Lab chỉ xem + quét)
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
@@ -170,19 +171,19 @@ export default function GpsMonitorTab() {
       <div style={{ marginBottom: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
           <h2 style={{ margin: 0, fontSize: 18 }}>Giám sát GPS</h2>
-          <button
+          {canConfig && <button
             onClick={() => { setMsg(""); setError(""); setShowSettings(true); }}
             style={{ background: "#E3F0FF", color: "#1C64B4", border: "1px solid #BBD7F5", borderRadius: 8, padding: "8px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
           >
             ⚙️ Cài đặt
-          </button>
+          </button>}
         </div>
       </div>
 
       {cfg && (
         <div style={{ fontSize: 13, color: "var(--text-600)", marginBottom: 14 }}>
           {!cfg.configured ? (
-            <span>Chưa có tài khoản GPS — bấm <b>Cài đặt</b> để nhập.</span>
+            <span>Chưa có tài khoản GPS{canConfig ? <> — bấm <b>Cài đặt</b> để nhập.</> : " — nhờ Super Admin cài đặt."}</span>
           ) : (
             <>
               Quét gần nhất: <b>{fmtDateTime(cfg.last_run_at)}</b>{" "}

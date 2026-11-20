@@ -82,6 +82,16 @@ export default function Layout({ crumb, children }) {
       return;
     }
 
+    // Admin Lab (chốt 20/11): chỉ LAB HOUSE + Nhận hàng Long Châu LAB + Quản lý TK (+ đổi mật khẩu).
+    if (u?.role === "admin_lab") {
+      if (!["/lab-house", "/nhan-hang-lab", "/quan-ly-tk", "/doi-mat-khau"].includes(router.pathname)) {
+        router.replace("/nhan-hang-lab");
+        return;
+      }
+      setChecked(true);
+      return;
+    }
+
     // Chặn vào thẳng URL nếu role không có quyền menu này (chốt 31/08, xem
     // "Quản lý phân quyền") — super_admin luôn qua, "/" (Trang chủ) luôn
     // cho qua (tránh vòng lặp chuyển hướng nếu lỡ tự khoá cả Trang chủ).
@@ -140,7 +150,7 @@ export default function Layout({ crumb, children }) {
       <div className="main">
         <div className="topbar">
           <div>
-            {user?.role === "lab" ? "Long Châu Lab" : "KSNB Long Châu"} &nbsp;/&nbsp;{" "}
+            {user?.role === "lab" || user?.role === "admin_lab" ? "Long Châu Lab" : "KSNB Long Châu"} &nbsp;/&nbsp;{" "}
             <span className="crumb-current">{crumb}</span>
           </div>
           <div className="tb-user">

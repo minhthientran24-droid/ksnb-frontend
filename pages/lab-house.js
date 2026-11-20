@@ -5,7 +5,7 @@ import GpsMonitorTab from "../components/GpsMonitorTab";
 import KiemKeLabTab from "../components/KiemKeLabTab";
 import { getUser } from "../lib/api";
 
-// LAB HOUSE — khu vực thử nghiệm, chỉ super_admin. Mỗi tính năng là 1 tab con (thêm tab mới: bổ sung vào TABS).
+// LAB HOUSE — khu vực thử nghiệm, super_admin + Admin Lab (chốt 20/11). Mỗi tính năng là 1 tab con (thêm tab mới: bổ sung vào TABS).
 const TABS = [
   { key: "gps", icon: "🛰️", label: "Giám sát GPS", render: () => <GpsMonitorTab /> },
   { key: "kiem-ke-lab", icon: "🧪", label: "Kiểm kê LAB", render: () => <KiemKeLabTab /> },
@@ -18,7 +18,7 @@ export default function LabHousePage() {
 
   useEffect(() => {
     const user = getUser();
-    if (!user || user.role !== "super_admin") {
+    if (!user || !["super_admin", "admin_lab"].includes(user.role)) {
       router.replace("/");
       return;
     }

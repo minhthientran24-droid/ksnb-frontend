@@ -13,7 +13,7 @@ export default function LoginPage() {
   const nextRaw = typeof router.query.next === "string" ? router.query.next : "";
   const nextPath = nextRaw.startsWith("/") && !nextRaw.startsWith("//") && !nextRaw.startsWith("/login") ? nextRaw : "/";
   // User loại LAB (chốt 18/11): đăng nhập xong vào thẳng menu Nhận hàng Long Châu LAB, không qua trang chủ.
-  const homeFor = (u) => (u?.role === "lab" ? "/nhan-hang-lab" : nextPath);
+  const homeFor = (u) => (u?.role === "lab" || u?.role === "admin_lab" ? "/nhan-hang-lab" : nextPath);
 
   // Nếu đã đăng nhập rồi thì vào thẳng trang chủ (hoặc trang định vào)
   if (typeof window !== "undefined" && getToken() && router.isReady) {

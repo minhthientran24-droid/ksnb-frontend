@@ -111,6 +111,7 @@ export default function Sidebar() {
   function isVisible(item) {
     if (myRole === "super_admin") return true;
     if (myRole === "lab") return item.href === "/nhan-hang-lab" || item.href === "/quan-ly-tk"; // user LAB: menu Nhận hàng Long Châu LAB + Quản lý TK (đổi mật khẩu) (chốt 18/11)
+    if (myRole === "admin_lab") return ["/lab-house", "/nhan-hang-lab", "/quan-ly-tk"].includes(item.href); // Admin Lab: LAB HOUSE + Nhận hàng LAB + Quản lý TK (chốt 20/11)
     if (myRole === "guest") return item.guestMenu === true; // Guest Account: chỉ thấy menu riêng của Guest (chốt 26/10)
     if (allowedMenus) return allowedMenus.includes(item.href);
     return !item.hideForRoles?.includes(myRole);
