@@ -65,9 +65,9 @@ export default function QuanLyTkPage() {
   const initials = (profile?.full_name || getUser()?.full_name || "?").split(" ").slice(-2).map((w) => w[0]).join("").toUpperCase();
 
   return (
-    <Layout crumb="Quản lý TK">
+    <Layout crumb="Cài đặt TK">
       <div className="page-head">
-        <h1>⚙️ Quản lý TK</h1>
+        <h1>⚙️ Cài đặt TK</h1>
         <p>Cập nhật ảnh đại diện và đổi mật khẩu đăng nhập của tài khoản.</p>
       </div>
 
