@@ -431,7 +431,7 @@ function TheoNgayTab() {
 // mới nhất trước, xem được nhiều trang.
 const LOGIN_DAYS_PER_PAGE = 60;
 
-function DayTable({ days, loading }) {
+function DayTable({ days, loading, onPick }) {
   return (
     <table style={{ fontSize: 12, width: "100%", opacity: loading ? 0.5 : 1 }}>
       <thead>
@@ -443,7 +443,12 @@ function DayTable({ days, loading }) {
       </thead>
       <tbody>
         {days.map((d) => (
-          <tr key={d.date} style={d.co_dang_nhap ? undefined : { background: d.cuoi_tuan ? "#F4F4F4" : "#FDEAEA" }}>
+          <tr
+            key={d.date}
+            onClick={d.co_dang_nhap && onPick ? () => onPick(d.date) : undefined}
+            title={d.co_dang_nhap && onPick ? "Bấm để xem lịch sử sử dụng tính năng trong ngày này" : undefined}
+            style={d.co_dang_nhap ? (onPick ? { cursor: "pointer" } : undefined) : { background: d.cuoi_tuan ? "#F4F4F4" : "#FDEAEA" }}
+          >
             <td style={{ ...tdStyle, textAlign: "left", fontWeight: 600, whiteSpace: "nowrap" }}>{formatDateVn(d.date)}</td>
             <td className="num" style={{ ...tdStyle, whiteSpace: "nowrap", color: d.cuoi_tuan ? "var(--text-400)" : undefined }}>{d.thu}</td>
             <td className="num" style={{ ...tdStyle, whiteSpace: "nowrap" }}>
@@ -470,6 +475,7 @@ function LoginDaysModal({ user, onClose }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pickedDate, setPickedDate] = useState(null); // bấm 1 ngày có đăng nhập -> popup lịch sử dùng tính năng của ngày đó
 
   useEffect(() => {
     setLoading(true);
@@ -487,6 +493,7 @@ function LoginDaysModal({ user, onClose }) {
   const goto = (p) => setPage(Math.max(1, Math.min(totalPages, p)));
 
   return (
+    <>
     <div
       style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
       onClick={onClose}
@@ -513,21 +520,21 @@ function LoginDaysModal({ user, onClose }) {
                 <span style={{ color: "var(--danger)" }}>Không đăng nhập: <b>{data.so_ngay_khong_dang_nhap}</b> ngày</span>
               </div>
               <div style={{ fontSize: 11, color: "var(--text-400)", marginBottom: 10 }}>
-                Mốc xa nhất là ngày muộn hơn giữa ngày tạo tài khoản và ngày hệ thống bắt đầu ghi nhật ký — trước mốc này không có dữ liệu.
+                Mốc xa nhất là ngày muộn hơn giữa ngày tạo tài khoản và ngày hệ thống bắt đầu ghi nhật ký — trước mốc này không có dữ liệu. Bấm vào ngày có đăng nhập để xem lịch sử sử dụng tính năng của ngày đó.
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 16, alignItems: "start" }}>
                 <div>
                   <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-600)", marginBottom: 4 }}>
                     {data.days[0] ? `${formatDateVn(data.days[0].date)} → ${formatDateVn(data.days[Math.min(29, data.days.length - 1)].date)}` : ""}
                   </div>
-                  <DayTable days={data.days.slice(0, 30)} loading={loading} />
+                  <DayTable days={data.days.slice(0, 30)} loading={loading} onPick={setPickedDate} />
                 </div>
                 {data.days.length > 30 && (
                   <div>
                     <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-600)", marginBottom: 4 }}>
                       {`${formatDateVn(data.days[30].date)} → ${formatDateVn(data.days[data.days.length - 1].date)}`}
                     </div>
-                    <DayTable days={data.days.slice(30)} loading={loading} />
+                    <DayTable days={data.days.slice(30)} loading={loading} onPick={setPickedDate} />
                   </div>
                 )}
               </div>
@@ -557,6 +564,8 @@ function LoginDaysModal({ user, onClose }) {
         )}
       </div>
     </div>
+    {pickedDate && <UserDayModal user={user} date={pickedDate} onClose={() => setPickedDate(null)} />}
+    </>
   );
 }
 
