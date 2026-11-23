@@ -291,8 +291,10 @@ function UserDayModal({ user, date: initialDate, onClose }) {
               </table>
 
               <div style={{ fontSize: 12.5, fontWeight: 800, color: "var(--text-900)", marginBottom: 6 }}>Diễn biến theo thời gian</div>
+              {/* Khung riêng có thanh cuộn: diễn biến dài thì cuộn trong khung, bảng "Tính năng đã dùng" phía trên vẫn nhìn thấy */}
+              <div style={{ maxHeight: 320, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 8 }}>
               <table style={{ fontSize: 12, width: "100%" }}>
-                <thead>
+                <thead style={{ position: "sticky", top: 0, background: "var(--surface, #fff)", zIndex: 1 }}>
                   <tr>
                     <th style={{ ...thStyle, textAlign: "left", width: 150 }}>Thời gian</th>
                     <th style={{ ...thStyle, textAlign: "left" }}>Tính năng</th>
@@ -314,6 +316,7 @@ function UserDayModal({ user, date: initialDate, onClose }) {
                   ))}
                 </tbody>
               </table>
+              </div>
             </>
           )}
         </div>
