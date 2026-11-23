@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
-import { getActivityLogSummary, getInactiveUsers, getNoLoginUsers, getLoginDays, getGuestActivityStats, getUser } from "../lib/api";
+import { getActivityLogSummary, getInactiveUsers, getNoLoginUsers, getLoginDays, getGuestActivityStats, getActivityUserDay, getUser } from "../lib/api";
 import { useAllowedKeys } from "../lib/permissions";
 
 // Chốt 17/11: Nhật ký hoạt động CHỈ super_admin truy cập (trước đây cả admin).
@@ -213,11 +213,105 @@ function GuestLogTab() {
   );
 }
 
+// Popup bấm tên user ở tab "Theo ngày" (chốt 23/11): mỗi tính năng user đã dùng trong ngày (số lần, giờ đầu/cuối, xếp theo giờ dùng đầu tiên)
+// + diễn biến theo thời gian (các lần liên tiếp cùng 1 tính năng gộp thành 1 dòng).
+function UserDayModal({ user, date, onClose }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setData(null);
+    setError("");
+    getActivityUserDay({ userId: user.user_id, email: user.email, date })
+      .then(setData)
+      .catch((err) => setError(err.message));
+  }, [user.user_id, user.email, date]);
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+      onClick={onClose}
+    >
+      <div
+        style={{ background: "var(--surface, #fff)", borderRadius: 12, width: "100%", maxWidth: 820, maxHeight: "92vh", display: "flex", flexDirection: "column", boxShadow: "0 12px 40px rgba(0,0,0,0.25)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "var(--text-900)" }}>{user.full_name || "(đã xoá)"}</div>
+            <div style={{ fontSize: 11.5, color: "var(--text-400)" }}>
+              {user.email}{date ? ` · Ngày ${formatDateVn(date)}` : ""}{data ? ` · ${data.total} lượt` : ""}
+            </div>
+          </div>
+          <button className="fbtn" onClick={onClose}>Đóng</button>
+        </div>
+
+        <div style={{ padding: "12px 18px", overflowY: "auto" }}>
+          {error && <div style={{ color: "var(--danger)", fontSize: 12.5 }}>Không tải được dữ liệu: {error}</div>}
+          {!data && !error && <div style={{ fontSize: 12.5, color: "var(--text-600)" }}>Đang tải...</div>}
+          {data && data.total === 0 && <div style={{ fontSize: 12.5, color: "var(--text-600)" }}>Không có hoạt động nào trong ngày này.</div>}
+          {data && data.total > 0 && (
+            <>
+              <div style={{ fontSize: 12.5, fontWeight: 800, color: "var(--text-900)", marginBottom: 6 }}>Tính năng đã dùng (theo giờ dùng đầu tiên)</div>
+              <table style={{ fontSize: 12, width: "100%", marginBottom: 18 }}>
+                <thead>
+                  <tr>
+                    <th style={{ ...thStyle, textAlign: "left" }}>Tính năng</th>
+                    <th style={thStyle}>Số lần</th>
+                    <th style={thStyle}>Lần đầu</th>
+                    <th style={thStyle}>Lần cuối</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.by_feature.map((f) => (
+                    <tr key={f.action}>
+                      <td style={{ ...tdStyle, textAlign: "left" }}>{f.label}</td>
+                      <td className="num" style={{ ...tdStyle, fontWeight: 800, color: "var(--navy-800)" }}>{f.count}</td>
+                      <td className="num" style={{ ...tdStyle, whiteSpace: "nowrap" }}>{f.first}</td>
+                      <td className="num" style={{ ...tdStyle, whiteSpace: "nowrap" }}>{f.last}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div style={{ fontSize: 12.5, fontWeight: 800, color: "var(--text-900)", marginBottom: 6 }}>Diễn biến theo thời gian</div>
+              <table style={{ fontSize: 12, width: "100%" }}>
+                <thead>
+                  <tr>
+                    <th style={{ ...thStyle, textAlign: "left", width: 150 }}>Thời gian</th>
+                    <th style={{ ...thStyle, textAlign: "left" }}>Tính năng</th>
+                    <th style={thStyle}>Số lần</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.timeline.map((t, i) => (
+                    <tr key={i}>
+                      <td style={{ ...tdStyle, textAlign: "left", whiteSpace: "nowrap", fontWeight: 600 }}>
+                        {t.from}{t.to !== t.from ? ` → ${t.to}` : ""}
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: "left" }}>
+                        {t.label}
+                        {t.details?.length > 0 && <div style={{ fontSize: 10.5, color: "var(--text-400)" }}>{t.details.join(" · ")}</div>}
+                      </td>
+                      <td className="num" style={tdStyle}>{t.count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TheoNgayTab() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [pickerValue, setPickerValue] = useState(""); // giá trị đang chọn trong ô ngày, chưa chắc đã áp dụng
+  const [detailUser, setDetailUser] = useState(null); // bấm tên user -> popup lịch sử dùng tính năng trong ngày
 
   function load(date) {
     setLoading(true);
@@ -263,6 +357,8 @@ function TheoNgayTab() {
 
       {error && <div className="placeholder-box">Không tải được dữ liệu: {error}</div>}
 
+      {detailUser && <UserDayModal user={detailUser} date={data?.date} onClose={() => setDetailUser(null)} />}
+
       {data && !error && (
         <div className="card">
           <div className="card-body" style={{ padding: 0, overflowX: "auto" }}>
@@ -284,7 +380,13 @@ function TheoNgayTab() {
                   {users.map((u) => (
                     <tr key={u.user_id ?? u.email}>
                       <td style={{ ...tdStyle, textAlign: "left" }}>
-                        <div style={{ fontWeight: 700, color: "var(--text-900)", fontSize: 12 }}>{u.full_name || "(đã xoá)"}</div>
+                        <div
+                          onClick={() => setDetailUser(u)}
+                          title="Bấm để xem lịch sử sử dụng tính năng trong ngày"
+                          style={{ fontWeight: 700, color: "var(--navy-800, #1F4E78)", fontSize: 12, cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", display: "inline-block" }}
+                        >
+                          {u.full_name || "(đã xoá)"}
+                        </div>
                         <div style={{ fontSize: 10.5, color: "var(--text-400)" }}>{u.email}</div>
                       </td>
                       <td className="num" style={tdStyle}>{u.khu_vuc || "—"}</td>
