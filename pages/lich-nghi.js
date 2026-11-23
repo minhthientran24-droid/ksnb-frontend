@@ -30,6 +30,14 @@ function TrangThaiTag({ tt }) {
   return <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 800, color: L.c, background: L.bg, border: `1px solid ${L.c}`, borderRadius: 999, padding: "1px 8px", whiteSpace: "nowrap" }}>{L.t}</span>;
 }
 
+// Giờ đăng ký (created_at) theo giờ Việt Nam: "08:35 23/11/2026"
+function fmtDangKy(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric", hour12: false, timeZone: "Asia/Ho_Chi_Minh" }).replace(",", "");
+}
+
 function formatDateVn(iso) {
   if (!iso) return "";
   const [y, m, d] = iso.split("-");
@@ -182,7 +190,15 @@ function MyLeavePanel() {
                   {r.ngay_nghi < today && <span style={{ fontSize: 10, marginLeft: 6, fontWeight: 500 }}>(đã qua)</span>}
                   <TrangThaiTag tt={r.trang_thai} />
                 </span>
-                <span className="leave-row-note">{r.ghi_chu || "—"}</span>
+                <span className="leave-row-note">
+                  {r.ghi_chu || "—"}
+                  <span style={{ display: "block", fontSize: 11.5, color: "var(--text-400)", marginTop: 2 }}>Đăng ký lúc {fmtDangKy(r.created_at) || "—"}</span>
+                  {r.trang_thai === "tu_choi" && (
+                    <span style={{ display: "block", fontSize: 12, color: "#C0392B", fontWeight: 700, marginTop: 2 }}>
+                      Không được duyệt{r.duyet_boi ? ` bởi ${r.duyet_boi}` : ""}{r.ly_do_tu_choi ? ` — Lý do: ${r.ly_do_tu_choi}` : ""}
+                    </span>
+                  )}
+                </span>
                 <span className="leave-row-actions">
                   {can("/lich-nghi::dang-ky::xoa") && <button className="fbtn danger" onClick={() => handleDelete(r.id)}>Xóa</button>}
                 </span>
@@ -222,12 +238,21 @@ function AllLeavePanel() {
   const pending = rows.filter((r) => r.trang_thai === "cho_duyet").sort(sortAsc);
   const upcoming = rows.filter((r) => r.ngay_nghi >= today && r.trang_thai !== "cho_duyet").sort(sortAsc);
 
-  async function decide(r, quyetDinh) {
+  const [rejecting, setRejecting] = useState(null); // dòng đang từ chối -> hộp nhập lý do
+  const [lyDo, setLyDo] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function decide(r, quyetDinh, ly) {
+    setBusy(true);
     try {
-      await duyetLeaveDay(r.id, quyetDinh);
+      await duyetLeaveDay(r.id, quyetDinh, ly);
+      setRejecting(null);
+      setLyDo("");
       load();
     } catch (err) {
       alert(err.message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -247,13 +272,32 @@ function AllLeavePanel() {
                 <div className="leave-row" key={r.id}>
                   <span className="leave-row-date">{formatDateVn(r.ngay_nghi)}</span>
                   <span className="leave-row-name">{r.full_name}</span>
-                  <span className="leave-row-note">{r.ghi_chu || "—"}</span>
+                  <span className="leave-row-note">
+                    {r.ghi_chu || "—"}
+                    <span style={{ display: "block", fontSize: 11.5, color: "var(--text-400)", marginTop: 2 }}>Đăng ký lúc {fmtDangKy(r.created_at) || "—"}</span>
+                  </span>
                   <span className="leave-row-actions" style={{ display: "flex", gap: 6 }}>
-                    <button className="fbtn" style={{ color: "#3E7A2A", borderColor: "#3E7A2A" }} onClick={() => decide(r, "duyet")}>✔ Duyệt</button>
-                    <button className="fbtn danger" onClick={() => decide(r, "tu_choi")}>✕ Từ chối</button>
+                    <button className="fbtn" style={{ color: "#3E7A2A", borderColor: "#3E7A2A" }} disabled={busy} onClick={() => decide(r, "duyet")}>✔ Duyệt</button>
+                    <button className="fbtn danger" disabled={busy} onClick={() => { setRejecting(r); setLyDo(""); }}>✕ Từ chối</button>
                   </span>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+        {rejecting && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => !busy && setRejecting(null)}>
+            <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, maxWidth: 460, width: "100%", padding: "20px 22px 18px" }}>
+              <div style={{ fontSize: 16.5, fontWeight: 800, marginBottom: 4 }}>Từ chối ngày nghỉ</div>
+              <div style={{ fontSize: 13.5, color: "var(--text-600)", marginBottom: 12 }}>
+                {rejecting.full_name} — nghỉ ngày <b>{formatDateVn(rejecting.ngay_nghi)}</b> (đăng ký lúc {fmtDangKy(rejecting.created_at) || "—"})
+              </div>
+              <label className="flabel">Lý do từ chối (không bắt buộc)</label>
+              <textarea className="finput" style={{ width: "100%", minHeight: 80, resize: "vertical", fontFamily: "inherit" }} value={lyDo} maxLength={500} autoFocus onChange={(e) => setLyDo(e.target.value)} placeholder="VD: Trùng lịch kiểm kê, cần bố trí người thay..." />
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 14 }}>
+                <button className="fbtn" disabled={busy} onClick={() => setRejecting(null)}>Hủy</button>
+                <button className="login-btn" style={{ width: "auto", padding: "9px 20px", background: "#C0392B" }} disabled={busy} onClick={() => decide(rejecting, "tu_choi", lyDo)}>{busy ? "Đang lưu..." : "Xác nhận từ chối"}</button>
+              </div>
             </div>
           </div>
         )}
@@ -265,7 +309,11 @@ function AllLeavePanel() {
               <div className="leave-row" key={r.id}>
                 <span className="leave-row-date">{formatDateVn(r.ngay_nghi)}<TrangThaiTag tt={r.trang_thai} /></span>
                 <span className="leave-row-name">{r.full_name}</span>
-                <span className="leave-row-note">{r.ghi_chu || "—"}</span>
+                <span className="leave-row-note">
+                  {r.ghi_chu || "—"}
+                  <span style={{ display: "block", fontSize: 11.5, color: "var(--text-400)", marginTop: 2 }}>Đăng ký lúc {fmtDangKy(r.created_at) || "—"}</span>
+                  {r.trang_thai === "tu_choi" && r.ly_do_tu_choi && <span style={{ display: "block", fontSize: 12, color: "#C0392B", marginTop: 2 }}>Lý do từ chối: {r.ly_do_tu_choi}</span>}
+                </span>
               </div>
             ))}
           </div>
