@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import {
-  getUser, listMyLeaveDays, createLeaveDay, deleteLeaveDay, listAllLeaveDays,
+  getUser, listMyLeaveDays, createLeaveDay, deleteLeaveDay, listAllLeaveDays, duyetLeaveDay,
   listMyDeXuatKsnb, upsertMyDeXuatKsnb, deleteMyDeXuatKsnb,
 } from "../lib/api";
 import { useAllowedKeys } from "../lib/permissions";
@@ -20,6 +20,14 @@ function todayStr() {
 function currentMonthStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+// Nhãn trạng thái ngày nghỉ (chốt 23/11): đăng ký sau 16h00 ngày hôm trước -> chờ Leader duyệt
+const TT_LABEL = { cho_duyet: { t: "Chờ duyệt", c: "#E8590C", bg: "#FFF1E6" }, tu_choi: { t: "Không được duyệt", c: "#C0392B", bg: "#FDEAEA" } };
+function TrangThaiTag({ tt }) {
+  const L = TT_LABEL[tt];
+  if (!L) return null;
+  return <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 800, color: L.c, background: L.bg, border: `1px solid ${L.c}`, borderRadius: 999, padding: "1px 8px", whiteSpace: "nowrap" }}>{L.t}</span>;
 }
 
 function formatDateVn(iso) {
@@ -95,6 +103,7 @@ function MyLeavePanel() {
   const [ghiChu, setGhiChu] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [lateDay, setLateDay] = useState(null); // ngày vừa đăng ký quá hạn -> popup "cần liên hệ Leader"
 
   function load() {
     listMyLeaveDays().then((r) => setRows(r.rows || [])).catch((err) => setError(err.message));
@@ -113,8 +122,9 @@ function MyLeavePanel() {
     setSaving(true);
     setSaveError("");
     try {
-      await createLeaveDay(ngayNghi, ghiChu);
+      const created = await createLeaveDay(ngayNghi, ghiChu);
       setGhiChu("");
+      if (created?.trang_thai === "cho_duyet") setLateDay(created.ngay_nghi);
       load();
     } catch (err) {
       setSaveError(err.message);
@@ -170,6 +180,7 @@ function MyLeavePanel() {
                 <span className={`leave-row-date${r.ngay_nghi < today ? " past" : ""}`}>
                   {formatDateVn(r.ngay_nghi)}
                   {r.ngay_nghi < today && <span style={{ fontSize: 10, marginLeft: 6, fontWeight: 500 }}>(đã qua)</span>}
+                  <TrangThaiTag tt={r.trang_thai} />
                 </span>
                 <span className="leave-row-note">{r.ghi_chu || "—"}</span>
                 <span className="leave-row-actions">
@@ -180,6 +191,19 @@ function MyLeavePanel() {
           </div>
         )}
       </div>
+      {lateDay && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setLateDay(null)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, maxWidth: 440, width: "100%", padding: "22px 22px 18px", textAlign: "center" }}>
+            <div style={{ fontSize: 40, lineHeight: 1 }}>⏳</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#E8590C", margin: "8px 0 10px" }}>Ngày nghỉ đang chờ duyệt</div>
+            <div style={{ fontSize: 14.5, lineHeight: 1.55 }}>
+              Bạn đăng ký nghỉ ngày <b>{formatDateVn(lateDay)}</b> sau <b>16h00 ngày hôm trước</b> nên lịch nghỉ ở trạng thái <b>CHỜ DUYỆT</b>.
+              <br />Vui lòng <b>liên hệ Leader</b> để được duyệt.
+            </div>
+            <button className="login-btn" style={{ width: "auto", padding: "10px 28px", marginTop: 16 }} onClick={() => setLateDay(null)}>Đã hiểu</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -194,23 +218,52 @@ function AllLeavePanel() {
   useEffect(load, []);
 
   const today = todayStr();
-  const upcoming = rows.filter((r) => r.ngay_nghi >= today).sort((a, b) => (a.ngay_nghi > b.ngay_nghi ? 1 : -1));
+  const sortAsc = (a, b) => (a.ngay_nghi > b.ngay_nghi ? 1 : -1);
+  const pending = rows.filter((r) => r.trang_thai === "cho_duyet").sort(sortAsc);
+  const upcoming = rows.filter((r) => r.ngay_nghi >= today && r.trang_thai !== "cho_duyet").sort(sortAsc);
+
+  async function decide(r, quyetDinh) {
+    try {
+      await duyetLeaveDay(r.id, quyetDinh);
+      load();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
 
   return (
     <div className="card">
       <div className="card-head">
         <h3>👥 Toàn bộ lịch nghỉ (Admin)</h3>
-        <span className="note">Sắp tới: {upcoming.length}</span>
+        <span className="note">Chờ duyệt: {pending.length} · Sắp tới: {upcoming.length}</span>
       </div>
       <div className="card-body">
         {error && <div style={{ fontSize: 12.5, color: "var(--danger)", marginBottom: 10 }}>{error}</div>}
+        {pending.length > 0 && (
+          <div style={{ border: "1.5px solid #E8590C", background: "#FFF8F2", borderRadius: 10, padding: "10px 12px", marginBottom: 14 }}>
+            <div style={{ fontWeight: 800, fontSize: 13, color: "#E8590C", marginBottom: 8 }}>⏳ Chờ Leader duyệt ({pending.length})</div>
+            <div className="leave-list">
+              {pending.map((r) => (
+                <div className="leave-row" key={r.id}>
+                  <span className="leave-row-date">{formatDateVn(r.ngay_nghi)}</span>
+                  <span className="leave-row-name">{r.full_name}</span>
+                  <span className="leave-row-note">{r.ghi_chu || "—"}</span>
+                  <span className="leave-row-actions" style={{ display: "flex", gap: 6 }}>
+                    <button className="fbtn" style={{ color: "#3E7A2A", borderColor: "#3E7A2A" }} onClick={() => decide(r, "duyet")}>✔ Duyệt</button>
+                    <button className="fbtn danger" onClick={() => decide(r, "tu_choi")}>✕ Từ chối</button>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {!upcoming.length ? (
           <div className="leave-empty">Không có ngày nghỉ sắp tới nào.</div>
         ) : (
           <div className="leave-list">
             {upcoming.map((r) => (
               <div className="leave-row" key={r.id}>
-                <span className="leave-row-date">{formatDateVn(r.ngay_nghi)}</span>
+                <span className="leave-row-date">{formatDateVn(r.ngay_nghi)}<TrangThaiTag tt={r.trang_thai} /></span>
                 <span className="leave-row-name">{r.full_name}</span>
                 <span className="leave-row-note">{r.ghi_chu || "—"}</span>
               </div>
@@ -391,7 +444,8 @@ function ScheduleGridPanel() {
     return w === 0 || w === 6;
   }
 
-  const monthRows = rows.filter((r) => r.ngay_nghi.startsWith(month));
+  const monthRows = rows.filter((r) => r.ngay_nghi.startsWith(month) && r.trang_thai !== "tu_choi");
+  const pendingKey = new Set(monthRows.filter((r) => r.trang_thai === "cho_duyet").map((r) => `${r.full_name}|${parseInt(r.ngay_nghi.slice(8, 10), 10)}`));
   const byName = {};
   const khuVucByName = {};
   monthRows.forEach((r) => {
@@ -446,7 +500,9 @@ function ScheduleGridPanel() {
                   <tr key={name}>
                     <td className="name-col">{name}</td>
                     {days.map((d) => (
-                      <td key={d}>{byName[name].has(d) ? "OFF" : ""}</td>
+                      <td key={d} title={pendingKey.has(`${name}|${d}`) ? "Chờ Leader duyệt" : undefined} style={pendingKey.has(`${name}|${d}`) ? { color: "#E8590C", fontWeight: 800 } : undefined}>
+                        {byName[name].has(d) ? (pendingKey.has(`${name}|${d}`) ? "CHỜ" : "OFF") : ""}
+                      </td>
                     ))}
                   </tr>
                 ))}
