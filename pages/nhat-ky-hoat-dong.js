@@ -215,16 +215,22 @@ function GuestLogTab() {
 
 // Popup bấm tên user ở tab "Theo ngày" (chốt 23/11): mỗi tính năng user đã dùng trong ngày (số lần, giờ đầu/cuối, xếp theo giờ dùng đầu tiên)
 // + diễn biến theo thời gian (các lần liên tiếp cùng 1 tính năng gộp thành 1 dòng).
-function UserDayModal({ user, date, onClose }) {
+function UserDayModal({ user, date: initialDate, onClose }) {
+  const [date, setDate] = useState(initialDate || ""); // đổi được ngay trong popup, không ảnh hưởng ngày đang xem ở bảng bên ngoài
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setData(null);
+    if (!date) return;
+    let cancelled = false;
+    setLoading(true);
     setError("");
     getActivityUserDay({ userId: user.user_id, email: user.email, date })
-      .then(setData)
-      .catch((err) => setError(err.message));
+      .then((res) => { if (!cancelled) setData(res); })
+      .catch((err) => { if (!cancelled) setError(err.message); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [user.user_id, user.email, date]);
 
   return (
@@ -240,17 +246,27 @@ function UserDayModal({ user, date, onClose }) {
           <div>
             <div style={{ fontSize: 15, fontWeight: 800, color: "var(--text-900)" }}>{user.full_name || "(đã xoá)"}</div>
             <div style={{ fontSize: 11.5, color: "var(--text-400)" }}>
-              {user.email}{date ? ` · Ngày ${formatDateVn(date)}` : ""}{data ? ` · ${data.total} lượt` : ""}
+              {user.email}{data && !loading ? ` · ${data.total} lượt` : ""}
             </div>
           </div>
-          <button className="fbtn" onClick={onClose}>Đóng</button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <label style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-900)" }}>Ngày</label>
+            <input
+              type="date"
+              className="finput"
+              value={date}
+              onChange={(e) => e.target.value && setDate(e.target.value)}
+              style={{ width: 150 }}
+            />
+            <button className="fbtn" onClick={onClose}>Đóng</button>
+          </div>
         </div>
 
-        <div style={{ padding: "12px 18px", overflowY: "auto" }}>
+        <div style={{ padding: "12px 18px", overflowY: "auto", opacity: loading && data ? 0.5 : 1 }}>
           {error && <div style={{ color: "var(--danger)", fontSize: 12.5 }}>Không tải được dữ liệu: {error}</div>}
           {!data && !error && <div style={{ fontSize: 12.5, color: "var(--text-600)" }}>Đang tải...</div>}
-          {data && data.total === 0 && <div style={{ fontSize: 12.5, color: "var(--text-600)" }}>Không có hoạt động nào trong ngày này.</div>}
-          {data && data.total > 0 && (
+          {data && !error && data.total === 0 && <div style={{ fontSize: 12.5, color: "var(--text-600)" }}>Không có hoạt động nào trong ngày {formatDateVn(date)}.</div>}
+          {data && !error && data.total > 0 && (
             <>
               <div style={{ fontSize: 12.5, fontWeight: 800, color: "var(--text-900)", marginBottom: 6 }}>Tính năng đã dùng (theo giờ dùng đầu tiên)</div>
               <table style={{ fontSize: 12, width: "100%", marginBottom: 18 }}>
@@ -383,7 +399,7 @@ function TheoNgayTab() {
                         <div
                           onClick={() => setDetailUser(u)}
                           title="Bấm để xem lịch sử sử dụng tính năng trong ngày"
-                          style={{ fontWeight: 700, color: "var(--navy-800, #1F4E78)", fontSize: 12, cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", display: "inline-block" }}
+                          style={{ fontWeight: 700, color: "var(--text-900)", fontSize: 12, cursor: "pointer", display: "inline-block" }}
                         >
                           {u.full_name || "(đã xoá)"}
                         </div>
