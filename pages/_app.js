@@ -1,8 +1,16 @@
 import { useEffect } from "react";
 import Head from "next/head";
+import { useRouter } from "next/router";
+import { logMenuView } from "../lib/api";
 import "../styles/globals.css";
 
 export default function App({ Component, pageProps }) {
+  const router = useRouter();
+  // Nhật ký hoạt động: ghi mỗi lần user mở 1 trang/menu (backend tự bỏ qua trang không phải menu + trùng trong 3 giây).
+  useEffect(() => {
+    if (router.isReady) logMenuView(router.pathname);
+  }, [router.isReady, router.pathname]);
+
   // Đăng ký service worker để web đủ điều kiện "Cài đặt như app" trên
   // điện thoại (PWA) — xem public/sw.js, không cache dữ liệu nghiệp vụ.
   useEffect(() => {
