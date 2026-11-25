@@ -158,7 +158,7 @@ export default function LichLamViecPage() {
   const [shops, setShops] = useState(null);
   const [candidates, setCandidates] = useState(null);
   // Chốt 10/11 — tick "Gồm shop chưa tới hạn": {on, date} (mặc định không tick); date = Ngày kiểm đang chọn để quét đúng tháng
-  const [earlyScan, setEarlyScan] = useState({ on: false, date: "" });
+  const [earlyScan, setEarlyScan] = useState({ on: false, som: false, date: "" }); // som = tick "Gồm shop sớm hơn 10 ngày" (chốt 25/11)
   const [scheduledToday, setScheduledToday] = useState(null);
   const [thongKeMonth, setThongKeMonth] = useState(currentMonthStr());
   const [thongKeData, setThongKeData] = useState(null);
@@ -190,7 +190,7 @@ export default function LichLamViecPage() {
 
   useEffect(() => {
     if (checked) reload();
-  }, [checked, group, view, thongKeMonth, earlyScan.on, earlyScan.date]);
+  }, [checked, group, view, thongKeMonth, earlyScan.on, earlyScan.som, earlyScan.date]);
 
   function reload() {
     setLoading(true);
@@ -201,7 +201,7 @@ export default function LichLamViecPage() {
     } else if (view === "list") {
       llv2GetShops(group).then(setShops).catch((e) => setError(e.message)).finally(done);
     } else if (view === "schedule") {
-      llv2GetCandidates(group, earlyScan.on ? earlyScan.date : "", earlyScan.on).then(setCandidates).catch((e) => setError(e.message)).finally(done);
+      llv2GetCandidates(group, earlyScan.on || earlyScan.som ? earlyScan.date : "", earlyScan.on, earlyScan.som).then(setCandidates).catch((e) => setError(e.message)).finally(done);
     } else if (view === "today") {
       llv2GetScheduledToday(group).then(setScheduledToday).catch((e) => setError(e.message)).finally(done);
     }
@@ -709,8 +709,11 @@ function ScheduleView({ data, group, onDone, earlyScan, onEarlyScan }) {
 
   useEffect(() => {
     // đang tick "Gồm shop chưa tới hạn" mà đổi Ngày kiểm sang tháng khác -> quét lại theo tháng của Ngày kiểm mới
-    if (earlyScan.on && ngayKiem && ngayKiem >= todayIso() && ngayKiem.slice(0, 7) !== (earlyScan.date || todayIso()).slice(0, 7)) {
-      onEarlyScan({ on: true, date: ngayKiem });
+    // tick "sớm hơn 10 ngày" thì mốc tính theo đúng NGÀY kiểm (không chỉ theo tháng) -> đổi ngày là quét lại
+    if (ngayKiem && ngayKiem >= todayIso() && (earlyScan.on || earlyScan.som)) {
+      const cur = earlyScan.date || todayIso();
+      const lech = earlyScan.som ? ngayKiem !== cur : ngayKiem.slice(0, 7) !== cur.slice(0, 7);
+      if (lech) onEarlyScan({ ...earlyScan, date: ngayKiem });
     }
   }, [ngayKiem]);
 
@@ -797,6 +800,7 @@ function ScheduleView({ data, group, onDone, earlyScan, onEarlyScan }) {
         selected_shops: [...selected],
         manual_selection: selected.size > 0,
         include_chua_den_han: earlyScan.on,
+        include_som_10_ngay: !!earlyScan.som,
       });
       setResult(r);
       setSelected(new Set());
@@ -819,7 +823,7 @@ function ScheduleView({ data, group, onDone, earlyScan, onEarlyScan }) {
           <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
             <input
               type="checkbox" checked={earlyScan.on}
-              onChange={(e) => onEarlyScan({ on: e.target.checked, date: ngayKiem >= todayIso() ? ngayKiem : "" })}
+              onChange={(e) => onEarlyScan({ ...earlyScan, on: e.target.checked, date: ngayKiem >= todayIso() ? ngayKiem : "" })}
             />
             <span>
               <b>Gồm shop chưa tới hạn kiểm</b> — hiện và cho chia lịch cả shop chưa tới ngày cần kiểm nhưng vẫn có lịch kiểm trong tháng {(data.scan_date || "").slice(5, 7)}/{(data.scan_date || "").slice(0, 4)}
@@ -828,6 +832,20 @@ function ScheduleView({ data, group, onDone, earlyScan, onEarlyScan }) {
           {earlyScan.on && (
             <div style={{ fontSize: 11.5, color: "var(--text-600)", marginTop: 4 }}>
               Đang bật: bảng bên dưới có thêm các shop “Chưa tới hạn” (đánh dấu riêng). Bỏ tick để quay lại danh sách như bình thường.
+            </div>
+          )}
+          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", marginTop: 8 }}>
+            <input
+              type="checkbox" checked={!!earlyScan.som}
+              onChange={(e) => onEarlyScan({ ...earlyScan, som: e.target.checked, date: ngayKiem >= todayIso() ? ngayKiem : "" })}
+            />
+            <span>
+              <b>Gồm shop sớm hơn 10 ngày</b> — hiện thêm các shop sẽ tới hạn kiểm trong vòng 10 ngày nữa (tính từ Ngày kiểm đang chọn) để chia lịch trước
+            </span>
+          </label>
+          {earlyScan.som && (
+            <div style={{ fontSize: 11.5, color: "var(--text-600)", marginTop: 4 }}>
+              Đang bật: bảng có thêm các shop tới mốc chia trong vòng 10 ngày sau {ngayKiem || data.scan_date} (đánh dấu “Chưa tới hạn”). Bỏ tick để quay lại danh sách bình thường.
             </div>
           )}
         </div>
