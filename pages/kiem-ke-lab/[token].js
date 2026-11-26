@@ -44,22 +44,28 @@ const VI_TRI_GOI_Y = [
 const fmtNum = (n) => (n === null || n === undefined ? "-" : Number(n).toLocaleString("vi-VN", { maximumFractionDigits: 3 }));
 const fmtDate = (d) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ""); return m ? `${m[3]}/${m[2]}/${m[1]}` : (d || ""); };
 // Chốt 26/11 — mỗi sản phẩm có thể có NHIỀU date (HSD): mỗi dòng = 1 cặp "số lượng + date". Gom các dòng người kiểm nhập: bỏ dòng trống hoàn toàn.
-const LOT0 = () => [{ sl: "", date: "" }];
+const LOT0 = () => [{ sl: "", date: "", note: "" }];
 function collectLots(lots) {
   const lo = [];
   for (const x of lots) {
     const sraw = String(x.sl).trim();
     const d = x.date || "";
-    if (sraw === "" && !d) continue;
-    if (sraw === "") return { error: "Có dòng đã chọn date nhưng chưa nhập số lượng." };
+    const note = (x.note || "").trim();
+    if (sraw === "" && !d && !note) continue;
+    if (sraw === "") return { error: "Có dòng đã chọn date hoặc ghi chú nhưng chưa nhập số lượng." };
     const n = Number(sraw.replace(",", "."));
     if (!Number.isFinite(n) || n < 0) return { error: "Số lượng phải là số ≥ 0." };
-    lo.push({ so_luong: n, date: d });
+    lo.push({ so_luong: n, date: d, ghi_chu: note });
   }
   return { lo, total: Math.round(lo.reduce((a, x) => a + x.so_luong, 0) * 1000) / 1000 };
 }
-// Dòng chữ "5 × 31/12/2027 · 3 × 30/06/2028" — chỉ hiện khi sản phẩm có ít nhất 1 dòng có date
-const loText = (it) => ((it.lo || []).some((x) => x.date) ? (it.lo || []).map((x) => `${fmtNum(x.sl)} × ${x.date ? fmtDate(x.date) : "không rõ date"}`).join(" · ") : "");
+// Mỗi dòng date -> 1 dòng chữ "5 × 31/12/2027 — ghi chú" (chỉ hiện khi sản phẩm có ít nhất 1 dòng có date hoặc ghi chú)
+const lotLines = (it) => {
+  const lo = it.lo || [];
+  if (!lo.some((x) => x.date || x.note)) return [];
+  return lo.map((x) => `${fmtNum(x.sl)} × ${x.date ? fmtDate(x.date) : "không rõ date"}${x.note ? ` — ${x.note}` : ""}`);
+};
+const coNoteLo = (it) => (it.lo || []).some((x) => x.note);
 
 // Chốt 26/11 — chọn date bằng 3 "bánh xe" cuộn kiểu iPhone (Ngày / Tháng / Năm): nền chọn xanh dương rất nhạt, chữ mờ dần + nghiêng dần
 // theo khoảng cách tới dòng giữa; Ngày và Tháng cuộn vòng (31 -> 1, tháng 12 -> tháng 1), Năm cuộn thẳng.
@@ -118,6 +124,27 @@ function Wheel({ items, index, onIndex, loop }) {
     </div>
   );
 }
+// Popup nhập ghi chú cho 1 dòng date — gõ tới đâu lưu vào dòng tới đó (bấm ra ngoài vẫn giữ chữ đã gõ)
+function NoteSheet({ value, title, onChange, onClose }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(8,16,32,0.4)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, boxSizing: "border-box" }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 360, background: "#fff", borderRadius: 16, padding: "14px 14px 14px", boxSizing: "border-box", boxShadow: "0 12px 40px rgba(15,40,80,0.3)" }}>
+        <div style={{ marginBottom: 8 }}>
+          <b style={{ fontSize: 15, color: "#16365C" }}>📝 Ghi chú</b>
+          {title ? <span style={{ fontSize: 13, color: "#667085" }}> · {title}</span> : null}
+        </div>
+        <textarea
+          autoFocus value={value} onChange={(e) => onChange(e.target.value)} rows={4} maxLength={500}
+          placeholder="VD: hộp móp, hết hạn, thiếu nắp..." style={{ ...inputStyle, fontSize: 16, resize: "none", fontFamily: "inherit" }}
+        />
+        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+          <button type="button" style={{ ...btnGhost, flex: 1, padding: "9px 4px", fontSize: 13, color: "#C0392B", borderColor: "#F0C4C0" }} onClick={() => { onChange(""); onClose(); }}>Xoá ghi chú</button>
+          <button type="button" style={{ ...btnPrimary, flex: 2, padding: "9px 4px", fontSize: 14 }} onClick={onClose}>✓ Xong</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 function DateSheet({ value, onPick, onClose }) {
   const now = new Date();
   const m0 = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || "");
@@ -164,7 +191,7 @@ export default function KiemKeLabPublicPage() {
   const [item, setItem] = useState(null);
   const [datePick, setDatePick] = useState(null); // chỉ số dòng đang chọn date (mở bảng 3 bánh xe) | null
   const [lots, setLots] = useState(LOT0); // các dòng "số lượng + date" đang nhập (chốt 26/11)
-  const [note, setNote] = useState("");
+  const [notePick, setNotePick] = useState(null); // chỉ số dòng date đang nhập ghi chú (mở popup) | null
   const [viTri, setViTri] = useState("");
   const [viTriOpen, setViTriOpen] = useState(false); // mở danh sách gợi ý vị trí
   const ADD0 = { ma_hang: "", ten_hang: "", don_vi: "", phan_loai: "", ghi_chu: "" };
@@ -388,7 +415,6 @@ export default function KiemKeLabPublicPage() {
       .then((it) => {
         setItem(it);
         setLots(LOT0()); // lần kiểm mới: nhập số đếm thêm, hệ thống cộng dồn vào số đã kiểm trước đó
-        setNote("");
         setViTri("");
         setViTriOpen(false);
         setGhiDe(false);
@@ -428,7 +454,7 @@ export default function KiemKeLabPublicPage() {
     setSaving(true);
     setErr("");
     try {
-      const r = await saveKiemKeLabPublicItem(token, item.id, col.lo, note, ghiDe, viTri);
+      const r = await saveKiemKeLabPublicItem(token, item.id, col.lo, "", ghiDe, viTri);
       setPhieu(r.phieu);
       setToast(`✅ Đã lưu: ${item.ten_hang || item.ma_hang} — ${item.da_kiem && !ghiDe ? `+${fmtNum(n)}, tổng đã kiểm ${fmtNum(r.item.sl_kiem)}` : fmtNum(r.item.sl_kiem)} ${item.don_vi || ""}${col.lo.length > 1 || col.lo[0].date ? ` (${col.lo.length} date)` : ""}`);
       setItem(null);
@@ -454,7 +480,7 @@ export default function KiemKeLabPublicPage() {
           <span>Số lượng</span><span style={{ whiteSpace: "nowrap" }}>Date <span style={{ fontWeight: 500 }}>(không bắt buộc)</span></span>{lots.length > 1 ? <span /> : null}
         </div>
         {lots.map((x, i) => (
-          <div key={i} style={{ display: "grid", gridTemplateColumns: lots.length > 1 ? "1fr 1fr 40px" : "1fr 1fr", gap: 8, marginBottom: 8, alignItems: "center" }}>
+          <div key={i} style={{ display: "grid", gridTemplateColumns: lots.length > 1 ? "1fr 1fr 40px" : "1fr 1fr", gap: 8, marginBottom: 10, alignItems: "center" }}>
             <input
               ref={i === 0 ? qtyRef : undefined} value={x.sl} onChange={(e) => upd(i, { sl: e.target.value })} disabled={done}
               onKeyDown={(e) => { if (e.key === "Enter" && onEnter && !done) onEnter(); }}
@@ -469,10 +495,14 @@ export default function KiemKeLabPublicPage() {
               <button type="button" disabled={done} onClick={() => setLots((ls) => ls.filter((_, j) => j !== i))} aria-label="Bỏ dòng này"
                 style={{ height: 40, width: 40, border: "1.5px solid #F0C4C0", borderRadius: 10, background: "#fff", color: "#C0392B", fontSize: 16, cursor: "pointer", padding: 0 }}>✕</button>
             ) : null}
+            <button
+              type="button" disabled={done} onClick={() => setNotePick(i)} aria-label="Ghi chú cho dòng này"
+              style={{ gridColumn: "1 / -1", textAlign: "left", padding: "7px 10px", border: "1.5px solid #E1E8F3", borderRadius: 10, background: x.note ? "#FFF8E6" : "#F8FAFD", color: x.note ? "#6B4700" : "#98A2B3", fontSize: 13.5, fontWeight: x.note ? 600 : 500, cursor: "pointer", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+            >📝 {x.note ? x.note : "Ghi chú (không bắt buộc)"}</button>
           </div>
         ))}
         <button
-          type="button" disabled={done} onClick={() => setLots((ls) => [...ls, { sl: "", date: "" }])}
+          type="button" disabled={done} onClick={() => setLots((ls) => [...ls, { sl: "", date: "", note: "" }])}
           style={{ width: "100%", padding: "11px 10px", border: "1.5px dashed #1F6FD6", borderRadius: 10, background: "#F4F8FE", color: "#1F6FD6", fontSize: 15, fontWeight: 700, cursor: "pointer" }}
         >＋ Thêm số lượng / date khác</button>
         {!col.error && col.lo.length > 1 && (
@@ -706,9 +736,9 @@ export default function KiemKeLabPublicPage() {
                         <div style={{ minWidth: 0, flex: 1, cursor: done ? "default" : "pointer" }} onClick={() => { if (!done) openItem(it.id); }}>
                           <div style={{ fontSize: 12, color: "#667085" }}>{it.ma_hang}{it.da_kiem ? ` · ${fmtTime(it.kiem_at)}` : ""}{it.da_kiem && it.kiem_by ? ` · ${it.kiem_by}` : ""}{it.ngoai_ds ? " · Ngoài danh sách" : ""}</div>
                           <div style={{ fontSize: 14, fontWeight: 600, color: "#16365C" }}>{it.ten_hang || (it.ngoai_ds ? "(chưa nhập tên)" : "(không có tên)")}</div>
-                          {loText(it) && <div style={{ fontSize: 12, color: "#3E5C2A", marginTop: 2, wordBreak: "break-word" }}>📅 {loText(it)}</div>}
+                          {lotLines(it).map((t, k) => <div key={k} style={{ fontSize: 12, color: "#3E5C2A", marginTop: 2, wordBreak: "break-word" }}>📅 {t}</div>)}
                           {it.vi_tri && <div style={{ fontSize: 12, color: "#1F4E79", marginTop: 2, wordBreak: "break-word" }}>📍 {it.vi_tri}</div>}
-                          {it.ghi_chu && <div style={{ fontSize: 12, color: "#8A5A00", marginTop: 2, wordBreak: "break-word" }}>📝 {it.ghi_chu}</div>}
+                          {it.ghi_chu && !coNoteLo(it) && <div style={{ fontSize: 12, color: "#8A5A00", marginTop: 2, wordBreak: "break-word" }}>📝 {it.ghi_chu}</div>}
                         </div>
                         {it.da_kiem ? (
                           <div style={{ flexShrink: 0, textAlign: "right", lineHeight: 1.3 }}>
@@ -749,8 +779,6 @@ export default function KiemKeLabPublicPage() {
                 <label style={lbl}>Phân loại hàng</label>
                 <input value={addForm.phan_loai} onChange={(e) => setAddForm({ ...addForm, phan_loai: e.target.value })} maxLength={100} autoComplete="off" style={{ ...inputStyle, marginBottom: 12 }} />
                 {renderViTri()}
-                <label style={lbl}>Ghi chú</label>
-                <textarea value={addForm.ghi_chu} onChange={(e) => setAddForm({ ...addForm, ghi_chu: e.target.value })} rows={3} maxLength={1000} style={{ ...inputStyle, fontSize: 15, resize: "vertical", fontFamily: "inherit" }} />
                 {err && <div style={errStyle}>{err}</div>}
                 <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
                   <button style={{ ...btnGhost, flex: 1, padding: "13px 10px", fontSize: 15 }} onClick={backToSearch}>← Quay lại</button>
@@ -782,21 +810,16 @@ export default function KiemKeLabPublicPage() {
                   <div style={{ marginBottom: 12, padding: "10px 12px", background: "#FFF4D6", border: "1px solid #F0D58A", borderRadius: 10, color: "#6B4700" }}>
                     <div style={{ fontSize: 13 }}>Đã kiểm trước đó</div>
                     <div style={{ fontSize: 22, fontWeight: 800 }}>{fmtNum(item.sl_kiem)} <span style={{ fontSize: 13, fontWeight: 600 }}>{item.don_vi}</span></div>
-                    {loText(item) && <div style={{ fontSize: 13, marginTop: 2 }}>📅 {loText(item)}</div>}
+                    {lotLines(item).map((t, k) => <div key={k} style={{ fontSize: 13, marginTop: 2 }}>📅 {t}</div>)}
                     {item.kiem_by && <div style={{ fontSize: 13, marginTop: 2 }}>Người kiểm: {item.kiem_by}</div>}
                     {item.vi_tri && <div style={{ fontSize: 13, marginTop: 2 }}>📍 {item.vi_tri}</div>}
-                    {item.ghi_chu && <div style={{ fontSize: 13, marginTop: 2 }}>📝 {item.ghi_chu}</div>}
+                    {item.ghi_chu && !coNoteLo(item) && <div style={{ fontSize: 13, marginTop: 2 }}>📝 {item.ghi_chu}</div>}
                     <div style={{ fontSize: 12.5, marginTop: 4 }}>Nhập số lượng kiểm <b>thêm</b> lần này — hệ thống sẽ <b>cộng dồn</b> vào số trên.</div>
                   </div>
                 )}
                 {renderViTri()}
                 <label style={lbl}>{item.da_kiem && !ghiDe ? "Số lượng kiểm thêm lần này" : "Số lượng kiểm kê"}{item.don_vi ? ` (${item.don_vi})` : ""} <span style={{ fontWeight: 500, color: "#667085" }}>và date (HSD)</span></label>
                 {renderLots(doSave)}
-                <label style={{ ...lbl, marginTop: 14 }}>Ghi chú (nếu có)</label>
-                <textarea
-                  value={note} onChange={(e) => setNote(e.target.value)} disabled={done} rows={3} maxLength={1000}
-                  placeholder="VD: hộp móp, hết hạn, thiếu nắp..." style={{ ...inputStyle, fontSize: 15, resize: "vertical", fontFamily: "inherit" }}
-                />
                 {item.da_kiem && !done && (() => {
                   const col = collectLots(lots);
                   const n = col.total;
@@ -822,6 +845,13 @@ export default function KiemKeLabPublicPage() {
           </>
         )}
       </div>
+
+      {notePick !== null && lots[notePick] && (
+        <NoteSheet
+          value={lots[notePick].note || ""} title={lots[notePick].date ? fmtDate(lots[notePick].date) : (lots.length > 1 ? `Dòng ${notePick + 1}` : "")}
+          onChange={(v) => setLots((ls) => ls.map((x, j) => (j === notePick ? { ...x, note: v } : x)))} onClose={() => setNotePick(null)}
+        />
+      )}
 
       {datePick !== null && (
         <DateSheet

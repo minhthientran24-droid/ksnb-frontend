@@ -276,7 +276,7 @@ export default function KiemKeLabTab() {
                             <td style={{ padding: "5px 10px", textAlign: "right", fontWeight: 700, color: chenh === null ? "var(--text-400)" : chenh === 0 ? "#3E7A2A" : "var(--danger)" }}>
                               {chenh === null ? "-" : `${chenh > 0 ? "+" : ""}${fmtNum(chenh)}`}
                             </td>
-                            <td style={{ padding: "5px 10px", textAlign: "left", maxWidth: 240 }}>{(it.lo || []).some((x) => x.date) ? it.lo.map((x) => `${fmtNum(x.sl)} × ${x.date ? x.date.split("-").reverse().join("/") : "không rõ date"}`).join("; ") : ""}</td>
+                            <td style={{ padding: "5px 10px", textAlign: "left", maxWidth: 240 }}>{(it.lo || []).some((x) => x.date || x.note) ? it.lo.map((x) => `${fmtNum(x.sl)} × ${x.date ? x.date.split("-").reverse().join("/") : "không rõ date"}${x.note ? ` (${x.note})` : ""}`).join("; ") : ""}</td>
                             <td style={{ padding: "5px 10px", textAlign: "left", maxWidth: 200 }}>{it.vi_tri || ""}</td>
                             <td style={{ padding: "5px 10px", textAlign: "left", whiteSpace: "nowrap" }}>{it.kiem_by || ""}</td>
                             <td style={{ padding: "5px 10px", textAlign: "left", maxWidth: 260 }}>{it.ghi_chu || ""}</td>
