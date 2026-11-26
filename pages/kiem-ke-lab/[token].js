@@ -61,41 +61,59 @@ function collectLots(lots) {
 // Dòng chữ "5 × 31/12/2027 · 3 × 30/06/2028" — chỉ hiện khi sản phẩm có ít nhất 1 dòng có date
 const loText = (it) => ((it.lo || []).some((x) => x.date) ? (it.lo || []).map((x) => `${fmtNum(x.sl)} × ${x.date ? fmtDate(x.date) : "không rõ date"}`).join(" · ") : "");
 
-// Chốt 26/11 — chọn date bằng 3 "bánh xe" cuộn (Ngày / Tháng / Năm) thay cho lịch tháng của trình duyệt.
+// Chốt 26/11 — chọn date bằng 3 "bánh xe" cuộn kiểu iPhone (Ngày / Tháng / Năm): nền chọn xanh dương rất nhạt, chữ mờ dần + nghiêng dần
+// theo khoảng cách tới dòng giữa; Ngày và Tháng cuộn vòng (31 -> 1, tháng 12 -> tháng 1), Năm cuộn thẳng.
 const ITEM_H = 36;
 const WHEEL_VISIBLE = 5; // số dòng nhìn thấy (dòng giữa là dòng đang chọn)
-function Wheel({ items, index, onIndex, title }) {
+const LOOP_REP = 5; // cột cuộn vòng: lặp danh sách 5 lần, luôn đứng ở bản giữa
+function Wheel({ items, index, onIndex, loop }) {
   const ref = useRef(null);
   const timer = useRef(null);
-  useEffect(() => { if (ref.current) ref.current.scrollTop = index * ITEM_H; }, [index, items.length]);
-  useEffect(() => () => clearTimeout(timer.current), []);
+  const raf = useRef(0);
+  const n = items.length;
+  const baseOf = (i) => (loop ? Math.floor(LOOP_REP / 2) * n + i : i) * ITEM_H;
+  const [pos, setPos] = useState(() => baseOf(index) / ITEM_H); // vị trí cuộn hiện tại (đơn vị: dòng) — để làm mờ/nghiêng
+  const list = loop ? Array.from({ length: n * LOOP_REP }, (_, k) => items[k % n]) : items;
+  useEffect(() => {
+    if (ref.current) { ref.current.scrollTop = baseOf(index); setPos(index + (loop ? Math.floor(LOOP_REP / 2) * n : 0)); }
+  }, [index, n]);
+  useEffect(() => () => { clearTimeout(timer.current); cancelAnimationFrame(raf.current); }, []);
   function onScroll() {
+    cancelAnimationFrame(raf.current);
+    raf.current = requestAnimationFrame(() => { if (ref.current) setPos(ref.current.scrollTop / ITEM_H); });
     clearTimeout(timer.current);
     timer.current = setTimeout(() => {
       if (!ref.current) return;
-      const i = Math.max(0, Math.min(items.length - 1, Math.round(ref.current.scrollTop / ITEM_H)));
-      if (i !== index) onIndex(i);
-    }, 90);
+      const g = Math.max(0, Math.min(list.length - 1, Math.round(ref.current.scrollTop / ITEM_H)));
+      const v = loop ? g % n : g;
+      if (loop) { ref.current.scrollTop = baseOf(v); setPos(Math.floor(LOOP_REP / 2) * n + v); } // quay về bản giữa để cuộn vòng mãi
+      if (v !== index) onIndex(v);
+    }, 100);
   }
   const pad = ITEM_H * Math.floor(WHEEL_VISIBLE / 2);
   return (
     <div style={{ flex: 1, minWidth: 0, textAlign: "center" }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: "#667085", marginBottom: 2 }}>{title}</div>
       <div style={{ position: "relative", height: ITEM_H * WHEEL_VISIBLE }}>
+        <div style={{ position: "absolute", left: 2, right: 2, top: pad, height: ITEM_H, borderRadius: 10, background: "#EAF2FC", pointerEvents: "none" }} />
         <div
           ref={ref} className="kkl-wheel" onScroll={onScroll}
-          style={{ height: "100%", overflowY: "auto", scrollSnapType: "y mandatory", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain", padding: `${pad}px 0`, boxSizing: "border-box", scrollbarWidth: "none" }}
+          style={{ position: "relative", height: "100%", overflowY: "auto", scrollSnapType: "y mandatory", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain", padding: `${pad}px 0`, boxSizing: "border-box", scrollbarWidth: "none" }}
         >
-          {items.map((it, i) => (
-            <div
-              key={i} onClick={() => ref.current?.scrollTo({ top: i * ITEM_H, behavior: "smooth" })}
-              style={{ height: ITEM_H, lineHeight: `${ITEM_H}px`, scrollSnapAlign: "center", fontSize: i === index ? 20 : 16, fontWeight: i === index ? 800 : 500, color: i === index ? "#16365C" : "#98A2B3", cursor: "pointer", userSelect: "none" }}
-            >{it}</div>
-          ))}
+          {list.map((it, i) => {
+            const dist = i - pos;
+            const ad = Math.abs(dist);
+            if (ad > 3.2) return <div key={i} style={{ height: ITEM_H, scrollSnapAlign: "center" }} />;
+            return (
+              <div
+                key={i} onClick={() => ref.current?.scrollTo({ top: i * ITEM_H, behavior: "smooth" })}
+                style={{
+                  height: ITEM_H, lineHeight: `${ITEM_H}px`, scrollSnapAlign: "center", fontSize: 20, fontWeight: 400, cursor: "pointer", userSelect: "none",
+                  color: "#101828", opacity: Math.max(0.12, 1 - ad * 0.38), transform: `perspective(240px) rotateX(${Math.max(-70, Math.min(70, -dist * 22))}deg)`,
+                }}
+              >{it}</div>
+            );
+          })}
         </div>
-        <div style={{ position: "absolute", left: 0, right: 0, top: pad, height: ITEM_H, borderTop: "1.5px solid #1F6FD6", borderBottom: "1.5px solid #1F6FD6", background: "rgba(31,111,214,0.06)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: pad, background: "linear-gradient(#fff, rgba(255,255,255,0.55))", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: pad, background: "linear-gradient(rgba(255,255,255,0.55), #fff)", pointerEvents: "none" }} />
       </div>
     </div>
   );
@@ -112,18 +130,17 @@ function DateSheet({ value, onPick, onClose }) {
   const dd = Math.min(d, dim);
   const z = (n) => String(n).padStart(2, "0");
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(8,16,32,0.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, boxSizing: "border-box" }} onClick={onClose}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(8,16,32,0.4)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, boxSizing: "border-box" }} onClick={onClose}>
       <style>{".kkl-wheel::-webkit-scrollbar{display:none}"}</style>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 330, background: "#fff", borderRadius: 16, padding: "12px 14px 14px", boxSizing: "border-box", boxShadow: "0 12px 40px rgba(15,40,80,0.3)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 330, background: "#fff", borderRadius: 16, padding: "12px 12px 14px", boxSizing: "border-box", boxShadow: "0 12px 40px rgba(15,40,80,0.3)" }}>
+        <div style={{ textAlign: "center", marginBottom: 6 }}>
           <b style={{ fontSize: 15, color: "#16365C" }}>Chọn date (HSD)</b>
-          <span style={{ fontSize: 14, fontWeight: 700, color: "#1F6FD6" }}>{z(dd)}/{z(m)}/{y}</span>
+          <div style={{ fontSize: 12, color: "#667085", marginTop: 2 }}>Không bắt buộc — có thể bỏ trống.</div>
         </div>
-        <div style={{ fontSize: 12, color: "#667085", marginBottom: 6 }}>Không bắt buộc — có thể bỏ trống.</div>
-        <div style={{ display: "flex", gap: 6 }}>
-          <Wheel title="Ngày" items={Array.from({ length: dim }, (_, i) => z(i + 1))} index={dd - 1} onIndex={(i) => setD(i + 1)} />
-          <Wheel title="Tháng" items={Array.from({ length: 12 }, (_, i) => `Th ${i + 1}`)} index={m - 1} onIndex={(i) => setM(i + 1)} />
-          <Wheel title="Năm" items={years} index={years.indexOf(y)} onIndex={(i) => setY(years[i])} />
+        <div style={{ display: "flex", gap: 4 }}>
+          <Wheel loop items={Array.from({ length: dim }, (_, i) => String(i + 1))} index={dd - 1} onIndex={(i) => setD(i + 1)} />
+          <Wheel loop items={Array.from({ length: 12 }, (_, i) => `tháng ${i + 1}`)} index={m - 1} onIndex={(i) => setM(i + 1)} />
+          <Wheel items={years} index={years.indexOf(y)} onIndex={(i) => setY(years[i])} />
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
           <button type="button" style={{ ...btnGhost, flex: 1, padding: "9px 4px", fontSize: 13, color: "#C0392B", borderColor: "#F0C4C0" }} onClick={() => onPick("")}>Xoá date</button>
