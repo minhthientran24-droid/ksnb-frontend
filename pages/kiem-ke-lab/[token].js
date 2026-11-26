@@ -61,6 +61,79 @@ function collectLots(lots) {
 // Dòng chữ "5 × 31/12/2027 · 3 × 30/06/2028" — chỉ hiện khi sản phẩm có ít nhất 1 dòng có date
 const loText = (it) => ((it.lo || []).some((x) => x.date) ? (it.lo || []).map((x) => `${fmtNum(x.sl)} × ${x.date ? fmtDate(x.date) : "không rõ date"}`).join(" · ") : "");
 
+// Chốt 26/11 — chọn date bằng 3 "bánh xe" cuộn (Ngày / Tháng / Năm) thay cho lịch tháng của trình duyệt.
+const ITEM_H = 44;
+const WHEEL_VISIBLE = 5; // số dòng nhìn thấy (dòng giữa là dòng đang chọn)
+function Wheel({ items, index, onIndex, title }) {
+  const ref = useRef(null);
+  const timer = useRef(null);
+  useEffect(() => { if (ref.current) ref.current.scrollTop = index * ITEM_H; }, [index, items.length]);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  function onScroll() {
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      if (!ref.current) return;
+      const i = Math.max(0, Math.min(items.length - 1, Math.round(ref.current.scrollTop / ITEM_H)));
+      if (i !== index) onIndex(i);
+    }, 90);
+  }
+  const pad = ITEM_H * Math.floor(WHEEL_VISIBLE / 2);
+  return (
+    <div style={{ flex: 1, minWidth: 0, textAlign: "center" }}>
+      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#667085", marginBottom: 4 }}>{title}</div>
+      <div style={{ position: "relative", height: ITEM_H * WHEEL_VISIBLE }}>
+        <div
+          ref={ref} className="kkl-wheel" onScroll={onScroll}
+          style={{ height: "100%", overflowY: "auto", scrollSnapType: "y mandatory", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain", padding: `${pad}px 0`, boxSizing: "border-box", scrollbarWidth: "none" }}
+        >
+          {items.map((it, i) => (
+            <div
+              key={i} onClick={() => ref.current?.scrollTo({ top: i * ITEM_H, behavior: "smooth" })}
+              style={{ height: ITEM_H, lineHeight: `${ITEM_H}px`, scrollSnapAlign: "center", fontSize: i === index ? 24 : 20, fontWeight: i === index ? 800 : 500, color: i === index ? "#16365C" : "#98A2B3", cursor: "pointer", userSelect: "none" }}
+            >{it}</div>
+          ))}
+        </div>
+        <div style={{ position: "absolute", left: 0, right: 0, top: pad, height: ITEM_H, borderTop: "1.5px solid #1F6FD6", borderBottom: "1.5px solid #1F6FD6", background: "rgba(31,111,214,0.06)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: pad, background: "linear-gradient(#fff, rgba(255,255,255,0.55))", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: pad, background: "linear-gradient(rgba(255,255,255,0.55), #fff)", pointerEvents: "none" }} />
+      </div>
+    </div>
+  );
+}
+function DateSheet({ value, onPick, onClose }) {
+  const now = new Date();
+  const m0 = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || "");
+  const [y, setY] = useState(m0 ? +m0[1] : now.getFullYear());
+  const [m, setM] = useState(m0 ? +m0[2] : now.getMonth() + 1);
+  const [d, setD] = useState(m0 ? +m0[3] : now.getDate());
+  const yFrom = Math.min(now.getFullYear() - 1, y);
+  const years = Array.from({ length: Math.max(now.getFullYear() + 12, y) - yFrom + 1 }, (_, i) => yFrom + i);
+  const dim = new Date(y, m, 0).getDate();
+  const dd = Math.min(d, dim);
+  const z = (n) => String(n).padStart(2, "0");
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(8,16,32,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={onClose}>
+      <style>{".kkl-wheel::-webkit-scrollbar{display:none}"}</style>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 560, background: "#fff", borderRadius: "18px 18px 0 0", padding: "14px 16px calc(16px + env(safe-area-inset-bottom))", boxSizing: "border-box", boxShadow: "0 -8px 30px rgba(15,40,80,0.25)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+          <b style={{ fontSize: 16, color: "#16365C" }}>Chọn date (HSD)</b>
+          <span style={{ fontSize: 15, fontWeight: 700, color: "#1F6FD6" }}>{z(dd)}/{z(m)}/{y}</span>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Wheel title="Ngày" items={Array.from({ length: dim }, (_, i) => z(i + 1))} index={dd - 1} onIndex={(i) => setD(i + 1)} />
+          <Wheel title="Tháng" items={Array.from({ length: 12 }, (_, i) => `Tháng ${i + 1}`)} index={m - 1} onIndex={(i) => setM(i + 1)} />
+          <Wheel title="Năm" items={years} index={years.indexOf(y)} onIndex={(i) => setY(years[i])} />
+        </div>
+        <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+          <button type="button" style={{ ...btnGhost, flex: 1, padding: "12px 6px", fontSize: 14, color: "#C0392B", borderColor: "#F0C4C0" }} onClick={() => onPick("")}>Xoá date</button>
+          <button type="button" style={{ ...btnGhost, flex: 1, padding: "12px 6px", fontSize: 14 }} onClick={onClose}>Hủy</button>
+          <button type="button" style={{ ...btnPrimary, flex: 2, padding: "12px 6px", fontSize: 16 }} onClick={() => onPick(`${y}-${z(m)}-${z(dd)}`)}>✓ Xong</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function KiemKeLabPublicPage() {
   const router = useRouter();
   const token = typeof router.query.token === "string" ? router.query.token : null;
@@ -72,6 +145,7 @@ export default function KiemKeLabPublicPage() {
   const [searching, setSearching] = useState(false);
   const [result, setResult] = useState(null); // {items, tong, gan_dung, q} | null (chưa tìm)
   const [item, setItem] = useState(null);
+  const [datePick, setDatePick] = useState(null); // chỉ số dòng đang chọn date (mở bảng 3 bánh xe) | null
   const [lots, setLots] = useState(LOT0); // các dòng "số lượng + date" đang nhập (chốt 26/11)
   const [note, setNote] = useState("");
   const [viTri, setViTri] = useState("");
@@ -370,10 +444,10 @@ export default function KiemKeLabPublicPage() {
               inputMode="decimal" placeholder="Số lượng" autoComplete="off"
               style={{ ...inputStyle, minWidth: 0, fontSize: 20, fontWeight: 700, textAlign: "center", padding: "10px 6px" }}
             />
-            <input
-              type="date" value={x.date} onChange={(e) => upd(i, { date: e.target.value })} disabled={done} aria-label="Date (hạn sử dụng)"
-              style={{ ...inputStyle, minWidth: 0, fontSize: 16, padding: "10px 6px", height: 48 }}
-            />
+            <button
+              type="button" disabled={done} onClick={() => setDatePick(i)} aria-label="Chọn date (hạn sử dụng)"
+              style={{ ...inputStyle, minWidth: 0, fontSize: 17, fontWeight: x.date ? 700 : 500, color: x.date ? "#101828" : "#98A2B3", padding: "10px 6px", height: 48, textAlign: "center", cursor: "pointer" }}
+            >{x.date ? fmtDate(x.date) : "Chọn date"}</button>
             {lots.length > 1 ? (
               <button type="button" disabled={done} onClick={() => setLots((ls) => ls.filter((_, j) => j !== i))} aria-label="Bỏ dòng này"
                 style={{ height: 40, width: 40, border: "1.5px solid #F0C4C0", borderRadius: 10, background: "#fff", color: "#C0392B", fontSize: 16, cursor: "pointer", padding: 0 }}>✕</button>
@@ -724,6 +798,13 @@ export default function KiemKeLabPublicPage() {
           </>
         )}
       </div>
+
+      {datePick !== null && (
+        <DateSheet
+          value={lots[datePick]?.date} onClose={() => setDatePick(null)}
+          onPick={(v) => { setLots((ls) => ls.map((x, j) => (j === datePick ? { ...x, date: v } : x))); setDatePick(null); }}
+        />
+      )}
 
       {scanOpen && (
         <div style={scanOverlay}>
