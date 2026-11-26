@@ -97,7 +97,7 @@ function Wheel({ items, index, onIndex, loop }) {
         <div style={{ position: "absolute", left: 2, right: 2, top: pad, height: ITEM_H, borderRadius: 10, background: "#EAF2FC", pointerEvents: "none" }} />
         <div
           ref={ref} className="kkl-wheel" onScroll={onScroll}
-          style={{ position: "relative", height: "100%", overflowY: "auto", scrollSnapType: "y mandatory", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain", padding: `${pad}px 0`, boxSizing: "border-box", scrollbarWidth: "none" }}
+          style={{ position: "relative", height: "100%", overflowY: "auto", overflowX: "hidden", touchAction: "pan-y", scrollSnapType: "y mandatory", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain", padding: `${pad}px 0`, boxSizing: "border-box", scrollbarWidth: "none" }}
         >
           {list.map((it, i) => {
             const dist = i - pos;
@@ -108,7 +108,7 @@ function Wheel({ items, index, onIndex, loop }) {
                 key={i} onClick={() => ref.current?.scrollTo({ top: i * ITEM_H, behavior: "smooth" })}
                 style={{
                   height: ITEM_H, lineHeight: `${ITEM_H}px`, scrollSnapAlign: "center", fontSize: 20, fontWeight: 400, cursor: "pointer", userSelect: "none",
-                  color: "#101828", opacity: Math.max(0.12, 1 - ad * 0.38), transform: `perspective(240px) rotateX(${Math.max(-70, Math.min(70, -dist * 22))}deg)`,
+                  color: "#101828", opacity: Math.max(0.12, 1 - ad * 0.38),
                 }}
               >{it}</div>
             );
@@ -132,7 +132,7 @@ function DateSheet({ value, onPick, onClose }) {
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(8,16,32,0.4)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, boxSizing: "border-box" }} onClick={onClose}>
       <style>{".kkl-wheel::-webkit-scrollbar{display:none}"}</style>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 330, background: "#fff", borderRadius: 16, padding: "12px 12px 14px", boxSizing: "border-box", boxShadow: "0 12px 40px rgba(15,40,80,0.3)" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 330, overflow: "hidden", touchAction: "pan-y", background: "#fff", borderRadius: 16, padding: "12px 12px 14px", boxSizing: "border-box", boxShadow: "0 12px 40px rgba(15,40,80,0.3)" }}>
         <div style={{ textAlign: "center", marginBottom: 6 }}>
           <b style={{ fontSize: 15, color: "#16365C" }}>Chọn date (HSD)</b>
           <div style={{ fontSize: 12, color: "#667085", marginTop: 2 }}>Không bắt buộc — có thể bỏ trống.</div>
