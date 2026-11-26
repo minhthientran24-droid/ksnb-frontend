@@ -62,7 +62,7 @@ function collectLots(lots) {
 const loText = (it) => ((it.lo || []).some((x) => x.date) ? (it.lo || []).map((x) => `${fmtNum(x.sl)} × ${x.date ? fmtDate(x.date) : "không rõ date"}`).join(" · ") : "");
 
 // Chốt 26/11 — chọn date bằng 3 "bánh xe" cuộn (Ngày / Tháng / Năm) thay cho lịch tháng của trình duyệt.
-const ITEM_H = 44;
+const ITEM_H = 36;
 const WHEEL_VISIBLE = 5; // số dòng nhìn thấy (dòng giữa là dòng đang chọn)
 function Wheel({ items, index, onIndex, title }) {
   const ref = useRef(null);
@@ -80,7 +80,7 @@ function Wheel({ items, index, onIndex, title }) {
   const pad = ITEM_H * Math.floor(WHEEL_VISIBLE / 2);
   return (
     <div style={{ flex: 1, minWidth: 0, textAlign: "center" }}>
-      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#667085", marginBottom: 4 }}>{title}</div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: "#667085", marginBottom: 2 }}>{title}</div>
       <div style={{ position: "relative", height: ITEM_H * WHEEL_VISIBLE }}>
         <div
           ref={ref} className="kkl-wheel" onScroll={onScroll}
@@ -89,7 +89,7 @@ function Wheel({ items, index, onIndex, title }) {
           {items.map((it, i) => (
             <div
               key={i} onClick={() => ref.current?.scrollTo({ top: i * ITEM_H, behavior: "smooth" })}
-              style={{ height: ITEM_H, lineHeight: `${ITEM_H}px`, scrollSnapAlign: "center", fontSize: i === index ? 24 : 20, fontWeight: i === index ? 800 : 500, color: i === index ? "#16365C" : "#98A2B3", cursor: "pointer", userSelect: "none" }}
+              style={{ height: ITEM_H, lineHeight: `${ITEM_H}px`, scrollSnapAlign: "center", fontSize: i === index ? 20 : 16, fontWeight: i === index ? 800 : 500, color: i === index ? "#16365C" : "#98A2B3", cursor: "pointer", userSelect: "none" }}
             >{it}</div>
           ))}
         </div>
@@ -112,22 +112,23 @@ function DateSheet({ value, onPick, onClose }) {
   const dd = Math.min(d, dim);
   const z = (n) => String(n).padStart(2, "0");
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(8,16,32,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={onClose}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(8,16,32,0.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, boxSizing: "border-box" }} onClick={onClose}>
       <style>{".kkl-wheel::-webkit-scrollbar{display:none}"}</style>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 560, background: "#fff", borderRadius: "18px 18px 0 0", padding: "14px 16px calc(16px + env(safe-area-inset-bottom))", boxSizing: "border-box", boxShadow: "0 -8px 30px rgba(15,40,80,0.25)" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 330, background: "#fff", borderRadius: 16, padding: "12px 14px 14px", boxSizing: "border-box", boxShadow: "0 12px 40px rgba(15,40,80,0.3)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-          <b style={{ fontSize: 16, color: "#16365C" }}>Chọn date (HSD)</b>
-          <span style={{ fontSize: 15, fontWeight: 700, color: "#1F6FD6" }}>{z(dd)}/{z(m)}/{y}</span>
+          <b style={{ fontSize: 15, color: "#16365C" }}>Chọn date (HSD)</b>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "#1F6FD6" }}>{z(dd)}/{z(m)}/{y}</span>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ fontSize: 12, color: "#667085", marginBottom: 6 }}>Không bắt buộc — có thể bỏ trống.</div>
+        <div style={{ display: "flex", gap: 6 }}>
           <Wheel title="Ngày" items={Array.from({ length: dim }, (_, i) => z(i + 1))} index={dd - 1} onIndex={(i) => setD(i + 1)} />
-          <Wheel title="Tháng" items={Array.from({ length: 12 }, (_, i) => `Tháng ${i + 1}`)} index={m - 1} onIndex={(i) => setM(i + 1)} />
+          <Wheel title="Tháng" items={Array.from({ length: 12 }, (_, i) => `Th ${i + 1}`)} index={m - 1} onIndex={(i) => setM(i + 1)} />
           <Wheel title="Năm" items={years} index={years.indexOf(y)} onIndex={(i) => setY(years[i])} />
         </div>
-        <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
-          <button type="button" style={{ ...btnGhost, flex: 1, padding: "12px 6px", fontSize: 14, color: "#C0392B", borderColor: "#F0C4C0" }} onClick={() => onPick("")}>Xoá date</button>
-          <button type="button" style={{ ...btnGhost, flex: 1, padding: "12px 6px", fontSize: 14 }} onClick={onClose}>Hủy</button>
-          <button type="button" style={{ ...btnPrimary, flex: 2, padding: "12px 6px", fontSize: 16 }} onClick={() => onPick(`${y}-${z(m)}-${z(dd)}`)}>✓ Xong</button>
+        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+          <button type="button" style={{ ...btnGhost, flex: 1, padding: "9px 4px", fontSize: 13, color: "#C0392B", borderColor: "#F0C4C0" }} onClick={() => onPick("")}>Xoá date</button>
+          <button type="button" style={{ ...btnGhost, flex: 1, padding: "9px 4px", fontSize: 13 }} onClick={onClose}>Hủy</button>
+          <button type="button" style={{ ...btnPrimary, flex: 1.6, padding: "9px 4px", fontSize: 14 }} onClick={() => onPick(`${y}-${z(m)}-${z(dd)}`)}>✓ Xong</button>
         </div>
       </div>
     </div>
@@ -434,7 +435,7 @@ export default function KiemKeLabPublicPage() {
     return (
       <>
         <div style={{ display: "grid", gridTemplateColumns: lots.length > 1 ? "1fr 1fr 40px" : "1fr 1fr", gap: 8, marginBottom: 4, fontSize: 12.5, fontWeight: 700, color: "#667085" }}>
-          <span>Số lượng</span><span>Date (HSD)</span>{lots.length > 1 ? <span /> : null}
+          <span>Số lượng</span><span style={{ whiteSpace: "nowrap" }}>Date <span style={{ fontWeight: 500 }}>(không bắt buộc)</span></span>{lots.length > 1 ? <span /> : null}
         </div>
         {lots.map((x, i) => (
           <div key={i} style={{ display: "grid", gridTemplateColumns: lots.length > 1 ? "1fr 1fr 40px" : "1fr 1fr", gap: 8, marginBottom: 8, alignItems: "center" }}>
