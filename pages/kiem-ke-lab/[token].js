@@ -761,14 +761,21 @@ export default function KiemKeLabPublicPage() {
 
             {view === "detail" && item && (
               <div style={card}>
-                <div style={{ fontSize: 12.5, color: "#667085" }}>Mã sản phẩm</div>
-                <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 10 }}>{item.ma_hang || "-"}{item.ngoai_ds ? <span style={{ marginLeft: 8, fontSize: 12, fontWeight: 700, color: "#1F6FD6", background: "#E8F1FD", borderRadius: 99, padding: "2px 9px" }}>Ngoài danh sách</span> : null}</div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, color: "#667085" }}>Mã sản phẩm</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 0 }}>{item.ma_hang || "-"}{item.ngoai_ds ? <span style={{ marginLeft: 8, fontSize: 12, fontWeight: 700, color: "#1F6FD6", background: "#E8F1FD", borderRadius: 99, padding: "2px 9px" }}>Ngoài danh sách</span> : null}</div>
+                  </div>
+                  <div style={{ textAlign: "right", minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, color: "#667085" }}>Phân loại hàng hóa</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, wordBreak: "break-word" }}>{item.phan_loai || "-"}</div>
+                  </div>
+                </div>
                 <div style={{ fontSize: 12.5, color: "#667085" }}>Tên sản phẩm</div>
                 <div style={{ fontSize: 17, fontWeight: 800, color: "#16365C", marginBottom: 12 }}>{item.ten_hang || "-"}</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
                   <div style={infoBox}><div style={infoLbl}>Đơn vị tính</div><div style={infoVal}>{item.don_vi || "-"}</div></div>
                   <div style={infoBox}><div style={infoLbl}>Số lượng tồn kho</div><div style={infoVal}>{item.ngoai_ds ? "-" : fmtNum(item.ton_kho)}</div></div>
-                  <div style={{ ...infoBox, gridColumn: "1 / -1" }}><div style={infoLbl}>Phân loại hàng hóa</div><div style={infoVal}>{item.phan_loai || "-"}</div></div>
                 </div>
 
                 {item.da_kiem && (
