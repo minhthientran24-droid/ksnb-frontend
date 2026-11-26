@@ -144,8 +144,7 @@ function DateSheet({ value, onPick, onClose }) {
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
           <button type="button" style={{ ...btnGhost, flex: 1, padding: "9px 4px", fontSize: 13, color: "#C0392B", borderColor: "#F0C4C0" }} onClick={() => onPick("")}>Xoá date</button>
-          <button type="button" style={{ ...btnGhost, flex: 1, padding: "9px 4px", fontSize: 13 }} onClick={onClose}>Hủy</button>
-          <button type="button" style={{ ...btnPrimary, flex: 1.6, padding: "9px 4px", fontSize: 14 }} onClick={() => onPick(`${y}-${z(m)}-${z(dd)}`)}>✓ Xong</button>
+          <button type="button" style={{ ...btnPrimary, flex: 2, padding: "9px 4px", fontSize: 14 }} onClick={() => onPick(`${y}-${z(m)}-${z(dd)}`)}>✓ Xong</button>
         </div>
       </div>
     </div>
