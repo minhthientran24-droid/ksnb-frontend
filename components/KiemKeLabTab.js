@@ -256,6 +256,7 @@ export default function KiemKeLabTab() {
                         <th style={{ padding: "6px 10px", textAlign: "right" }}>Tồn kho</th>
                         <th style={{ padding: "6px 10px", textAlign: "right" }}>SL kiểm kê</th>
                         <th style={{ padding: "6px 10px", textAlign: "right" }}>Chênh lệch</th>
+                        <th style={{ padding: "6px 10px", textAlign: "left" }}>Chi tiết theo date</th>
                         <th style={{ padding: "6px 10px", textAlign: "left" }}>Vị trí kiểm kê</th>
                         <th style={{ padding: "6px 10px", textAlign: "left" }}>Người kiểm</th>
                         <th style={{ padding: "6px 10px", textAlign: "left" }}>Ghi chú</th>
@@ -275,13 +276,14 @@ export default function KiemKeLabTab() {
                             <td style={{ padding: "5px 10px", textAlign: "right", fontWeight: 700, color: chenh === null ? "var(--text-400)" : chenh === 0 ? "#3E7A2A" : "var(--danger)" }}>
                               {chenh === null ? "-" : `${chenh > 0 ? "+" : ""}${fmtNum(chenh)}`}
                             </td>
+                            <td style={{ padding: "5px 10px", textAlign: "left", maxWidth: 240 }}>{(it.lo || []).some((x) => x.date) ? it.lo.map((x) => `${fmtNum(x.sl)} × ${x.date ? x.date.split("-").reverse().join("/") : "không rõ date"}`).join("; ") : ""}</td>
                             <td style={{ padding: "5px 10px", textAlign: "left", maxWidth: 200 }}>{it.vi_tri || ""}</td>
                             <td style={{ padding: "5px 10px", textAlign: "left", whiteSpace: "nowrap" }}>{it.kiem_by || ""}</td>
                             <td style={{ padding: "5px 10px", textAlign: "left", maxWidth: 260 }}>{it.ghi_chu || ""}</td>
                           </tr>
                         );
                       })}
-                      {shown.length === 0 && <tr><td colSpan={10} style={{ textAlign: "center", padding: 14, color: "var(--text-400)" }}>Không có dòng nào</td></tr>}
+                      {shown.length === 0 && <tr><td colSpan={11} style={{ textAlign: "center", padding: 14, color: "var(--text-400)" }}>Không có dòng nào</td></tr>}
                     </tbody>
                   </table>
                 </div>

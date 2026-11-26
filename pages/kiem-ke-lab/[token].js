@@ -42,6 +42,24 @@ const VI_TRI_GOI_Y = [
   "Phòng pha hóa chất", "Phòng sinh hóa huyết học", "Sảnh lầu 2",
 ];
 const fmtNum = (n) => (n === null || n === undefined ? "-" : Number(n).toLocaleString("vi-VN", { maximumFractionDigits: 3 }));
+const fmtDate = (d) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ""); return m ? `${m[3]}/${m[2]}/${m[1]}` : (d || ""); };
+// Chốt 26/11 — mỗi sản phẩm có thể có NHIỀU date (HSD): mỗi dòng = 1 cặp "số lượng + date". Gom các dòng người kiểm nhập: bỏ dòng trống hoàn toàn.
+const LOT0 = () => [{ sl: "", date: "" }];
+function collectLots(lots) {
+  const lo = [];
+  for (const x of lots) {
+    const sraw = String(x.sl).trim();
+    const d = x.date || "";
+    if (sraw === "" && !d) continue;
+    if (sraw === "") return { error: "Có dòng đã chọn date nhưng chưa nhập số lượng." };
+    const n = Number(sraw.replace(",", "."));
+    if (!Number.isFinite(n) || n < 0) return { error: "Số lượng phải là số ≥ 0." };
+    lo.push({ so_luong: n, date: d });
+  }
+  return { lo, total: Math.round(lo.reduce((a, x) => a + x.so_luong, 0) * 1000) / 1000 };
+}
+// Dòng chữ "5 × 31/12/2027 · 3 × 30/06/2028" — chỉ hiện khi sản phẩm có ít nhất 1 dòng có date
+const loText = (it) => ((it.lo || []).some((x) => x.date) ? (it.lo || []).map((x) => `${fmtNum(x.sl)} × ${x.date ? fmtDate(x.date) : "không rõ date"}`).join(" · ") : "");
 
 export default function KiemKeLabPublicPage() {
   const router = useRouter();
@@ -54,11 +72,11 @@ export default function KiemKeLabPublicPage() {
   const [searching, setSearching] = useState(false);
   const [result, setResult] = useState(null); // {items, tong, gan_dung, q} | null (chưa tìm)
   const [item, setItem] = useState(null);
-  const [qty, setQty] = useState("");
+  const [lots, setLots] = useState(LOT0); // các dòng "số lượng + date" đang nhập (chốt 26/11)
   const [note, setNote] = useState("");
   const [viTri, setViTri] = useState("");
   const [viTriOpen, setViTriOpen] = useState(false); // mở danh sách gợi ý vị trí
-  const ADD0 = { ma_hang: "", ten_hang: "", don_vi: "", so_luong: "", phan_loai: "", ghi_chu: "" };
+  const ADD0 = { ma_hang: "", ten_hang: "", don_vi: "", phan_loai: "", ghi_chu: "" };
   const [addForm, setAddForm] = useState(ADD0); // form thêm sản phẩm ngoài danh sách (vị trí dùng chung state viTri)
   const [ghiDe, setGhiDe] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -278,7 +296,7 @@ export default function KiemKeLabPublicPage() {
     getKiemKeLabPublicItem(token, id)
       .then((it) => {
         setItem(it);
-        setQty(""); // lần kiểm mới: nhập số đếm thêm, hệ thống cộng dồn vào số đã kiểm trước đó
+        setLots(LOT0()); // lần kiểm mới: nhập số đếm thêm, hệ thống cộng dồn vào số đã kiểm trước đó
         setNote("");
         setViTri("");
         setViTriOpen(false);
@@ -312,15 +330,16 @@ export default function KiemKeLabPublicPage() {
   runSearchRef.current = doSearch;
 
   async function doSave() {
-    const raw = qty.trim().replace(",", ".");
-    const n = Number(raw);
-    if (raw === "" || !Number.isFinite(n) || n < 0) { setErr("Nhập số lượng kiểm kê hợp lệ (số ≥ 0)."); return; }
+    const col = collectLots(lots);
+    if (col.error) { setErr(col.error); return; }
+    if (!col.lo.length) { setErr("Nhập số lượng kiểm kê hợp lệ (số ≥ 0)."); return; }
+    const n = col.total;
     setSaving(true);
     setErr("");
     try {
-      const r = await saveKiemKeLabPublicItem(token, item.id, n, note, ghiDe, viTri);
+      const r = await saveKiemKeLabPublicItem(token, item.id, col.lo, note, ghiDe, viTri);
       setPhieu(r.phieu);
-      setToast(`✅ Đã lưu: ${item.ten_hang || item.ma_hang} — ${item.da_kiem && !ghiDe ? `+${fmtNum(n)}, tổng đã kiểm ${fmtNum(r.item.sl_kiem)}` : fmtNum(r.item.sl_kiem)} ${item.don_vi || ""}`);
+      setToast(`✅ Đã lưu: ${item.ten_hang || item.ma_hang} — ${item.da_kiem && !ghiDe ? `+${fmtNum(n)}, tổng đã kiểm ${fmtNum(r.item.sl_kiem)}` : fmtNum(r.item.sl_kiem)} ${item.don_vi || ""}${col.lo.length > 1 || col.lo[0].date ? ` (${col.lo.length} date)` : ""}`);
       setItem(null);
       setResult(null);
       setQ("");
@@ -332,6 +351,44 @@ export default function KiemKeLabPublicPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  // Ô nhập "Số lượng + Date": mặc định 1 dòng; bấm "+" để thêm dòng cho date khác (cùng 1 mã sản phẩm có thể có nhiều date)
+  function renderLots(onEnter) {
+    const upd = (i, patch) => setLots((ls) => ls.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+    const col = collectLots(lots);
+    return (
+      <>
+        <div style={{ display: "grid", gridTemplateColumns: lots.length > 1 ? "1fr 1fr 40px" : "1fr 1fr", gap: 8, marginBottom: 4, fontSize: 12.5, fontWeight: 700, color: "#667085" }}>
+          <span>Số lượng</span><span>Date (HSD)</span>{lots.length > 1 ? <span /> : null}
+        </div>
+        {lots.map((x, i) => (
+          <div key={i} style={{ display: "grid", gridTemplateColumns: lots.length > 1 ? "1fr 1fr 40px" : "1fr 1fr", gap: 8, marginBottom: 8, alignItems: "center" }}>
+            <input
+              ref={i === 0 ? qtyRef : undefined} value={x.sl} onChange={(e) => upd(i, { sl: e.target.value })} disabled={done}
+              onKeyDown={(e) => { if (e.key === "Enter" && onEnter && !done) onEnter(); }}
+              inputMode="decimal" placeholder="Số lượng" autoComplete="off"
+              style={{ ...inputStyle, minWidth: 0, fontSize: 20, fontWeight: 700, textAlign: "center", padding: "10px 6px" }}
+            />
+            <input
+              type="date" value={x.date} onChange={(e) => upd(i, { date: e.target.value })} disabled={done} aria-label="Date (hạn sử dụng)"
+              style={{ ...inputStyle, minWidth: 0, fontSize: 16, padding: "10px 6px", height: 48 }}
+            />
+            {lots.length > 1 ? (
+              <button type="button" disabled={done} onClick={() => setLots((ls) => ls.filter((_, j) => j !== i))} aria-label="Bỏ dòng này"
+                style={{ height: 40, width: 40, border: "1.5px solid #F0C4C0", borderRadius: 10, background: "#fff", color: "#C0392B", fontSize: 16, cursor: "pointer", padding: 0 }}>✕</button>
+            ) : null}
+          </div>
+        ))}
+        <button
+          type="button" disabled={done} onClick={() => setLots((ls) => [...ls, { sl: "", date: "" }])}
+          style={{ width: "100%", padding: "11px 10px", border: "1.5px dashed #1F6FD6", borderRadius: 10, background: "#F4F8FE", color: "#1F6FD6", fontSize: 15, fontWeight: 700, cursor: "pointer" }}
+        >＋ Thêm số lượng / date khác</button>
+        {!col.error && col.lo.length > 1 && (
+          <div style={{ marginTop: 8, fontSize: 14, fontWeight: 700, color: "#16365C" }}>Tổng {col.lo.length} dòng: {fmtNum(col.total)}{item?.don_vi && view === "detail" ? ` ${item.don_vi}` : ""}</div>
+        )}
+      </>
+    );
   }
 
   function renderViTri() {
@@ -374,6 +431,7 @@ export default function KiemKeLabPublicPage() {
     setErr("");
     setToast("");
     setAddForm(ADD0);
+    setLots(LOT0());
     setViTri("");
     setViTriOpen(false);
     setResult(null);
@@ -382,14 +440,14 @@ export default function KiemKeLabPublicPage() {
 
   async function doAdd() {
     const f = addForm;
-    const raw = f.so_luong.trim().replace(",", ".");
-    const n = raw === "" ? null : Number(raw);
-    if (n !== null && (!Number.isFinite(n) || n < 0)) { setErr("Số lượng phải là số ≥ 0."); return; }
+    const col = collectLots(lots);
+    if (col.error) { setErr(col.error); return; }
+    const n = col.lo.length ? col.total : null;
     if (![f.ma_hang, f.ten_hang, f.don_vi, f.phan_loai, f.ghi_chu, viTri].some((x) => x.trim()) && n === null) { setErr("Nhập ít nhất 1 thông tin để lưu."); return; }
     setSaving(true);
     setErr("");
     try {
-      const r = await themKiemKeLabNgoaiDs(token, { ma_hang: f.ma_hang, ten_hang: f.ten_hang, don_vi: f.don_vi, so_luong: n, phan_loai: f.phan_loai, vi_tri: viTri, ghi_chu: f.ghi_chu });
+      const r = await themKiemKeLabNgoaiDs(token, { ma_hang: f.ma_hang, ten_hang: f.ten_hang, don_vi: f.don_vi, so_luong: n, lo: col.lo, phan_loai: f.phan_loai, vi_tri: viTri, ghi_chu: f.ghi_chu });
       setPhieu(r.phieu);
       setToast(`✅ Đã thêm ngoài danh sách: ${r.item.ten_hang || r.item.ma_hang || "(sản phẩm)"}${n !== null ? ` — ${fmtNum(n)} ${r.item.don_vi || ""}` : ""}`);
       setView("search");
@@ -557,6 +615,7 @@ export default function KiemKeLabPublicPage() {
                         <div style={{ minWidth: 0, flex: 1, cursor: done ? "default" : "pointer" }} onClick={() => { if (!done) openItem(it.id); }}>
                           <div style={{ fontSize: 12, color: "#667085" }}>{it.ma_hang}{it.da_kiem ? ` · ${fmtTime(it.kiem_at)}` : ""}{it.da_kiem && it.kiem_by ? ` · ${it.kiem_by}` : ""}{it.ngoai_ds ? " · Ngoài danh sách" : ""}</div>
                           <div style={{ fontSize: 14, fontWeight: 600, color: "#16365C" }}>{it.ten_hang || (it.ngoai_ds ? "(chưa nhập tên)" : "(không có tên)")}</div>
+                          {loText(it) && <div style={{ fontSize: 12, color: "#3E5C2A", marginTop: 2, wordBreak: "break-word" }}>📅 {loText(it)}</div>}
                           {it.vi_tri && <div style={{ fontSize: 12, color: "#1F4E79", marginTop: 2, wordBreak: "break-word" }}>📍 {it.vi_tri}</div>}
                           {it.ghi_chu && <div style={{ fontSize: 12, color: "#8A5A00", marginTop: 2, wordBreak: "break-word" }}>📝 {it.ghi_chu}</div>}
                         </div>
@@ -592,16 +651,10 @@ export default function KiemKeLabPublicPage() {
                 <input value={addForm.ma_hang} onChange={(e) => setAddForm({ ...addForm, ma_hang: e.target.value })} maxLength={100} autoComplete="off" autoCapitalize="none" style={{ ...inputStyle, marginBottom: 12 }} />
                 <label style={lbl}>Tên sản phẩm</label>
                 <input value={addForm.ten_hang} onChange={(e) => setAddForm({ ...addForm, ten_hang: e.target.value })} maxLength={300} autoComplete="off" style={{ ...inputStyle, marginBottom: 12 }} />
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-                  <div>
-                    <label style={lbl}>Đơn vị tính</label>
-                    <input value={addForm.don_vi} onChange={(e) => setAddForm({ ...addForm, don_vi: e.target.value })} maxLength={50} autoComplete="off" style={inputStyle} />
-                  </div>
-                  <div>
-                    <label style={lbl}>Số lượng</label>
-                    <input value={addForm.so_luong} onChange={(e) => setAddForm({ ...addForm, so_luong: e.target.value })} inputMode="decimal" autoComplete="off" style={{ ...inputStyle, fontWeight: 700, textAlign: "center" }} />
-                  </div>
-                </div>
+                <label style={lbl}>Đơn vị tính</label>
+                <input value={addForm.don_vi} onChange={(e) => setAddForm({ ...addForm, don_vi: e.target.value })} maxLength={50} autoComplete="off" style={{ ...inputStyle, marginBottom: 12 }} />
+                <label style={lbl}>Số lượng &amp; Date</label>
+                <div style={{ marginBottom: 14 }}>{renderLots()}</div>
                 <label style={lbl}>Phân loại hàng</label>
                 <input value={addForm.phan_loai} onChange={(e) => setAddForm({ ...addForm, phan_loai: e.target.value })} maxLength={100} autoComplete="off" style={{ ...inputStyle, marginBottom: 12 }} />
                 {renderViTri()}
@@ -631,6 +684,7 @@ export default function KiemKeLabPublicPage() {
                   <div style={{ marginBottom: 12, padding: "10px 12px", background: "#FFF4D6", border: "1px solid #F0D58A", borderRadius: 10, color: "#6B4700" }}>
                     <div style={{ fontSize: 13 }}>Đã kiểm trước đó</div>
                     <div style={{ fontSize: 22, fontWeight: 800 }}>{fmtNum(item.sl_kiem)} <span style={{ fontSize: 13, fontWeight: 600 }}>{item.don_vi}</span></div>
+                    {loText(item) && <div style={{ fontSize: 13, marginTop: 2 }}>📅 {loText(item)}</div>}
                     {item.kiem_by && <div style={{ fontSize: 13, marginTop: 2 }}>Người kiểm: {item.kiem_by}</div>}
                     {item.vi_tri && <div style={{ fontSize: 13, marginTop: 2 }}>📍 {item.vi_tri}</div>}
                     {item.ghi_chu && <div style={{ fontSize: 13, marginTop: 2 }}>📝 {item.ghi_chu}</div>}
@@ -638,21 +692,17 @@ export default function KiemKeLabPublicPage() {
                   </div>
                 )}
                 {renderViTri()}
-                <label style={lbl}>{item.da_kiem && !ghiDe ? "Số lượng kiểm thêm lần này" : "Số lượng kiểm kê"}{item.don_vi ? ` (${item.don_vi})` : ""}</label>
-                <input
-                  ref={qtyRef} value={qty} onChange={(e) => setQty(e.target.value)} disabled={done}
-                  onKeyDown={(e) => { if (e.key === "Enter" && !done) doSave(); }}
-                  inputMode="decimal" placeholder="Nhập số lượng đếm được" autoComplete="off"
-                  style={{ ...inputStyle, fontSize: 22, fontWeight: 700, textAlign: "center" }}
-                />
+                <label style={lbl}>{item.da_kiem && !ghiDe ? "Số lượng kiểm thêm lần này" : "Số lượng kiểm kê"}{item.don_vi ? ` (${item.don_vi})` : ""} <span style={{ fontWeight: 500, color: "#667085" }}>và date (HSD)</span></label>
+                {renderLots(doSave)}
                 <label style={{ ...lbl, marginTop: 14 }}>Ghi chú (nếu có)</label>
                 <textarea
                   value={note} onChange={(e) => setNote(e.target.value)} disabled={done} rows={3} maxLength={1000}
                   placeholder="VD: hộp móp, hết hạn, thiếu nắp..." style={{ ...inputStyle, fontSize: 15, resize: "vertical", fontFamily: "inherit" }}
                 />
                 {item.da_kiem && !done && (() => {
-                  const n = Number(qty.trim().replace(",", "."));
-                  const ok = qty.trim() !== "" && Number.isFinite(n) && n >= 0;
+                  const col = collectLots(lots);
+                  const n = col.total;
+                  const ok = !col.error && col.lo.length > 0;
                   return (
                     <>
                       <div style={{ fontSize: 14, marginTop: 8, fontWeight: 700, color: "#16365C" }}>
