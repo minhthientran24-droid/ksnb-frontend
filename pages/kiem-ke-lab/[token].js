@@ -151,7 +151,7 @@ function DateSheet({ value, onPick, onClose }) {
   const [y, setY] = useState(m0 ? +m0[1] : now.getFullYear());
   const [m, setM] = useState(m0 ? +m0[2] : now.getMonth() + 1);
   const [d, setD] = useState(m0 ? +m0[3] : now.getDate());
-  const yFrom = Math.min(now.getFullYear() - 1, y);
+  const yFrom = Math.min(2021, y); // chốt 27/11: chọn được từ năm 2021
   const years = Array.from({ length: Math.max(now.getFullYear() + 12, y) - yFrom + 1 }, (_, i) => yFrom + i);
   const dim = new Date(y, m, 0).getDate();
   const dd = Math.min(d, dim);
