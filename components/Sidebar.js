@@ -43,7 +43,7 @@ const NAV_ITEMS = [
 const ADMIN_ITEMS = [
   { href: "/tai-len-du-lieu", icon: "⬆️", label: "Tải lên dữ liệu", hideForRoles: ["editor", "editor_base", "viewer"] },
   { href: "/quan-ly-tai-khoan", icon: "🔑", label: "Quản lý tài khoản", hideForRoles: ["editor", "editor_base", "viewer"] },
-  { href: "/lab-house", icon: "🧪", label: "LAB HOUSE", hideForRoles: ["admin", "editor", "editor_base", "viewer"] }, // chốt 18/11: đổi tên từ "Giám sát GPS"; Giám sát GPS là tab con; chỉ super_admin
+  { href: "/lab-house", icon: "🧪", label: "LAB HOUSE", hideForRoles: ["editor_base", "viewer"] }, // chốt 18/11: đổi tên từ "Giám sát GPS"; Giám sát GPS là tab con; chốt 27/11: mở cho admin + editor
   { href: "/nhan-hang-lab", icon: "📦", label: "Nhận hàng Long Châu LAB", hideForRoles: ["admin", "editor", "editor_base", "viewer"] }, // chốt 18/11: user loại LAB luôn thấy; admin quản lý (mặc định chỉ super_admin)
   { href: "/nhat-ky-hoat-dong", icon: "📊", label: "Nhật ký hoạt động", hideForRoles: ["admin", "editor", "editor_base", "viewer"] },
 ];
